@@ -14,7 +14,7 @@ means host IO/usage failure; semantic status is in JSON (CLI exit 0).
 `op` is `run`, `analyze`, or `replay`; `source` is required. Optional `focus`
 selects Agent View (default first function); `budget` caps only Agent View text
 UTF-8 bytes, default 4096, ceiling 65536. Optional `limits` fields: `source_bytes`,
-`fuel`, `call_depth`, `output_bytes`, `allocation_bytes`, `cases`; omitted fields
+`fuel`, `call_depth`, `evaluation_depth`, `output_bytes`, `allocation_bytes`, `cases`; omitted fields
 use defaults from Language.md. Values are unsigned integers. Unknown fields are
 rejected. Limits above ceilings are clamped and reported. Optional `ghost` is a
 receipt from a failed probe; required for replay. No persistent server state.
@@ -78,6 +78,8 @@ Replay checks the current whole program, validates receipt integrity, finds the
 exact predicate/domain key and validates the input. Changed predicate/domain is
 Replay Error, never silently substituted. Function-body edits are permitted.
 Only the historical input executes, not top-level statements or the full domain.
+Replay consumes one case and respects the same execution limits (zero case
+budget returns Unknown without executing).
 Report `replay` contains `historical` unchanged, current `revision`, current
 `dependency_key`, `input`, `new_execution:true`, nullable `diagnostic`, and
 `status: Pass|Fail|Error|Unknown`. Pass is **not** Clear. Historical failures never

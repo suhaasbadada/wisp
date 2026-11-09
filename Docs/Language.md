@@ -64,7 +64,8 @@ probes can still execute after a probe fault, subject to the remaining budget.
 An interrupted top-level execution prevents every probe from executing.
 
 Default/hard ceilings: source 65,536 UTF-8 bytes, 8,192 tokens, syntax/AST depth
-64, call depth 32, fuel 100,000 expression evaluations, output 8,192 UTF-8 bytes,
+64, call depth 32, combined evaluation stack depth 128, fuel 100,000 expression
+evaluations, output 8,192 UTF-8 bytes,
 logical allocation 1,048,576 units, attempted cases 1,000. Requests may reduce
 the configurable limits but cannot raise ceilings. Syntax limits are fixed.
 Logical allocation is cumulative accounting (16 per expression, string byte

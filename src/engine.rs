@@ -25,6 +25,7 @@ pub struct Limits {
     pub source_bytes: usize,
     pub fuel: u64,
     pub call_depth: usize,
+    pub evaluation_depth: usize,
     pub output_bytes: usize,
     pub allocation_bytes: usize,
     pub cases: u64,
@@ -35,6 +36,7 @@ impl Default for Limits {
             source_bytes: 65536,
             fuel: 100000,
             call_depth: 32,
+            evaluation_depth: 128,
             output_bytes: 8192,
             allocation_bytes: 1048576,
             cases: 1000,
@@ -47,6 +49,7 @@ impl Limits {
         self.source_bytes = self.source_bytes.min(d.source_bytes);
         self.fuel = self.fuel.min(d.fuel);
         self.call_depth = self.call_depth.min(d.call_depth);
+        self.evaluation_depth = self.evaluation_depth.min(d.evaluation_depth);
         self.output_bytes = self.output_bytes.min(d.output_bytes);
         self.allocation_bytes = self.allocation_bytes.min(d.allocation_bytes);
         self.cases = self.cases.min(d.cases);
@@ -245,6 +248,7 @@ pub struct Machine<'a> {
     pub allocation: usize,
     pub output: String,
     depth: usize,
+    evaluation_depth: usize,
 }
 impl<'a> Machine<'a> {
     pub fn new(p: &'a Program, limits: &'a Limits) -> Self {
@@ -255,6 +259,7 @@ impl<'a> Machine<'a> {
             allocation: 0,
             output: String::new(),
             depth: 0,
+            evaluation_depth: 0,
         }
     }
     fn alloc(&mut self, n: usize, span: Span) -> Result<()> {
@@ -285,6 +290,15 @@ impl<'a> Machine<'a> {
         Ok(())
     }
     pub fn eval(&mut self, e: &Expr, env: &mut Env<Value>) -> Result<Value> {
+        if self.evaluation_depth >= self.limits.evaluation_depth {
+            return Err(err("Limit", "evaluation stack depth exceeded", e.span));
+        }
+        self.evaluation_depth += 1;
+        let result = self.eval_inner(e, env);
+        self.evaluation_depth -= 1;
+        result
+    }
+    fn eval_inner(&mut self, e: &Expr, env: &mut Env<Value>) -> Result<Value> {
         self.fuel += 1;
         if self.fuel > self.limits.fuel {
             return Err(err("Limit", "fuel exhausted", e.span));

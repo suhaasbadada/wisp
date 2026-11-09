@@ -275,3 +275,75 @@ fn inventory_example_executes() {
     assert_eq!(r["output"], "Inventory available:\ntrue\n");
     assert_eq!(r["probes"][0]["completed_cases"], 18);
 }
+
+#[test]
+fn combined_syntax_and_recursion_stack_is_bounded() {
+    let source = format!(
+        "fn f() -> Int {{ {} f() {} }} probe n in 1..=1 {{ f() == n }}",
+        "if true { ".repeat(25),
+        " } else { 1 }".repeat(25)
+    );
+    let r = run(&source);
+    assert_eq!(r["probes"][0]["status"], "Unknown", "{r}");
+    assert_eq!(
+        r["probes"][0]["diagnostic"]["message"],
+        "evaluation stack depth exceeded"
+    );
+}
+
+#[test]
+fn bounded_malformed_corpus_never_panics() {
+    let alphabet = [
+        "fn ", "if ", "else ", "let ", "print", "probe ", "n ", "in ", "Int", "->", "{", "}", "(",
+        ")", "..=", ";", ":", "0", "-", "true", "\"", "雪", "\\", "=", "\n",
+    ];
+    let mut state = 42u64;
+    for _ in 0..3000 {
+        let mut source = String::new();
+        for _ in 0..24 {
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            source.push_str(alphabet[(state >> 32) as usize % alphabet.len()]);
+        }
+        let r = run(&source);
+        assert!(r["status"].is_string());
+    }
+}
+
+#[test]
+fn native_cli_json_transport_matches_dispatch() {
+    use std::{
+        io::Write,
+        process::{Command, Stdio},
+    };
+    let input = json!({"op":"run","source":BROKEN}).to_string();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_wisp"))
+        .arg("--json")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
+    let result = child.wait_with_output().unwrap();
+    assert!(result.status.success());
+    let from_cli: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(from_cli, run(BROKEN));
+}
+
+#[test]
+fn replay_respects_zero_cases_and_fuel_limits() {
+    let ghost = run(BROKEN)["probes"][0]["ghost"].clone();
+    for limits in [
+        json!({"cases":0}),
+        json!({"fuel":0}),
+        json!({"evaluation_depth":0}),
+    ] {
+        let r = request(json!({"op":"replay","source":REPAIRED,"ghost":ghost,"limits":limits}));
+        assert_eq!(r["status"], "Unknown");
+        assert_eq!(r["replay"]["historical"], ghost);
+    }
+}

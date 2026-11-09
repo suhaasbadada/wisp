@@ -7,7 +7,7 @@ use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use syntax::*;
-pub const COMPILER: &str = "wisp-0.1.0-semantics-1";
+pub const COMPILER: &str = "wisp-0.1.0-semantics-2";
 fn hash(s: &str) -> String {
     format!("{:x}", Sha256::digest(s.as_bytes()))
 }
@@ -57,7 +57,7 @@ fn metadata(p: &Program, facts: &Facts, source: &str, limits: &Limits) -> Metada
         bodies.sort_by_key(|(n, _)| *n);
         let h = hash(&json!([COMPILER, limits, bodies]).to_string());
         hashes.insert(f.name.clone(), h.clone());
-        nodes.push(json!({"name":f.name,"signature":signature(f),"span":f.span,"body_span":f.body.span,"body_hash":hash(&source[f.span.start..f.span.end]),"transitive_hash":h,"dependencies":deps,"pure":!deps.iter().any(|n|facts.impure.contains(n))}));
+        nodes.push(json!({"name":f.name,"signature":signature(f),"span":f.span,"body_span":f.body.span,"body_hash":hash(&source[f.body.span.start..f.body.span.end]),"transitive_hash":h,"dependencies":deps,"pure":!deps.iter().any(|n|facts.impure.contains(n))}));
         for to in &facts.calls[&f.name] {
             edges.push(json!({"from":f.name,"to":to,"kind":"call"}));
         }
@@ -239,7 +239,12 @@ fn execute_request(mut r: Request) -> Json {
         };
         let key = dependency_key(probe, &r.source, &facts, &meta, &r.limits);
         let mut env = Env::from([(probe.var.clone(), Value::Int(input))]);
-        let (status, diagnostic) = match machine.eval(&probe.body, &mut env) {
+        let execution = if r.limits.cases == 0 {
+            Err(err("Limit", "probe case limit exceeded", probe.span))
+        } else {
+            machine.eval(&probe.body, &mut env)
+        };
+        let (status, diagnostic) = match execution {
             Ok(Value::Bool(true)) => ("Pass", None),
             Ok(Value::Bool(false)) => ("Fail", None),
             Err(d) => (
