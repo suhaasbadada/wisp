@@ -2,6 +2,7 @@ import './style.css';
 import './artifacts.css';
 import './invocation.css';
 import './context.css';
+import './editing.css';
 import snacks from '../examples/snacks.wisp?raw';
 import repaired from '../examples/snacks-repaired.wisp?raw';
 import inventory from '../examples/inventory.wisp?raw';
@@ -42,6 +43,7 @@ function homeMarkup() {
       <section class="call-panel"><div class="panel-head"><h3><span class="orange">04</span> Invoke a typed function <span class="tag">SINGLE INPUT</span></h3><button id="invoke">Invoke</button></div><div class="call-grid"><div><label for="call-target">Function <select id="call-target"><option value="bill">bill</option></select></label><label for="call-args">JSON arguments <span class="muted">Int values are decimal strings</span></label><textarea id="call-args" spellcheck="false" aria-describedby="call-hint">["9"]</textarea><p id="call-hint">An array of arguments, at most 64 KiB. Records are JSON objects. No JSON numbers, null or nested arrays. Inputs stay local and are never evaluated as source. Top-level statements/probes do not run.</p></div><div><h3>Typed return value</h3><pre id="call-result" tabindex="0">No invocation yet.</pre><p id="call-evidence" role="status" aria-live="polite">One observed execution, never a finite-domain Clear or proof. Captured function prints appear in Output above.</p></div></div></section>
       <section class="agent-panel"><div class="panel-head"><h3><span class="orange">05</span> Agent View <span class="tag">COMPILER-DERIVED</span></h3><div class="agent-controls"><label>Focus <select id="focus" aria-label="Agent View function"><option>bill</option></select></label><label>Text budget <input id="budget" type="number" min="0" max="65536" value="4096" aria-label="Agent View byte budget"> bytes</label></div></div><div class="agent-grid"><pre id="agent-text" tabindex="0">Compiler facts will appear after analysis.</pre><div><p id="agent-budget" class="mono"></p><strong>What is left out?</strong><ul id="omissions"></ul><p class="muted">Syntactic call dependencies, not a guaranteed task-relevant or complete context. The byte budget covers the text field, not this UI or JSON metadata.</p><details><summary>Inspect compiler graph / JSON</summary><pre id="graph"></pre></details></div></div></section>
       ${probeContextMarkup()}
+      ${guardedEditMarkup()}
       <p class="limit-note">Bounded execution: 64 KiB source · 100k metered fuel units · 32 calls · record depth 16 · 1,000 probe inputs · 8 KiB output. Fuel includes aggregate traversal and string/output bytes, not only expressions. Stop terminates the execution worker; Stop query terminates the independent context worker. Logical allocation accounting is not an absolute browser-memory guarantee. <a href="${base}documentation/">Full limits & protocol ↗</a></p>
     </div></section>
     <section class="wrap story"><div><div class="eyebrow">A LANGUAGE WITH RECEIPTS</div><h2>Make uncertainty<br>part of the interface.</h2></div><div class="story-cards"><article><span>01 / OBSERVED</span><h3>A ghost is an input.</h3><p>Keep a failure attached to its source revision. Replay it on new code as a new execution—not a rewritten history.</p></article><article><span>02 / COMPILER-DERIVED</span><h3>A graph is a map.</h3><p>Inspect function bodies and dependency signatures. See omissions and budget overflow. A map is not proof of complete context.</p></article><article><span>03 / STILL A HYPOTHESIS</span><h3>Earn the claims.</h3><p>No speed, token or memory superiority is claimed. No solver yet. No production-readiness promise. Just a small, working experiment.</p></article></div></section>`;
@@ -56,6 +58,18 @@ function probeContextMarkup() {
     <div class="ledger-scroll"><table><caption>Selection ledger — source slices plus two newline bytes per chunk</caption><thead><tr><th scope="col">Local ID</th><th scope="col">Disposition</th><th scope="col">Eligible</th><th scope="col">Slice + framing bytes</th><th scope="col">Included bytes</th><th scope="col">Source hash</th></tr></thead><tbody id="context-ledger"></tbody></table></div>
     <p class="context-note">Even when all eligible chunks fit, scope omissions remain. The full run key accounts for top-level statements and preceding probes that may be omitted here; extracted TEXT is not guaranteed run-equivalent. Source comments/strings remain untrusted data, never tool instructions.</p>
     <details><summary>Scope omissions, assumptions and unknowns</summary><pre id="context-scope"></pre></details><details><summary>Inspect complete context JSON (outside TEXT budget)</summary><pre id="context-json"></pre></details></section>`;
+}
+
+function guardedEditMarkup() {
+  return `<details id="edit-panel" class="edit-panel"><summary><strong>07 / Guarded function-body edit</strong> · explicit Preview / Apply, no execution</summary>
+    <p>Checked baselines only. Replace one function body using exact source/body version guards. Signatures, outside-body bytes and indexed probe text are preserved—not all human intent or behavior. Names are revision-local, not persistent IDs. No automatic repair or execution.</p>
+    <div class="edit-controls"><label>Function <select id="edit-target"><option value="bill">bill</option></select></label><button id="edit-load" disabled>Load current body</button></div>
+    <label class="replacement-label" for="edit-replacement">Explicit replacement block <span>Changing target does not rewrite this input. Outer whitespace is allowed; outer comments are rejected.</span></label><textarea id="edit-replacement" spellcheck="false" placeholder="Load a checked body, then edit it. Example: { snacks * 100 }"></textarea>
+    <div class="edit-controls"><button id="edit-preview" disabled>Preview checked edit</button><button id="edit-stop" disabled>Stop preview</button><button id="edit-apply" disabled>Apply prepared edit</button></div>
+    <p id="edit-status" role="status" aria-live="polite">No preview. Current editor is unchanged.</p><p id="edit-identity" class="mono"></p>
+    <div class="edit-diff"><div><h3>Before — exact body range</h3><pre id="edit-before"></pre></div><div><h3>After — exact inserted bytes</h3><pre id="edit-after"></pre></div></div>
+    <details><summary>Prepared candidate source — review before Apply</summary><pre id="edit-source"></pre></details><details><summary>Document-scoped diagnostics / preparation JSON</summary><pre id="edit-json"></pre></details>
+    <p>Ready means checked preparation, not probe success or proof. A type-correct body can still fault or violate requirements. Every source/target/replacement change, including edit-and-revert, invalidates Apply. Apply is consumed once, preserves historical ghosts, and triggers checking only; run acceptance tests or replay explicitly afterward.</p></details>`;
 }
 
 function docsMarkup() {
@@ -79,6 +93,9 @@ if (isDocs) {
   document.querySelector('.doc-links')?.insertAdjacentHTML('beforeend', `<a href="${base}Docs/Errors.md">Diagnostic reference ↗</a><a href="${base}agent.json">Compiler manifest ↗</a>${['0003-immutable-records', '0004-typed-function-invocation', '0005-machine-contract', '0006-probe-context-ledger'].map((name, index) => `<a href="${base}Docs/Decisions/${name}.md">ADR 000${index + 3} ↗</a>`).join('')}`);
   el('agent-docs').insertAdjacentHTML('beforeend', '<h2>Probe context / contract v1</h2><pre id="context-request-example"></pre><p>Non-executing whole-program checking; Ready is metadata, not a passing probe. Revision-local selectors are not persistent IDs. TEXT is an atomic prefix: selected whole probe, conservative records, syntactic callee definitions, each charged two newline bytes. Ledger and scope omissions are outside the UTF-8 TEXT budget. Prelude and preceding-probe dependencies can affect the run despite omitted source. No total-response/token bound, run-equivalence, relevance, minimality or completeness guarantee.</p>');
   text('context-request-example', JSON.stringify({ op: 'context', source: snacks, focus: 'probe:0', budget: 4096 }, null, 2));
+  document.querySelector('.doc-links')?.insertAdjacentHTML('beforeend', `<a href="${base}Docs/Decisions/0007-guarded-function-edits.md">ADR 0007 ↗</a>`);
+  el('agent-docs').insertAdjacentHTML('beforeend', '<h2>Guarded body preparation / edit v1</h2><p>Analyze exact source for revision and function body_hash/body_span; submit op edit with explicit focus and change:{expected_revision,expected_body_hash,replacement}. Ready is whole-program-checked preparation only, never execution or automatic application. A checked baseline is required. Exactly one parsed block with whitespace-only outer trivia is accepted; outer comments are rejected. Review edit.source and preservation before applying against unchanged inputs. Diagnostics in edit.rejected_candidate own candidate offsets; edit.cause owns replacement offsets. Neither belongs to the baseline editor. See Protocol and ADR 0007 for exact schema, precedence and limits.</p>');
+  el('human-docs').insertAdjacentHTML('beforeend', '<section class="tutorial"><h2>Preview a guarded body edit</h2><p>Open Guarded function-body edit, choose bill and Load current body. Enter <code>{ snacks * 100 }</code>, then Preview checked edit. Review before/after and candidate source: the editor and evidence have not changed. Apply consumes preparation once and updates the editor without executing. Run or Replay separately.</p><p>Any source, target or replacement edit—even changing it back—invalidates Apply. Stop preview cancels its independent worker. Signatures, outside-body bytes and indexed probe text remain fixed, not all human requirements or intent inside a replaced body. Ready can still fault or fail probes. Invalid-baseline repair, persistent IDs and automatic repair remain deferred.</p></section>');
   el('human-docs').insertAdjacentHTML('beforeend', '<section class="tutorial"><h2>See what the context leaves out</h2><p>In the playground, choose a probe and select <strong>Query context</strong>. This does not run it. The compiler selects the exact predicate, all record declarations and reachable function definitions. The ledger shows each source hash, eligibility, charged bytes and disposition.</p><p>Set the TEXT budget to zero and query again: no source fragment is selected, but the ledger still explains omissions. Raise it to fit all eligible chunks: scope omissions still remain, including top-level statements and other probes. A preceding probe or prelude can consume runtime budgets even though its source is omitted. The run dependency key accounts for that; the extracted text is not promised to reproduce the full run.</p><pre>cargo run -- context examples/snacks.wisp --probe 0 --budget 4096</pre><p>Probe indexes belong to one source revision, not persistent symbols. Source/selector/budget edits make the previous query historical. Stop query cancels its independent worker and accepts no new context. The text budget excludes this ledger/metadata, is measured in UTF-8 bytes rather than tokens, and does not imply absolute memory bounds or a minimal/relevant/complete context. Comments and strings remain untrusted data, not instructions.</p></section>');
   el('human-docs').insertAdjacentHTML('beforeend', `<section class="tutorial"><h2>Errors an agent can read</h2><p>Diagnostics now include stable codes such as <code>E_DIV_ZERO</code> and <code>E_LIMIT_FUEL</code>, alongside kind, human message, UTF-8 span and optional input path. Codes describe what happened—not the repair you intended. Unknown is incomplete work, not success. Check the enclosing report/probe/replay status; not every status can be inferred from the diagnostic kind.</p><p><code>cargo run -- capabilities</code> and <a href="${base}agent.json">agent.json</a> return the same compiler-owned catalog. The manifest lists only built features, permissions and exact logical limits, not planned features or absolute memory/security guarantees. See <a href="${base}Docs/Errors.md">Errors.md</a> for code meanings and compatibility rules.</p></section>`);
   text('tutorial-source', snacks);
@@ -110,10 +127,16 @@ cargo run -- archive examples/snacks.wisp --out snacks.wisp-ghost.json</pre><p><
 interface Diagnostic { code?: string; kind: string; message: string; span: { start: number; end: number }; path?: string }
 interface Ghost { revision: string; predicate_key: string; dependency_key: string; input: string; witness_id: string }
 interface Limits { source_bytes: number; fuel: number; call_depth: number; evaluation_depth: number; output_bytes: number; allocation_bytes: number; cases: number }
+interface ByteSpan { start: number; end: number }
+interface FunctionFact { name: string; signature?: string; body_hash?: string; body_span?: ByteSpan }
+interface CheckedFunction extends FunctionFact { body_hash: string; body_span: ByteSpan }
+interface PreparedBody { version: number; state: string; target: string; base_revision: string; candidate_revision: string; base_body_hash: string; candidate_body_hash: string; base_body_span: ByteSpan; candidate_body_span: ByteSpan; insertion_range: ByteSpan; source: string; preservation: { checked: boolean; prefix: boolean; suffix: boolean; signature: boolean; records: boolean; other_functions: boolean; top_level_statements: boolean; probes: { index: number; predicate_key: string; text_preserved: boolean; domain_preserved: boolean }[] } }
+interface EditResponse { compiler: string; revision: string; status: string; new_execution?: boolean; diagnostics: Diagnostic[]; edit?: Partial<PreparedBody> & { cause?: unknown; rejected_candidate?: unknown } }
+interface EditSnapshot { source: string; sourceGeneration: number; inputGeneration: number; target: string; replacement: string; compiler: string; revision: string; body: CheckedFunction; limits: Limits; config: string }
 interface ProbeContext { version: number; query_key: string; selector: string; selected_probe: { index: number; variable: string; domain: { start: string; end: string }; predicate_key: string; dependency_key: string }; text: string; budget_bytes: number; used_bytes: number; required_bytes: number; overflow: boolean; provenance: string; budget_scope: string; identity_scope: string; ledger: { id: string; disposition: string; eligible: boolean; chunk_bytes: number; included_bytes: number; source_hash: string }[]; scope_omissions: unknown[]; assumptions: string[]; unknowns: string[]; observations: unknown[]; proofs: unknown[] }
 interface Artifact { format: 'wisp-ghost'; version: 1; compiler: string; source: string; limits: Limits; ghost: Ghost }
 interface Probe { status: string; completed_cases: number; domain: { start: string; end: string }; failing_input: string | null; dependency_key: string; predicate_key: string; ghost: Ghost | null; claim: string; diagnostic: Diagnostic | null }
-interface Report { revision: string; compiler: string; status: string; output: string; diagnostics: Diagnostic[]; probes: Probe[]; probe_metadata?: { predicate_key: string; dependency_key: string }[]; limits: Limits; graph: { functions: { name: string; signature?: string }[] }; new_execution?: boolean; context?: ProbeContext; invocation?: { target: string; new_execution: boolean; execution_key?: string }; result?: { type: string; value: unknown }; artifact?: Artifact; validation?: { status: string; phase: string; new_execution: boolean; note: string }; agent_view?: { focus: string | null; text: string; overflow: boolean; used_bytes: number; required_bytes: number; omitted: string[] }; replay?: { status: string; input: string; new_execution: boolean; diagnostic: Diagnostic | null } }
+interface Report { revision: string; compiler: string; status: string; output: string; diagnostics: Diagnostic[]; probes: Probe[]; probe_metadata?: { predicate_key: string; dependency_key: string }[]; limits: Limits; graph: { functions: FunctionFact[] }; new_execution?: boolean; context?: ProbeContext; invocation?: { target: string; new_execution: boolean; execution_key?: string }; result?: { type: string; value: unknown }; artifact?: Artifact; validation?: { status: string; phase: string; new_execution: boolean; note: string }; agent_view?: { focus: string | null; text: string; overflow: boolean; used_bytes: number; required_bytes: number; omitted: string[] }; replay?: { status: string; input: string; new_execution: boolean; diagnostic: Diagnostic | null } }
 interface Receipt { ghost: Ghost; source: string; limits: Limits; artifact?: Artifact; imported?: boolean; replay?: { revision: string; status: string } }
 
 function setupPlayground() {
@@ -124,6 +147,8 @@ function setupPlayground() {
   const invoke = el<HTMLButtonElement>('invoke'); const target = el<HTMLSelectElement>('call-target'); const args = el<HTMLTextAreaElement>('call-args');
   const contextSelector = el<HTMLSelectElement>('context-selector'); const contextBudget = el<HTMLInputElement>('context-budget');
   const contextQuery = el<HTMLButtonElement>('context-query'); const contextStop = el<HTMLButtonElement>('context-stop');
+  const editTarget = el<HTMLSelectElement>('edit-target'); const replacement = el<HTMLTextAreaElement>('edit-replacement');
+  const editLoad = el<HTMLButtonElement>('edit-load'); const editPreview = el<HTMLButtonElement>('edit-preview'); const editStop = el<HTMLButtonElement>('edit-stop'); const editApply = el<HTMLButtonElement>('edit-apply');
   let serial = 0; let analysisWorker: Worker | undefined; let runWorker: Worker | undefined;
   let analysisTimer: ReturnType<typeof setTimeout>; let runDeadline: ReturnType<typeof setTimeout>;
   let latestAnalysis: Report | undefined; let lastRun: Report | undefined; let executedSource = '';
@@ -135,6 +160,9 @@ function setupPlayground() {
   let diagnosticInput: { source: string; args: string; target: string; rendered: string; sourceOnly: boolean } | undefined;
   let contextWorker: Worker | undefined; let contextDeadline: ReturnType<typeof setTimeout>; let checkedProbeCount = 0;
   let lastContext: { report: Report; source: string; selector: string; budget: string; historical: boolean } | undefined;
+  let sourceGeneration = 0; let editGeneration = 0; let editWorker: Worker | undefined; let editDeadline: ReturnType<typeof setTimeout>;
+  let editFacts: { source: string; revision: string; compiler: string; limits: Limits; functions: CheckedFunction[] } | undefined;
+  let prepared: { body: PreparedBody; snapshot: EditSnapshot; stale: boolean } | undefined;
   const makeWorker = () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   const diagnosticMessage = (d: Diagnostic) => `${d.message}${d.code ? ` [${d.code}]` : ''}`;
   function renderDiagnostics(report: Report, submitted: string, inputContext?: { args: string; target: string }) {
@@ -155,6 +183,13 @@ function setupPlayground() {
     text('diagnostics', diagnosticInput.args === args.value && diagnosticInput.target === target.value ? diagnosticInput.rendered : 'Source unchanged; current invocation input has not been checked. Prior input-dependent diagnostics are historical.');
   }
   function renderAgent(report: Report) {
+    const priorEditTarget = editTarget.value;
+    const editFunctions = report.agent_view ? report.graph.functions.filter((fn): fn is CheckedFunction => typeof fn.body_hash === 'string' && fn.body_span !== undefined) : [];
+    editFacts = report.agent_view ? { source: source.value, revision: report.revision, compiler: report.compiler, limits: report.limits, functions: editFunctions } : undefined;
+    editTarget.replaceChildren(...editFunctions.map(fn => new Option(fn.signature ?? fn.name, fn.name)));
+    if (editFunctions.some(fn => fn.name === priorEditTarget)) editTarget.value = priorEditTarget;
+    if (!editFunctions.length) editTarget.add(new Option('No checked functions', ''));
+    updateEditControls();
     if (report.probe_metadata !== undefined || !report.agent_view) {
       const selectedProbe = contextSelector.value;
       const specs = report.probe_metadata ?? []; checkedProbeCount = specs.length;
@@ -213,6 +248,89 @@ function setupPlayground() {
       const privacy = document.createElement('p'); privacy.className = 'artifact-warning'; privacy.textContent = 'Download contains the entire historical source and execution limits. Review before sharing.'; card.append(privacy);
       const oldSource = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Historical source / receipt'; const pre = document.createElement('pre'); pre.textContent = `${receipt.source}\n\n${JSON.stringify(receipt.ghost, null, 2)}`; oldSource.append(summary, pre); card.append(oldSource); container.append(card);
     }
+  }
+  function currentEditFunction() {
+    return editFacts?.source === source.value ? editFacts.functions.find(fn => fn.name === editTarget.value) : undefined;
+  }
+  function snapshotCurrent(snapshot: EditSnapshot) {
+    return snapshot.sourceGeneration === sourceGeneration && snapshot.inputGeneration === editGeneration && snapshot.source === source.value && snapshot.target === editTarget.value && snapshot.replacement === replacement.value && editFacts?.source === source.value && editFacts.revision === snapshot.revision && editFacts.compiler === snapshot.compiler && JSON.stringify(editFacts.limits) === snapshot.config;
+  }
+  function updateEditControls() {
+    const usable = Boolean(currentEditFunction());
+    editLoad.disabled = Boolean(editWorker) || !usable;
+    editPreview.disabled = Boolean(editWorker) || !usable || !replacement.value;
+    editStop.disabled = !editWorker;
+    editApply.disabled = Boolean(editWorker) || !prepared || prepared.stale || !snapshotCurrent(prepared.snapshot);
+  }
+  function stopEdit(reason: string) {
+    if (!editWorker) return;
+    editWorker.terminate(); editWorker = undefined; clearTimeout(editDeadline); prepared = undefined;
+    updateEditControls(); text('edit-status', `Unknown — ${reason}. No prepared edit accepted; editor unchanged.`);
+  }
+  function invalidateEdit(reason: string) {
+    editGeneration++;
+    const pending = Boolean(editWorker);
+    if (editWorker) stopEdit(`${reason}; preview cancelled`);
+    if (prepared) { prepared.stale = true; text('edit-status', `Stale preview — ${reason}. Preview again; editor unchanged by this tool.`); }
+    else if (!pending) text('edit-status', `Edit inputs changed — ${reason}. No current prepared edit; editor unchanged by this tool.`);
+    updateEditControls();
+  }
+  function bytesAt(value: string, span: ByteSpan) {
+    const bytes = new TextEncoder().encode(value);
+    if (!Number.isInteger(span.start) || !Number.isInteger(span.end) || span.start < 0 || span.end < span.start || span.end > bytes.length) throw new Error('Invalid compiler byte span');
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes.subarray(span.start, span.end));
+  }
+  function validPrepared(body: Partial<PreparedBody> | undefined, snapshot: EditSnapshot): body is PreparedBody {
+    if (!body || body.version !== 1 || body.state !== 'prepared' || body.target !== snapshot.target || body.base_revision !== snapshot.revision || body.base_body_hash !== snapshot.body.body_hash || typeof body.source !== 'string' || !/^[0-9a-f]{64}$/.test(body.candidate_revision ?? '') || !/^[0-9a-f]{64}$/.test(body.candidate_body_hash ?? '')) return false;
+    const audit = body.preservation;
+    if (!audit?.checked || !audit.prefix || !audit.suffix || !audit.signature || !audit.records || !audit.other_functions || !audit.top_level_statements || !Array.isArray(audit.probes) || audit.probes.some(probe => !probe.text_preserved || !probe.domain_preserved)) return false;
+    if (!body.base_body_span || !body.candidate_body_span || !body.insertion_range) return false;
+    if (body.base_body_span.start !== snapshot.body.body_span.start || body.base_body_span.end !== snapshot.body.body_span.end) return false;
+    const baseBytes = new TextEncoder().encode(snapshot.source); const nextBytes = new TextEncoder().encode(body.source);
+    const range = body.insertion_range; const parsed = body.candidate_body_span;
+    const same = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((value, index) => value === b[index]);
+    try {
+      bytesAt(body.source, range); bytesAt(body.source, parsed);
+      if (nextBytes.length > snapshot.limits.source_bytes || parsed.start < range.start || parsed.end > range.end) return false;
+      if (!same(baseBytes.subarray(0, snapshot.body.body_span.start), nextBytes.subarray(0, range.start))) return false;
+      if (!same(baseBytes.subarray(snapshot.body.body_span.end), nextBytes.subarray(range.end))) return false;
+      return bytesAt(body.source, range) === snapshot.replacement;
+    } catch { return false; }
+  }
+  function previewEdit() {
+    if (editWorker) stopEdit('new preview superseded prior request');
+    const fn = currentEditFunction(); const facts = editFacts;
+    if (!fn || !facts) { text('edit-status', 'No current checked baseline/function. Check source first.'); return; }
+    prepared = undefined;
+    for (const name of ['edit-before', 'edit-after', 'edit-source', 'edit-json', 'edit-identity']) text(name, '');
+    if (new TextEncoder().encode(replacement.value).length > 65536) { updateEditControls(); text('edit-status', 'Unknown — replacement exceeds 64 KiB host limit. No edit accepted.'); return; }
+    const snapshot: EditSnapshot = { source: source.value, sourceGeneration, inputGeneration: editGeneration, target: fn.name, replacement: replacement.value, compiler: facts.compiler, revision: facts.revision, body: fn, limits: facts.limits, config: JSON.stringify(facts.limits) };
+    const id = ++serial; const worker = makeWorker(); editWorker = worker; updateEditControls();
+    text('edit-status', 'Preparing guarded candidate in Rust. No source change or execution.');
+    editDeadline = setTimeout(() => stopEdit('preview deadline; worker terminated'), 5000);
+    const finish = () => { clearTimeout(editDeadline); worker.terminate(); editWorker = undefined; updateEditControls(); };
+    worker.onerror = () => { if (editWorker !== worker) return; finish(); text('edit-status', 'Error — preview worker failed. No edit accepted; editor unchanged.'); };
+    worker.onmessage = (event: MessageEvent<{ id: number; report?: EditResponse; error?: string }>) => {
+      if (editWorker !== worker || event.data.id !== id) return;
+      finish();
+      if (!snapshotCurrent(snapshot)) { text('edit-status', 'Stale preview reply discarded. No edit accepted; editor unchanged.'); return; }
+      const report = event.data.report;
+      text('edit-json', JSON.stringify(report ?? { error: event.data.error }, null, 2));
+      if (report?.status !== 'Ready' || report.new_execution !== false) { text('edit-status', `${report?.status ?? 'Error'} — preparation not accepted; editor unchanged. ${report?.diagnostics.map(diagnosticMessage).join('; ') || event.data.error || ''} Document-tagged causes remain in the preparation JSON.`); return; }
+      if (report.compiler !== snapshot.compiler || report.revision !== snapshot.revision || !validPrepared(report.edit, snapshot)) { text('edit-status', 'Error — invalid preparation response/guards. No edit accepted; editor unchanged.'); return; }
+      prepared = { body: report.edit, snapshot, stale: false }; updateEditControls();
+      text('edit-before', bytesAt(snapshot.source, snapshot.body.body_span)); text('edit-after', snapshot.replacement); text('edit-source', report.edit.source);
+      text('edit-identity', `${snapshot.target} · base ${report.edit.base_revision.slice(0, 12)} → candidate ${report.edit.candidate_revision.slice(0, 12)} · body ${report.edit.candidate_body_hash.slice(0, 12)} · ${report.edit.preservation.probes.length} indexed probe specifications retained`);
+      text('edit-status', 'Prepared preview — baseline/candidate checked only. No source changed, execution or probe result. Review before Apply.');
+    };
+    worker.postMessage({ id, request: { op: 'edit', source: snapshot.source, focus: snapshot.target, limits: snapshot.limits, change: { expected_revision: snapshot.revision, expected_body_hash: fn.body_hash, replacement: snapshot.replacement } } });
+  }
+  function applyEdit() {
+    const candidate = prepared;
+    if (!candidate || candidate.stale || editWorker || !snapshotCurrent(candidate.snapshot) || !validPrepared(candidate.body, candidate.snapshot)) { editApply.disabled = true; text('edit-status', 'No current prepared edit. Preview again; editor unchanged.'); return; }
+    prepared = undefined; editApply.disabled = true;
+    source.value = candidate.body.source; source.dispatchEvent(new Event('input'));
+    text('edit-status', 'Applied explicit checked candidate to editor once. No execution ran. Prior evidence keeps its original revision; Run or Replay separately.');
   }
   function renderContext() {
     if (!lastContext?.report.context) return;
@@ -420,7 +538,14 @@ function setupPlayground() {
   invoke.onclick = invokeFunction; args.oninput = inputEdited; target.onchange = inputEdited;
   contextQuery.onclick = queryContext; contextStop.onclick = () => cancelContext('stopped; worker terminated');
   contextSelector.onchange = contextInputsChanged; contextBudget.oninput = contextInputsChanged;
-  source.oninput = () => { latestAnalysis = undefined; diagnosticInput = undefined; checkedTargets.clear(); invoke.disabled = true; checkedProbeCount = 0; contextQuery.disabled = true; contextInputsChanged(); analysisWorker?.terminate(); renderEvidence(); text('filename', 'scratch.wisp · editable'); text('diagnostics', 'Checking current source…'); text('agent-text', 'Source changed. Previous compiler facts are not current.'); clearTimeout(analysisTimer); analysisTimer = setTimeout(analyze, 250); };
+  editTarget.onchange = () => invalidateEdit('function target changed'); replacement.oninput = () => invalidateEdit('replacement changed');
+  editPreview.onclick = previewEdit; editStop.onclick = () => stopEdit('stopped; worker terminated'); editApply.onclick = applyEdit;
+  editLoad.onclick = () => {
+    const fn = currentEditFunction(); if (!fn) return;
+    try { replacement.value = bytesAt(source.value, fn.body_span); replacement.dispatchEvent(new Event('input')); text('edit-status', 'Loaded exact checked body. Edit it and Preview; source editor unchanged.'); }
+    catch { text('edit-status', 'Error — compiler body range unavailable. Editor unchanged.'); }
+  };
+  source.oninput = () => { sourceGeneration++; editFacts = undefined; invalidateEdit('source changed'); latestAnalysis = undefined; diagnosticInput = undefined; checkedTargets.clear(); invoke.disabled = true; checkedProbeCount = 0; contextQuery.disabled = true; contextInputsChanged(); analysisWorker?.terminate(); renderEvidence(); text('filename', 'scratch.wisp · editable'); text('diagnostics', 'Checking current source…'); text('agent-text', 'Source changed. Previous compiler facts are not current.'); clearTimeout(analysisTimer); analysisTimer = setTimeout(analyze, 250); };
   source.onkeydown = event => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !busy) { event.preventDefault(); execute(); } };
   focus.onchange = analyze; budget.oninput = analyze;
   el<HTMLSelectElement>('example').onchange = event => { const key = (event.target as HTMLSelectElement).value; source.value = ({ snacks, repaired, inventory, invoice } as Record<string, string>)[key]; args.value = key === 'invoice' ? '[{"quantity":"9","unit_price":"100"}]' : key === 'inventory' ? '["20", "5"]' : '["9"]'; source.dispatchEvent(new Event('input')); text('filename', `${key === 'repaired' ? 'snacks-repaired' : key}.wisp · editable`); };

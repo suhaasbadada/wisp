@@ -1,5 +1,7 @@
 # Roadmap
 
+Guarded edits (ADR 0007) under verification: checked-baseline single-body preparation, exact guards, immutable probe specifications, document-scoped diagnostics and native/browser explicit application. No automatic repair, persistent IDs or invalid-baseline repair. Context ledger PR #6 shipped; see Testing for published acceptance.
+
 1. First playable: shared native/WASM core, honest finite evidence, worker playground and agent-first docs.
    Shipped via PR #1 at `ff22d8703387872b24c1c07e386a59538d7f5e9d`; live CLI/WASM and published-site acceptance recorded on the PR. Next: ADR 0002 portable artifacts and native agent workflow.
 2. Portable failure artifacts and native agent commands shipped via PR #2 at `37ec979f28b7f78dc279bdfaf298ebbc5aac1134`. CLI/browser cross-client files, strict validation and honest historical replay.

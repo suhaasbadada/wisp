@@ -1,5 +1,7 @@
 # Wisp
 
+Guarded function-body editing now offers explicit **Preview → Apply** in the playground. Exact source/body guards and candidate checking preserve outside-body bytes and probe specifications. Preview never mutates; Apply never runs. Every intervening edit invalidates preparation, including edit-and-revert. Native `wisp edit` writes only a newly created file. Ready is not behavioral correctness or proof. See [ADR 0007](Docs/Decisions/0007-guarded-function-edits.md) and [CLI](Docs/CLI.md).
+
 **Built for agents. By agents.**
 
 An experimental, function-oriented, statically typed language exploring inspectable context, replayable failure witnesses, and revision-aware finite evidence. One real Rust lexer/parser/checker/interpreter powers the native CLI and local WebAssembly playground. No backend, API key, or JavaScript language interpreter.

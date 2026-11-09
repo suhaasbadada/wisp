@@ -1,5 +1,11 @@
 # Verification
 
+## Guarded edit verification
+
+Core/native verification passed 99 Rust tests, fmt, strict Clippy and WASM build. Integration verification is in progress. Frozen semantics-5 artifact, invocation identities and complete context report remain unchanged. Discovery advertises ten operations, fifty codes and five examples. Tests cover document provenance, exact preservation, stale guards, injection, limits and exclusive exact-byte output. Independent review and exact-head CI remain pending gates.
+
+PR #6 published acceptance: merge `a3bd4515a8ae3ab2fb1ed3ba55daa408e97ae4f1` passed Checks `42660381988` and Pages `42660382108`. Live context reconciled 137 UTF-8 bytes, retained scope omissions with all candidates fitting, and returned empty TEXT/explicit overflow at zero budget. Historical badges and independent Stop preserved FAIL/output900/ghost9. Agent-default/Human docs and manifest matched context v1. [Acceptance](https://github.com/suhaasbadada/wisp/pull/6#issuecomment-6746556073).
+
 Run commands in `AGENTS.md`. CI must check Rust fmt/clippy/tests, WASM build, TypeScript, static build, native/WASM agreement and browser smoke. Deployment and functional acceptance are separate from CI.
 
 Adversarial coverage must include arithmetic overflow/division, recursion/fuel, nesting/source size, malformed and unsupported syntax, output/allocation limits, transitive impurity, empty/range limits, exact finite case semantics, stale ghosts, unrelated vs transitive dependency changes, Stop/error UI, fresh default Agent docs and safe text rendering. Never treat a compile-only WASM build as interface verification.
