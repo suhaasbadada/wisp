@@ -26,6 +26,7 @@ macro_rules! codes {
 codes! {
     RequestInvalid => ("E_REQUEST_INVALID", "Request", "Invalid request schema, limits, or operation-specific fields."),
     OperationUnknown => ("E_OPERATION_UNKNOWN", "Request", "Unsupported dispatch operation."),
+    ContextSelector => ("E_CONTEXT_SELECTOR", "Request", "Invalid canonical probe selector or selected probe does not exist."),
     TransportLimit => ("E_TRANSPORT_LIMIT", "Request", "Raw request exceeds the fixed transport byte ceiling."),
     Syntax => ("E_SYNTAX", "Syntax", "Invalid language token, literal or grammar."),
     NameUnknown => ("E_NAME_UNKNOWN", "Type", "Unknown variable, function, record or declared type."),

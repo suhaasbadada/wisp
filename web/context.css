@@ -1,0 +1,18 @@
+.context-panel { margin-top: 18px; background: #f9faf3; border: 1px solid #bcc7b8; border-radius: 4px; overflow: hidden; }
+.context-panel .panel-head { flex-wrap: wrap; }
+.context-panel .tag { font-size: 8px; margin-left: 6px; }
+.context-panel button { font-size: 12px; }
+.context-controls { display: flex; gap: 20px; flex-wrap: wrap; padding: 16px 18px 0; font-size: 11px; }
+.context-controls input { width: 90px; padding: 7px; border: 1px solid #bcc7b8; border-radius: 3px; background: white; }
+.context-panel > p { margin: 12px 18px; font-size: 11px; overflow-wrap: anywhere; }
+.context-panel .context-note { color: var(--muted); line-height: 1.8; }
+#context-identity, #context-accounting { font-size: 10px; color: var(--orange); }
+#context-text { margin: 0; padding: 18px; min-height: 60px; max-height: 350px; overflow: auto; border-block: 1px solid var(--line); background: #edf1e6; }
+.ledger-scroll { overflow-x: auto; max-width: 100%; }
+.context-panel table { border-collapse: collapse; width: 100%; text-align: left; font: 10px/1.6 ui-monospace, monospace; }
+.context-panel caption { text-align: left; font: 11px/1.7 ui-sans-serif, sans-serif; padding: 12px 18px; }
+.context-panel th, .context-panel td { padding: 9px 14px; border-bottom: 1px solid var(--line); }
+.context-panel th { background: #edf0e5; font-weight: 600; }
+.context-panel td { overflow-wrap: anywhere; min-width: 75px; }
+.context-panel > details { padding: 10px 18px; font-size: 11px; }
+@media(max-width: 700px) { .context-controls { gap: 10px; padding-inline: 13px; } .context-panel .panel-head > div { margin-left: auto; } .context-panel .panel-head .tag { display: block; margin: 5px 0; } }

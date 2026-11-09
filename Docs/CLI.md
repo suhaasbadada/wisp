@@ -10,6 +10,7 @@ wisp capabilities                             # Ready, exit 0; no files/executio
 wisp run examples/snacks.wisp                  # Fail, exit 1
 wisp check examples/snacks.wisp                # Ready, exit 0; no execution
 wisp focus examples/snacks.wisp bill --budget 4096
+wisp context examples/snacks.wisp --probe 0 --budget 4096
 wisp call examples/invoice.wisp total --args-file item.json
 wisp archive examples/snacks.wisp --out failure.json --probe 0
 wisp inspect failure.json
@@ -34,6 +35,36 @@ optional path. See [Errors.md](Errors.md) for taxonomy and unknown-code fallback
 Native focus/archive-selection diagnostics also carry explicit codes. Host
 usage/IO failures still use stderr/exit 2 without guaranteed JSON, and legacy
 `--json` semantic statuses still exit 0.
+
+## Probe context
+
+`wisp context FILE --probe INDEX [--budget N]` emits structured compiler metadata
+on stdout, never writes files and never executes language code. `FILE` may be
+`-` for stdin; existing bounded UTF-8 source readers apply. `--probe` is required;
+flags may be in either order, once each. Missing/duplicate/unknown options and
+invalid u64 budgets are usage errors (exit 2). Index text is passed unchanged to
+the shared `probe:INDEX` validator: canonical unsigned decimal, zero-based,
+no signs/redundant zeros/overflow. Invalid or nonexistent selectors are
+`E_CONTEXT_SELECTOR` Request/Error (exit 1), never silently substituted. Whole
+program checking takes precedence over selector errors.
+
+Success is **Ready metadata, not a passing result** (exit 0), `new_execution:false`,
+empty output/probe observations and no runtime usage. Context contract v1 is
+separate from compiler semantics-5 and diagnostics/discovery v1. Existing
+function `focus`/Agent View behavior is unchanged.
+
+`context.text` contains exact full probe, all name-sorted record declarations,
+then name-sorted syntactically reachable full functions, each with two charged
+newline bytes. Budget defaults to 4096 UTF-8 bytes, clamps at 65536 (u64 input).
+Only a whole-chunk prefix is included; no partial UTF-8 or skipping large chunks
+to fit smaller later chunks. Budget zero/overflow is still Ready. The byte ledger
+lists included and omitted candidates; separate scope omissions always include
+top-level statements (even textually later), other probes, outside-closure
+functions and trivia. All-fit is not complete context; included source is not
+guaranteed run-equivalent. Metadata/signatures/types remain outside the TEXT
+budget, which is not a token/total-response cap. Source comments/strings are
+untrusted data, not tool instructions. See [Protocol.md](Protocol.md#explicit-probe-context-contract-version-1)
+for exact schema, ranges and query/predicate/run key distinctions.
 
 ## Typed calls
 

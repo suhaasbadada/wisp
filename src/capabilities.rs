@@ -17,6 +17,11 @@ pub(super) fn document() -> Json {
             "whole-program checking and metadata; no execution",
         ),
         (
+            "context",
+            vec!["focus", "budget", "limits"],
+            "whole-program checking then explicit probe source selection and byte ledger; no execution",
+        ),
+        (
             "run",
             vec!["focus", "budget", "limits"],
             "top-level statements then finite probes, shared budgets",
@@ -89,6 +94,7 @@ pub(super) fn document() -> Json {
         "capabilities":{
             "discovery_contract_version":DISCOVERY_CONTRACT_VERSION,
             "diagnostic_contract_version":DIAGNOSTIC_CONTRACT_VERSION,
+            "context_contract_version":CONTEXT_CONTRACT_VERSION,
             "operations":operations,
             "request":{
                 "required_fields":["op","source"],
@@ -103,6 +109,7 @@ pub(super) fn document() -> Json {
                 "configurable":configurable,"policy":"Omitted configurable fields default; unsigned u64 values above ceilings clamp. Requests may lower, never raise ceilings.",
                 "fixed":fixed,
                 "agent_view_text":{"default":4096,"ceiling":65536,"unit":"UTF-8 bytes","scope":"text only; metadata excluded; UTF-8 boundary truncation may omit important facts"},
+                "context_text":{"default":4096,"ceiling":65536,"unit":"UTF-8 bytes","scope":"Atomic prefix of exact source chunks plus two newlines each; metadata excluded, not a total response or token cap"},
                 "native_readers":"Source and args files: 65536 bytes; artifact/request files: 1048576 bytes. Host reader failure is stderr/exit 2, not guaranteed JSON."
             },
             "artifacts":{"format":"wisp-ghost","version":1,"compiler":COMPILER,"compatibility":"Exact compiler identity required; full effective archived limits required; no migration.","authenticated":false,"validation":"Fresh bounded full historical run must reproduce the exact first failed ghost. Reproduction is not authentication or proof of historical author/time."},
@@ -112,7 +119,8 @@ pub(super) fn document() -> Json {
             "examples":[
                 {"request":{"op":"analyze","source":"fn twice(n: Int) -> Int { n * 2 }"},"expected_status":"Ready"},
                 {"request":{"op":"run","source":"probe n in 1..=3 { n + 1 > n }"},"expected_status":"Complete"},
-                {"request":{"op":"call","source":"fn twice(n: Int) -> Int { n * 2 }","function":"twice","args":["21"]},"expected_status":"Complete","expected_result":{"type":"Int","value":"42"}}
+                {"request":{"op":"call","source":"fn twice(n: Int) -> Int { n * 2 }","function":"twice","args":["21"]},"expected_status":"Complete","expected_result":{"type":"Int","value":"42"}},
+                {"request":{"op":"context","source":"probe n in 1..=3 { n + 1 > n }","focus":"probe:0","budget":4096},"expected_status":"Ready"}
             ]
         }
     })

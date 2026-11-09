@@ -8,6 +8,7 @@ const HELP: &str = "usage: wisp FILE | wisp --json < request.json
        wisp call FILE FUNCTION [--args-file INPUT]
        wisp check FILE
        wisp focus FILE FUNCTION [--budget N]
+       wisp context FILE --probe INDEX [--budget N]
        wisp archive FILE --out ARTIFACT [--probe INDEX]
        wisp inspect ARTIFACT
        wisp replay FILE --artifact ARTIFACT
@@ -113,6 +114,21 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
             ));
         }
         ["check", path] => dispatch(json!({"op":"analyze","source":source(path)?})),
+        ["context", path, rest @ ..] => {
+            let mut probe = None;
+            let mut budget = None;
+            for pair in rest.chunks(2) {
+                match pair {
+                    ["--probe", value] if probe.is_none() => probe = Some(*value),
+                    ["--budget", value] if budget.is_none() => budget = Some(number(value)?),
+                    _ => return Err(HELP.into()),
+                }
+            }
+            let probe = probe.ok_or(HELP)?;
+            dispatch(
+                json!({"op":"context","source":source(path)?,"focus":format!("probe:{probe}"),"budget":budget}),
+            )
+        }
         ["focus", path, function] | ["focus", path, function, "--budget", _] => {
             let budget = if a.len() == 5 { number(a[4])? } else { 4096 };
             let r = dispatch(
@@ -189,7 +205,7 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
         [path]
             if !path.starts_with('-')
                 && ![
-                    "run", "call", "check", "focus", "archive", "inspect", "replay",
+                    "run", "call", "check", "focus", "context", "archive", "inspect", "replay",
                 ]
                 .contains(path) =>
         {

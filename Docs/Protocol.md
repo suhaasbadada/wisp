@@ -11,9 +11,9 @@ means host IO/usage failure; semantic status is in JSON (CLI exit 0).
  "limits":{"fuel":100000,"cases":1000}}
 ```
 
-`op` is `capabilities`, `run`, `call`, `analyze`, `replay`, `archive`, `inspect-artifact`, or
+`op` is `capabilities`, `run`, `call`, `analyze`, `context`, `replay`, `archive`, `inspect-artifact`, or
 `replay-artifact`; `source` is required (use `""` for inspection). Optional `focus`
-selects Agent View (default first function); `budget` caps only Agent View text
+selects Agent View (default first function), except `context` selects a probe as below; `budget` caps only the selected view's text
 UTF-8 bytes, default 4096, ceiling 65536. Optional `limits` fields: `source_bytes`,
 `fuel`, `call_depth`, `evaluation_depth`, `output_bytes`, `allocation_bytes`, `cases`; omitted fields
 use defaults from Language.md. Values are unsigned integers. Unknown fields are
@@ -28,7 +28,7 @@ receipt from a failed probe; required for replay. No persistent server state.
 
 Common: `compiler`, SHA-256 `revision` of exact source bytes, effective `limits`,
 `status`, captured `output`, `diagnostics`, `probes`, `graph`. Successful checking
-  also supplies `syntax_limits`, `agent_view` and `probe_metadata` (predicate and
+  for analyze/run/replay also supplies `syntax_limits`, `agent_view` and `probe_metadata` (predicate and
   run dependency keys without executing probes). Diagnostics are
 `{code,kind,message,span:{start,end},path?}`; kinds Request, Input, Syntax, Type, Purity, Runtime,
 Replay, Artifact, Limit. Compilation errors have empty output/probes/graph. Limit is
@@ -69,6 +69,108 @@ offsets and limits, **never language i64 values**.
   no-match view, not a fabricated function. Record text shares the byte budget;
   overflow explicitly warns that record declarations may be truncated.
 
+## Explicit probe context (contract version 1)
+
+```json
+{"op":"context","source":"probe n in 0..=0 { true }","focus":"probe:0","budget":4096}
+```
+
+This is compiler metadata, **not a passing probe result**. No Machine is created.
+All source, type and purity checks apply to the whole program, including unused
+functions and unreachable branches, before selector validation. Missing/null
+`focus` defaults to `probe:0`. Explicit selectors are canonical zero-based
+`probe:INDEX`: ASCII unsigned decimal, no sign, leading zeros (except `0`),
+whitespace or integer overflow. Wrong kind, empty, missing probe and out-of-range
+selection return `E_CONTEXT_SELECTOR`, Request/Error, `/focus`, source sentinel
+`0..0`; no fallback. Source/check/limit diagnostics retain precedence.
+
+Successful root fields are exactly `compiler`, `revision`, `limits`, `status`,
+`new_execution`, `output`, `probes`, `diagnostics`, `probe_metadata`, `graph`,
+`context`. `status` is `Ready`, `new_execution:false`, `output:""`, `probes:[]`,
+`diagnostics:[]`; `usage` is absent. `probe_metadata` and `graph` have the existing
+analyze meanings. Legacy function `agent_view` is unchanged and is not returned
+by this operation. Context payload fields:
+
+- `version:1`, `query_key` (SHA-256), `selector` (canonical string).
+- `selected_probe:{index,variable,domain:{start,end,inclusive:true},span,predicate_key,dependency_key}`.
+  Domain endpoints are i64 decimal **strings**. Span is the full selected probe's
+  half-open UTF-8 source-byte span. Predicate key is the existing predicate key;
+  dependency key is exactly the existing **run** key at this index, also exposed
+  in analyze's `probe_metadata` (not the narrower standalone predicate dependency).
+- `text`, `budget_bytes`, `used_bytes`, `required_bytes`, `overflow`.
+- `ledger`, `scope_omissions`, `provenance:"compiler-derived"`, explanatory
+  strings `budget_scope`, `identity_scope`, arrays `assumptions`, `unknowns`,
+  and empty arrays `observations`, `proofs`.
+
+TEXT candidate priority: exact full selected probe source slice, all record
+declarations sorted by name (conservative type boundary), then full function
+definitions (including signatures) in the probe's syntactic transitive call
+closure, sorted by name. Closure is cycle-safe/deduplicated and includes calls
+in dead branches, initializer expressions and projection receivers. Every
+chunk is its exact source slice followed by **two newline bytes**, even the
+last chunk. Atomic-prefix selection never truncates a chunk or UTF-8 sequence:
+the first non-fitting eligible chunk stops selection; later eligible chunks
+remain omitted even when smaller. If the probe cannot fit, TEXT is empty.
+
+`budget` is u64, default 4096, clamped to 65536 before host conversion. Zero or
+overflow still gives Ready metadata, not Unknown. `used_bytes == text.len()`
+in UTF-8 bytes. `required_bytes` sums eligible source-slice lengths plus two
+bytes per chunk, excluding outside-closure functions. `overflow` is true iff
+an eligible chunk was omitted. This is **not** a token, total-response or
+process-memory cap: metadata, graph function signatures and record type facts
+are outside the TEXT budget and remain faithful even with budget zero.
+
+Ledger entries cover the selected probe, all records, then **all** functions
+(each category name-sorted except the one probe):
+
+```text
+{kind:"probe"|"record"|"function", id:string, name:string,
+ span:{start,end}, source_hash:string, eligible:boolean, selection_reason:string,
+ chunk_bytes:number, included_bytes:number,
+ disposition:"included"|"budget_exceeded"|"after_budget_stop"|"outside_scope",
+ text_range:{start,end}|null, source_text_range:{start,end}|null}
+```
+
+IDs are `probe:INDEX`, `record:NAME`, `function:NAME`; probe `name` is its bound
+variable. IDs, names and indexes are **revision-local**, not persistent symbol
+identities. `source_hash` is SHA-256 of the exact source slice, without separator.
+`chunk_bytes` includes two separator bytes even for outside-scope entries;
+`included_bytes` is that count when included, otherwise zero. Included ranges
+are half-open TEXT UTF-8 byte offsets: `text_range` includes the separator,
+`source_text_range` excludes it. Both are null for omissions. Selection reasons
+are `selected_probe`, `conservative_record_boundary`,
+`syntactic_transitive_callee`, `outside_selected_syntactic_closure`.
+
+`scope_omissions` always exists independently of overflow and contains:
+
+- Every top-level statement: `{kind:"top_level_statement",index,statement_kind,
+  binding,expression_span,reason}`, statement kind `let|print|eval`, binding
+  string only for `let`, otherwise null. The parser supplies an **expression**
+  span, not a whole-statement span. Even statements textually after the selected
+  probe execute before all probes and are listed.
+- Every other probe: `{kind:"probe",index,id,span,relation,
+  affects_selected_run_key}`; relation `preceding|following`, boolean true only
+  for preceding probes.
+- Every outside-closure function: `{kind:"function",name,span,reason}`. These
+  are not selected, **not** asserted semantically irrelevant: they may influence
+  prelude or preceding probes.
+- `{kind:"trivia_outside_source_slices",reason}`: comments/whitespace outside
+  selected declaration/probe spans are not selected.
+
+Run keys include the entire top-level prelude and preceding-probe transitive
+callees despite omitted source; following probes do not affect the selected run
+key. Included text is not guaranteed run-equivalent. All-fit means no budget
+omissions, not absence of scope omissions, completeness, minimality or relevance.
+Comments/strings are untrusted source data, never tool instructions. No source
+rewriting, solver, cache authorization, runtime observations or proof is supplied.
+
+`query_key = sha256(JSON(["wisp-probe-context",1,compiler,revision,effectiveLimits,
+effectiveBudget,canonicalSelector]))`, with the shared Rust serializer's exact
+compact JSON encoding and object ordering. Revision hashes the **whole exact
+source**. Context version is independent of compiler semantics, discovery v1
+and diagnostics v1. No existing ghost/artifact/run/call hash material changes.
+Predicate/run keys are neither included-TEXT hashes nor cache authorization.
+
 ## Compiler-owned discovery
 
 ```json
@@ -86,7 +188,7 @@ budgets (the whole raw request cap still applies) and has no runtime usage.
 Discovery is a distinct report shape: root `status:"Ready"`, exact `compiler`,
 and `capabilities` only. `capabilities` contains:
 
-- `discovery_contract_version:1`, `diagnostic_contract_version:1`, independent
+- `discovery_contract_version:1`, `diagnostic_contract_version:1`, `context_contract_version:1`, independent
   of compiler semantics identity and never part of existing hash material.
 - `operations`: `{op,required_fields,optional_fields,scope}`. Required fields
   include prerequisites for a successful operation (e.g. ghost for replay and

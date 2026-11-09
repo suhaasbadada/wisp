@@ -1,5 +1,11 @@
 # Browser playground
 
+## Probe context query
+
+“Probe context” is an explicit non-executing query, separate from function Agent View, Run and Invoke. Only currently checked probe options are selectable; indexes are zero-based and revision-local. The independent worker receives source, canonical selector and clamped TEXT budget, with its own Stop query/five-second deadline. Source/selector/budget edits cancel a pending request or mark accepted metadata historical (including when input is reverted); no late response can replace current context. A new query clears the previous display before accepting a result. Execution evidence/output/ghosts are untouched.
+
+The UI displays exact compiler-selected TEXT, included/eligible/effective-budget bytes, query/source/run-key prefixes, per-item ledger and raw scope/assumption/unknown metadata. Zero budget is Ready metadata with empty TEXT and explicit atomic omissions, never a successful probe or runtime Unknown. All-candidate fit still warns about scope omissions and lack of run equivalence. Prelude, prior probes and outside-closure functions can affect full execution. The ledger/metadata are outside the UTF-8 TEXT budget; no total-response/token/absolute-memory guarantee is implied. Text/hashes prove neither authorship nor human intent. Hostile markup and delimiter-looking comments/strings render literally, not as instructions or HTML. Agent-default and Human docs include runnable context examples and ADR 0006.
+
 ## Compiler-owned machine contract
 
 The documentation's default Agent mode links `/wisp/agent.json` and displays `Docs/Errors.md`. Static build creates the manifest from the same WASM dispatcher used by workers; it lists only implemented operations/features, core permissions, exact logical limits, compatibility/uncertainty, code catalog and runnable examples. The JSON is discovery data, not executable agent instructions or a repair/proof policy. It retains the dispatcher's required empty source field for the documented capabilities request. Human mode explains stable code vs human message and enclosing outcome.

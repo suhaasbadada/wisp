@@ -3,6 +3,10 @@
 Every diagnostic has stable `code` and legacy `kind`, human `message`, half-open
 UTF-8 source `span:{start,end}`, and optional JSON Pointer `path`. An absent
 path is omitted, not null. Input data uses sentinel source span `0..0`.
+Context selector errors likewise use `0..0` and `/focus`, after whole-program
+checking (including unused/unreachable code and every probe's purity). Explicit
+invalid selectors never fall back to another probe. Context budget overflow is
+Ready metadata with a ledger, not an error or Unknown execution outcome.
 Messages are not machine identifiers; no message parsing is required.
 
 Code meanings and code-to-kind mappings are pinned and never reused. New codes
@@ -27,6 +31,7 @@ or inference about user intent.
 | --- | --- | --- |
 | E_REQUEST_INVALID | Request | Invalid request schema, limits, or operation-specific fields. |
 | E_OPERATION_UNKNOWN | Request | Unsupported dispatch operation. |
+| E_CONTEXT_SELECTOR | Request | Invalid canonical probe selector or selected probe does not exist. |
 | E_TRANSPORT_LIMIT | Request | Raw request exceeds the fixed transport byte ceiling. |
 | E_SYNTAX | Syntax | Invalid language token, literal or grammar. |
 | E_NAME_UNKNOWN | Type | Unknown variable, function, record or declared type. |

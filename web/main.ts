@@ -1,6 +1,7 @@
 import './style.css';
 import './artifacts.css';
 import './invocation.css';
+import './context.css';
 import snacks from '../examples/snacks.wisp?raw';
 import repaired from '../examples/snacks-repaired.wisp?raw';
 import inventory from '../examples/inventory.wisp?raw';
@@ -40,9 +41,21 @@ function homeMarkup() {
         <section class="result-panel"><div class="panel-head"><h3><span class="orange">02</span> Output</h3><span class="tag" id="run-status">NOT RUN</span></div><pre id="output" tabindex="0">The bureau is open. Run the program.</pre><div class="panel-head evidence-head"><h3><span class="orange">03</span> Evidence</h3><span id="revision" class="mono">No execution yet</span></div><div id="evidence"><p class="empty">A probe checks a declared finite domain. A failure leaves a replayable ghost here.</p></div></section></div>
       <section class="call-panel"><div class="panel-head"><h3><span class="orange">04</span> Invoke a typed function <span class="tag">SINGLE INPUT</span></h3><button id="invoke">Invoke</button></div><div class="call-grid"><div><label for="call-target">Function <select id="call-target"><option value="bill">bill</option></select></label><label for="call-args">JSON arguments <span class="muted">Int values are decimal strings</span></label><textarea id="call-args" spellcheck="false" aria-describedby="call-hint">["9"]</textarea><p id="call-hint">An array of arguments, at most 64 KiB. Records are JSON objects. No JSON numbers, null or nested arrays. Inputs stay local and are never evaluated as source. Top-level statements/probes do not run.</p></div><div><h3>Typed return value</h3><pre id="call-result" tabindex="0">No invocation yet.</pre><p id="call-evidence" role="status" aria-live="polite">One observed execution, never a finite-domain Clear or proof. Captured function prints appear in Output above.</p></div></div></section>
       <section class="agent-panel"><div class="panel-head"><h3><span class="orange">05</span> Agent View <span class="tag">COMPILER-DERIVED</span></h3><div class="agent-controls"><label>Focus <select id="focus" aria-label="Agent View function"><option>bill</option></select></label><label>Text budget <input id="budget" type="number" min="0" max="65536" value="4096" aria-label="Agent View byte budget"> bytes</label></div></div><div class="agent-grid"><pre id="agent-text" tabindex="0">Compiler facts will appear after analysis.</pre><div><p id="agent-budget" class="mono"></p><strong>What is left out?</strong><ul id="omissions"></ul><p class="muted">Syntactic call dependencies, not a guaranteed task-relevant or complete context. The byte budget covers the text field, not this UI or JSON metadata.</p><details><summary>Inspect compiler graph / JSON</summary><pre id="graph"></pre></details></div></div></section>
-      <p class="limit-note">Bounded execution: 64 KiB source · 100k metered fuel units · 32 calls · record depth 16 · 1,000 probe inputs · 8 KiB output. Fuel includes aggregate traversal and string/output bytes, not only expressions. Stop terminates the worker. Logical allocation accounting is not an absolute browser-memory guarantee. <a href="${base}documentation/">Full limits & protocol ↗</a></p>
+      ${probeContextMarkup()}
+      <p class="limit-note">Bounded execution: 64 KiB source · 100k metered fuel units · 32 calls · record depth 16 · 1,000 probe inputs · 8 KiB output. Fuel includes aggregate traversal and string/output bytes, not only expressions. Stop terminates the execution worker; Stop query terminates the independent context worker. Logical allocation accounting is not an absolute browser-memory guarantee. <a href="${base}documentation/">Full limits & protocol ↗</a></p>
     </div></section>
     <section class="wrap story"><div><div class="eyebrow">A LANGUAGE WITH RECEIPTS</div><h2>Make uncertainty<br>part of the interface.</h2></div><div class="story-cards"><article><span>01 / OBSERVED</span><h3>A ghost is an input.</h3><p>Keep a failure attached to its source revision. Replay it on new code as a new execution—not a rewritten history.</p></article><article><span>02 / COMPILER-DERIVED</span><h3>A graph is a map.</h3><p>Inspect function bodies and dependency signatures. See omissions and budget overflow. A map is not proof of complete context.</p></article><article><span>03 / STILL A HYPOTHESIS</span><h3>Earn the claims.</h3><p>No speed, token or memory superiority is claimed. No solver yet. No production-readiness promise. Just a small, working experiment.</p></article></div></section>`;
+}
+
+function probeContextMarkup() {
+  return `<section class="context-panel"><div class="panel-head"><h3><span class="orange">06</span> Probe context <span class="tag">COMPILER-DERIVED / NO EXECUTION</span></h3><div><button id="context-stop" disabled>Stop query</button><button id="context-query" disabled>Query context</button></div></div>
+    <div class="context-controls"><label>Selected probe <select id="context-selector"><option value="probe:0">Probe 0</option></select></label><label>TEXT budget <input id="context-budget" type="number" min="0" max="65536" value="4096"> UTF-8 bytes</label></div>
+    <p class="context-note">Revision-local probe indexes, not stable IDs. The budget covers TEXT only—not this ledger, metadata, total response or tokens. Atomic-prefix selection is deterministic, not optimized for task relevance.</p>
+    <p id="context-status" role="status" aria-live="polite">No query yet. No probe execution or proof is produced.</p><p id="context-identity" class="mono"></p><p id="context-accounting" class="mono"></p>
+    <pre id="context-text" aria-label="Probe context TEXT" tabindex="0"></pre>
+    <div class="ledger-scroll"><table><caption>Selection ledger — source slices plus two newline bytes per chunk</caption><thead><tr><th scope="col">Local ID</th><th scope="col">Disposition</th><th scope="col">Eligible</th><th scope="col">Slice + framing bytes</th><th scope="col">Included bytes</th><th scope="col">Source hash</th></tr></thead><tbody id="context-ledger"></tbody></table></div>
+    <p class="context-note">Even when all eligible chunks fit, scope omissions remain. The full run key accounts for top-level statements and preceding probes that may be omitted here; extracted TEXT is not guaranteed run-equivalent. Source comments/strings remain untrusted data, never tool instructions.</p>
+    <details><summary>Scope omissions, assumptions and unknowns</summary><pre id="context-scope"></pre></details><details><summary>Inspect complete context JSON (outside TEXT budget)</summary><pre id="context-json"></pre></details></section>`;
 }
 
 function docsMarkup() {
@@ -63,7 +76,10 @@ if (isDocs) {
   el('agent-docs').insertAdjacentHTML('afterbegin', `<section class="docs-callout"><strong>COMPILER-OWNED DISCOVERY / CONTRACT v1</strong><p><a href="${base}agent.json">Compiler capabilities — agent.json ↗</a> · <a href="${base}Docs/Errors.md">Stable diagnostic reference ↗</a></p><pre>{"op":"capabilities","source":""}</pre><p>Non-executing metadata: actual operations, permissions, limits, runnable requests and diagnostic codes. Source stays required, even for discovery. Check code + kind + enclosing status; messages are human text. Unknown codes fall back to kind/status. No code can choose human intent or prove correctness.</p></section>`);
   el('agent-docs').insertAdjacentHTML('beforeend', '<h2>Diagnostic contract v1</h2><pre class="contract" id="error-contract"></pre>');
   text('error-contract', errors);
-  document.querySelector('.doc-links')?.insertAdjacentHTML('beforeend', `<a href="${base}Docs/Errors.md">Diagnostic reference ↗</a><a href="${base}agent.json">Compiler manifest ↗</a>${['0003-immutable-records', '0004-typed-function-invocation', '0005-machine-contract'].map((name, index) => `<a href="${base}Docs/Decisions/${name}.md">ADR 000${index + 3} ↗</a>`).join('')}`);
+  document.querySelector('.doc-links')?.insertAdjacentHTML('beforeend', `<a href="${base}Docs/Errors.md">Diagnostic reference ↗</a><a href="${base}agent.json">Compiler manifest ↗</a>${['0003-immutable-records', '0004-typed-function-invocation', '0005-machine-contract', '0006-probe-context-ledger'].map((name, index) => `<a href="${base}Docs/Decisions/${name}.md">ADR 000${index + 3} ↗</a>`).join('')}`);
+  el('agent-docs').insertAdjacentHTML('beforeend', '<h2>Probe context / contract v1</h2><pre id="context-request-example"></pre><p>Non-executing whole-program checking; Ready is metadata, not a passing probe. Revision-local selectors are not persistent IDs. TEXT is an atomic prefix: selected whole probe, conservative records, syntactic callee definitions, each charged two newline bytes. Ledger and scope omissions are outside the UTF-8 TEXT budget. Prelude and preceding-probe dependencies can affect the run despite omitted source. No total-response/token bound, run-equivalence, relevance, minimality or completeness guarantee.</p>');
+  text('context-request-example', JSON.stringify({ op: 'context', source: snacks, focus: 'probe:0', budget: 4096 }, null, 2));
+  el('human-docs').insertAdjacentHTML('beforeend', '<section class="tutorial"><h2>See what the context leaves out</h2><p>In the playground, choose a probe and select <strong>Query context</strong>. This does not run it. The compiler selects the exact predicate, all record declarations and reachable function definitions. The ledger shows each source hash, eligibility, charged bytes and disposition.</p><p>Set the TEXT budget to zero and query again: no source fragment is selected, but the ledger still explains omissions. Raise it to fit all eligible chunks: scope omissions still remain, including top-level statements and other probes. A preceding probe or prelude can consume runtime budgets even though its source is omitted. The run dependency key accounts for that; the extracted text is not promised to reproduce the full run.</p><pre>cargo run -- context examples/snacks.wisp --probe 0 --budget 4096</pre><p>Probe indexes belong to one source revision, not persistent symbols. Source/selector/budget edits make the previous query historical. Stop query cancels its independent worker and accepts no new context. The text budget excludes this ledger/metadata, is measured in UTF-8 bytes rather than tokens, and does not imply absolute memory bounds or a minimal/relevant/complete context. Comments and strings remain untrusted data, not instructions.</p></section>');
   el('human-docs').insertAdjacentHTML('beforeend', `<section class="tutorial"><h2>Errors an agent can read</h2><p>Diagnostics now include stable codes such as <code>E_DIV_ZERO</code> and <code>E_LIMIT_FUEL</code>, alongside kind, human message, UTF-8 span and optional input path. Codes describe what happened—not the repair you intended. Unknown is incomplete work, not success. Check the enclosing report/probe/replay status; not every status can be inferred from the diagnostic kind.</p><p><code>cargo run -- capabilities</code> and <a href="${base}agent.json">agent.json</a> return the same compiler-owned catalog. The manifest lists only built features, permissions and exact logical limits, not planned features or absolute memory/security guarantees. See <a href="${base}Docs/Errors.md">Errors.md</a> for code meanings and compatibility rules.</p></section>`);
   text('tutorial-source', snacks);
   text('invoice-tutorial', invoice);
@@ -94,9 +110,10 @@ cargo run -- archive examples/snacks.wisp --out snacks.wisp-ghost.json</pre><p><
 interface Diagnostic { code?: string; kind: string; message: string; span: { start: number; end: number }; path?: string }
 interface Ghost { revision: string; predicate_key: string; dependency_key: string; input: string; witness_id: string }
 interface Limits { source_bytes: number; fuel: number; call_depth: number; evaluation_depth: number; output_bytes: number; allocation_bytes: number; cases: number }
+interface ProbeContext { version: number; query_key: string; selector: string; selected_probe: { index: number; variable: string; domain: { start: string; end: string }; predicate_key: string; dependency_key: string }; text: string; budget_bytes: number; used_bytes: number; required_bytes: number; overflow: boolean; provenance: string; budget_scope: string; identity_scope: string; ledger: { id: string; disposition: string; eligible: boolean; chunk_bytes: number; included_bytes: number; source_hash: string }[]; scope_omissions: unknown[]; assumptions: string[]; unknowns: string[]; observations: unknown[]; proofs: unknown[] }
 interface Artifact { format: 'wisp-ghost'; version: 1; compiler: string; source: string; limits: Limits; ghost: Ghost }
 interface Probe { status: string; completed_cases: number; domain: { start: string; end: string }; failing_input: string | null; dependency_key: string; predicate_key: string; ghost: Ghost | null; claim: string; diagnostic: Diagnostic | null }
-interface Report { revision: string; compiler: string; status: string; output: string; diagnostics: Diagnostic[]; probes: Probe[]; probe_metadata?: { predicate_key: string; dependency_key: string }[]; limits: Limits; graph: { functions: { name: string; signature?: string }[] }; invocation?: { target: string; new_execution: boolean; execution_key?: string }; result?: { type: string; value: unknown }; artifact?: Artifact; validation?: { status: string; phase: string; new_execution: boolean; note: string }; agent_view?: { focus: string | null; text: string; overflow: boolean; used_bytes: number; required_bytes: number; omitted: string[] }; replay?: { status: string; input: string; new_execution: boolean; diagnostic: Diagnostic | null } }
+interface Report { revision: string; compiler: string; status: string; output: string; diagnostics: Diagnostic[]; probes: Probe[]; probe_metadata?: { predicate_key: string; dependency_key: string }[]; limits: Limits; graph: { functions: { name: string; signature?: string }[] }; new_execution?: boolean; context?: ProbeContext; invocation?: { target: string; new_execution: boolean; execution_key?: string }; result?: { type: string; value: unknown }; artifact?: Artifact; validation?: { status: string; phase: string; new_execution: boolean; note: string }; agent_view?: { focus: string | null; text: string; overflow: boolean; used_bytes: number; required_bytes: number; omitted: string[] }; replay?: { status: string; input: string; new_execution: boolean; diagnostic: Diagnostic | null } }
 interface Receipt { ghost: Ghost; source: string; limits: Limits; artifact?: Artifact; imported?: boolean; replay?: { revision: string; status: string } }
 
 function setupPlayground() {
@@ -105,6 +122,8 @@ function setupPlayground() {
   const focus = el<HTMLSelectElement>('focus'); const budget = el<HTMLInputElement>('budget');
   const fileInput = el<HTMLInputElement>('artifact-file');
   const invoke = el<HTMLButtonElement>('invoke'); const target = el<HTMLSelectElement>('call-target'); const args = el<HTMLTextAreaElement>('call-args');
+  const contextSelector = el<HTMLSelectElement>('context-selector'); const contextBudget = el<HTMLInputElement>('context-budget');
+  const contextQuery = el<HTMLButtonElement>('context-query'); const contextStop = el<HTMLButtonElement>('context-stop');
   let serial = 0; let analysisWorker: Worker | undefined; let runWorker: Worker | undefined;
   let analysisTimer: ReturnType<typeof setTimeout>; let runDeadline: ReturnType<typeof setTimeout>;
   let latestAnalysis: Report | undefined; let lastRun: Report | undefined; let executedSource = '';
@@ -114,6 +133,8 @@ function setupPlayground() {
   let callActive = false; let lastCall: { report: Report; source: string; args: string; target: string } | undefined;
   let checkedTargets = new Set<string>();
   let diagnosticInput: { source: string; args: string; target: string; rendered: string; sourceOnly: boolean } | undefined;
+  let contextWorker: Worker | undefined; let contextDeadline: ReturnType<typeof setTimeout>; let checkedProbeCount = 0;
+  let lastContext: { report: Report; source: string; selector: string; budget: string; historical: boolean } | undefined;
   const makeWorker = () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   const diagnosticMessage = (d: Diagnostic) => `${d.message}${d.code ? ` [${d.code}]` : ''}`;
   function renderDiagnostics(report: Report, submitted: string, inputContext?: { args: string; target: string }) {
@@ -134,6 +155,15 @@ function setupPlayground() {
     text('diagnostics', diagnosticInput.args === args.value && diagnosticInput.target === target.value ? diagnosticInput.rendered : 'Source unchanged; current invocation input has not been checked. Prior input-dependent diagnostics are historical.');
   }
   function renderAgent(report: Report) {
+    if (report.probe_metadata !== undefined || !report.agent_view) {
+      const selectedProbe = contextSelector.value;
+      const specs = report.probe_metadata ?? []; checkedProbeCount = specs.length;
+      contextSelector.replaceChildren(...specs.map((spec, index) => new Option(`Probe ${index} · predicate ${spec.predicate_key.slice(0, 8)}`, `probe:${index}`)));
+      if (specs.some((_, index) => `probe:${index}` === selectedProbe)) contextSelector.value = selectedProbe;
+      if (!specs.length) contextSelector.add(new Option('No checked probes', ''));
+      contextQuery.disabled = Boolean(contextWorker) || !checkedProbeCount;
+      renderContext();
+    }
     const names = report.graph.functions.map(f => f.name); const selected = focus.value;
     checkedTargets = new Set(names);
     const previousTarget = target.value;
@@ -183,6 +213,61 @@ function setupPlayground() {
       const privacy = document.createElement('p'); privacy.className = 'artifact-warning'; privacy.textContent = 'Download contains the entire historical source and execution limits. Review before sharing.'; card.append(privacy);
       const oldSource = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Historical source / receipt'; const pre = document.createElement('pre'); pre.textContent = `${receipt.source}\n\n${JSON.stringify(receipt.ghost, null, 2)}`; oldSource.append(summary, pre); card.append(oldSource); container.append(card);
     }
+  }
+  function renderContext() {
+    if (!lastContext?.report.context) return;
+    const { report } = lastContext; const c = report.context!;
+    const historical = lastContext.historical || lastContext.source !== source.value || lastContext.selector !== contextSelector.value || lastContext.budget !== contextBudget.value;
+    text('context-status', `${historical ? 'Historical query — inputs changed' : 'Ready — submitted inputs'} · compiler-derived metadata only; no execution or probe result.`);
+    text('context-identity', `${c.selector} · source ${report.revision.slice(0, 12)} · query ${c.query_key.slice(0, 12)} · run dependency ${c.selected_probe.dependency_key.slice(0, 12)}`);
+    text('context-accounting', `${c.used_bytes} included / ${c.required_bytes} eligible UTF-8 bytes · effective budget ${c.budget_bytes} · ${c.overflow ? 'OVERFLOW — atomic chunks omitted' : 'All eligible chunks fit; scope omissions still apply'}`);
+    text('context-text', c.text);
+    el('context-ledger').replaceChildren(...c.ledger.map(entry => {
+      const row = document.createElement('tr');
+      for (const value of [entry.id, entry.disposition, String(entry.eligible), String(entry.chunk_bytes), String(entry.included_bytes), entry.source_hash.slice(0, 12)]) {
+        const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
+      }
+      return row;
+    }));
+    text('context-scope', JSON.stringify({ scope_omissions: c.scope_omissions, assumptions: c.assumptions, unknowns: c.unknowns, observations: c.observations, proofs: c.proofs, budget_scope: c.budget_scope, identity_scope: c.identity_scope }, null, 2));
+    text('context-json', JSON.stringify(report, null, 2));
+  }
+  function cancelContext(reason: string) {
+    if (!contextWorker) return;
+    contextWorker.terminate(); contextWorker = undefined; clearTimeout(contextDeadline);
+    contextQuery.disabled = !checkedProbeCount; contextStop.disabled = true;
+    text('context-status', `Unknown — ${reason}. No new context accepted; no execution occurred.`);
+  }
+  function contextInputsChanged() {
+    const pending = Boolean(contextWorker);
+    if (lastContext) lastContext.historical = true;
+    if (contextWorker) cancelContext('query inputs changed; request cancelled');
+    if (!lastContext && !pending) text('context-status', 'Query inputs changed. No checked context accepted for these inputs.');
+    renderContext();
+  }
+  function queryContext() {
+    if (contextWorker || !checkedProbeCount) return;
+    const submitted = source.value; const selector = contextSelector.value; const budgetInput = contextBudget.value;
+    const budgetBytes = Math.max(0, Math.min(65536, Number(budgetInput) || 0));
+    const id = ++serial; const worker = makeWorker(); contextWorker = worker; lastContext = undefined;
+    contextQuery.disabled = true; contextStop.disabled = false;
+    text('context-status', 'Querying compiler metadata. No execution or accepted context yet.');
+    for (const name of ['context-text', 'context-identity', 'context-accounting', 'context-scope', 'context-json']) text(name, '');
+    el('context-ledger').replaceChildren();
+    contextDeadline = setTimeout(() => cancelContext('query deadline; worker terminated'), 5000);
+    const finish = () => { clearTimeout(contextDeadline); worker.terminate(); contextWorker = undefined; contextStop.disabled = true; contextQuery.disabled = !checkedProbeCount; };
+    worker.onerror = () => { if (contextWorker !== worker) return; finish(); text('context-status', 'Error — context worker failed. No context accepted; no execution occurred.'); };
+    worker.onmessage = (event: MessageEvent<{ id: number; report?: Report; error?: string }>) => {
+      if (contextWorker !== worker || event.data.id !== id) return;
+      finish();
+      if (submitted !== source.value || selector !== contextSelector.value || budgetInput !== contextBudget.value) { text('context-status', 'Historical reply discarded — query inputs changed. No context accepted.'); return; }
+      const report = event.data.report;
+      if (report?.status !== 'Ready' || !report.context || report.context.version !== 1 || report.new_execution !== false) {
+        text('context-status', `${report?.status ?? 'Error'} — no checked context accepted. ${report?.diagnostics.map(d => `${d.kind}${d.path ? ` ${d.path}` : ` source bytes ${d.span.start}..${d.span.end}`}: ${diagnosticMessage(d)}`).join('; ') || event.data.error || 'Unexpected context response'}`); return;
+      }
+      lastContext = { report, source: submitted, selector, budget: budgetInput, historical: false }; renderContext();
+    };
+    worker.postMessage({ id, request: { op: 'context', source: submitted, focus: selector, budget: budgetBytes } });
   }
   function analyze() {
     clearTimeout(analysisTimer); analysisWorker?.terminate();
@@ -333,7 +418,9 @@ function setupPlayground() {
   }
   run.onclick = () => execute(); stop.onclick = () => cancel('Stopped: worker terminated');
   invoke.onclick = invokeFunction; args.oninput = inputEdited; target.onchange = inputEdited;
-  source.oninput = () => { latestAnalysis = undefined; diagnosticInput = undefined; checkedTargets.clear(); invoke.disabled = true; analysisWorker?.terminate(); renderEvidence(); text('filename', 'scratch.wisp · editable'); text('diagnostics', 'Checking current source…'); text('agent-text', 'Source changed. Previous compiler facts are not current.'); clearTimeout(analysisTimer); analysisTimer = setTimeout(analyze, 250); };
+  contextQuery.onclick = queryContext; contextStop.onclick = () => cancelContext('stopped; worker terminated');
+  contextSelector.onchange = contextInputsChanged; contextBudget.oninput = contextInputsChanged;
+  source.oninput = () => { latestAnalysis = undefined; diagnosticInput = undefined; checkedTargets.clear(); invoke.disabled = true; checkedProbeCount = 0; contextQuery.disabled = true; contextInputsChanged(); analysisWorker?.terminate(); renderEvidence(); text('filename', 'scratch.wisp · editable'); text('diagnostics', 'Checking current source…'); text('agent-text', 'Source changed. Previous compiler facts are not current.'); clearTimeout(analysisTimer); analysisTimer = setTimeout(analyze, 250); };
   source.onkeydown = event => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !busy) { event.preventDefault(); execute(); } };
   focus.onchange = analyze; budget.oninput = analyze;
   el<HTMLSelectElement>('example').onchange = event => { const key = (event.target as HTMLSelectElement).value; source.value = ({ snacks, repaired, inventory, invoice } as Record<string, string>)[key]; args.value = key === 'invoice' ? '[{"quantity":"9","unit_price":"100"}]' : key === 'inventory' ? '["20", "5"]' : '["9"]'; source.dispatchEvent(new Event('input')); text('filename', `${key === 'repaired' ? 'snacks-repaired' : key}.wisp · editable`); };
