@@ -4,7 +4,12 @@ Guarded function-body editing now offers explicit **Preview → Apply** in the p
 
 **Built for agents. By agents.**
 
-## Product validation, not more features
+## Product validation and direction
+
+Follow-up [maintenance study](Docs/Maintenance-study.md): both Wisp and strict
+TypeScript completed three repetitions of one dependency/stale-evidence task.
+No Wisp advantage established; missing capabilities remain an open product issue.
+Next direction: a concrete policy-change workbench, not endless benchmarks.
 
 The first small paired maintenance pilot accepted **Wisp 2/3 tasks and strict
 TypeScript/BigInt 3/3**. Wisp's refund attempt failed the exact-body-boundary rule

@@ -1,14 +1,19 @@
 # First playable scope
 
-Current priority: product-validation pilot (ADR 0008), not language expansion.
+Repeated maintenance study (ADR 0009): completed, with both arms passing three
+repetitions of one synthetic task. No language/core changes or efficiency claim.
+Next product direction is a policy-change workbench; it is planned, not shipped.
+Necessary capability upgrades remain in scope for subsequent bounded increments.
+
+Earlier product-validation pilot (ADR 0008) informed the current direction.
 Guarded edits through PR #7 are shipped and live-verified. Three paired tasks and
 an exact finite acceptance harness expose workflow friction with explicit study
 limitations; no token-cost, performance or superiority claim. No core behavior or
 permission changes. See [Evaluation](Evaluation.md).
 
-Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger through PR #6 is shipped; guarded edits are under verification.
+Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger and guarded edits are shipped.
 
-Status: first playable through explicit probe-context ledger shipped via PRs #1–#6. Guarded body preparation (ADR 0007) locally verified and independently reviewed; remote CI/deployment pending. Experimental; not production-ready. No license selected (owner decision pending).
+Status: first playable through guarded edits/initial validation shipped via PRs #1–#8. Repeated maintenance study is locally verified; its remote publication remains pending. Experimental; not production-ready. No license selected (owner decision pending).
 
 Wisp is function-oriented and statically typed. The first slice is a real Rust lexer, parser, checker and bounded interpreter, shared by the native CLI and browser WebAssembly. Its first domain is agent-generated sandboxed CLI/data transformations, later maintained business logic.
 
@@ -26,4 +31,4 @@ Not included: tagged unions, recursive records, collections, modules, mutable st
 
 Acceptance: CLI and actual WASM execute the snack example; first failure is n=9; proposed repair clears exactly 11 adjacent pairs. Faults are errors, limits Unknown, never passing. Unrelated function edits may preserve dependency keys; changed transitive bodies invalidate them. Historical witnesses survive edits and replay is a new execution. Browser Stop hard-terminates its worker. Fresh documentation visits default Agent.
 
-Passing probes do not establish intent correctness or universal properties. Novelty, adoption, context and performance benefits remain research hypotheses; Sley, Zerolang and Unison are relevant prior art. No superiority benchmarks have been measured.
+Passing probes do not establish intent correctness or universal properties. Novelty, adoption, context and performance benefits remain research hypotheses; Sley, Zerolang and Unison are relevant prior art. The small comparisons have demonstrated no superiority.

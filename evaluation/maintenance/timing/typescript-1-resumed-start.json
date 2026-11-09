@@ -1,0 +1,1 @@
+{"id": "typescript-1", "monotonic_ns": 1367056472710375, "wall_time_ns": 1794254617567088000, "scope": "Host dispatch window after transport interruption, not model inference latency", "note": "Original start preceded failed empty tool call; no final trial session or submission existed. Original boundary retained but excluded."}

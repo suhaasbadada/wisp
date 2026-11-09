@@ -1,0 +1,191 @@
+[
+  {
+    "name": "public-0",
+    "target": "reserve",
+    "args": [
+      {
+        "staged": "0",
+        "request": "4",
+        "hold_slots": "0",
+        "hold_until": "10"
+      },
+      {
+        "capacity": "1",
+        "occupied": "0",
+        "reserved": "0",
+        "pack": "4",
+        "now": "10"
+      }
+    ],
+    "expected": {
+      "type": "Decision",
+      "value": {
+        "accepted": true,
+        "added": "1",
+        "free_after": "0"
+      }
+    }
+  },
+  {
+    "name": "public-1",
+    "target": "reserve",
+    "args": [
+      {
+        "staged": "1",
+        "request": "3",
+        "hold_slots": "0",
+        "hold_until": "10"
+      },
+      {
+        "capacity": "1",
+        "occupied": "1",
+        "reserved": "0",
+        "pack": "4",
+        "now": "10"
+      }
+    ],
+    "expected": {
+      "type": "Decision",
+      "value": {
+        "accepted": true,
+        "added": "0",
+        "free_after": "0"
+      }
+    }
+  },
+  {
+    "name": "public-2",
+    "target": "reserve",
+    "args": [
+      {
+        "staged": "0",
+        "request": "1",
+        "hold_slots": "1",
+        "hold_until": "10"
+      },
+      {
+        "capacity": "2",
+        "occupied": "0",
+        "reserved": "2",
+        "pack": "4",
+        "now": "10"
+      }
+    ],
+    "expected": {
+      "type": "Decision",
+      "value": {
+        "accepted": false,
+        "added": "1",
+        "free_after": "0"
+      }
+    }
+  },
+  {
+    "name": "public-3",
+    "target": "reserve",
+    "args": [
+      {
+        "staged": "0",
+        "request": "1",
+        "hold_slots": "1",
+        "hold_until": "11"
+      },
+      {
+        "capacity": "2",
+        "occupied": "0",
+        "reserved": "2",
+        "pack": "4",
+        "now": "10"
+      }
+    ],
+    "expected": {
+      "type": "Decision",
+      "value": {
+        "accepted": true,
+        "added": "1",
+        "free_after": "0"
+      }
+    }
+  },
+  {
+    "name": "public-4",
+    "target": "reserve",
+    "args": [
+      {
+        "staged": "3",
+        "request": "2",
+        "hold_slots": "0",
+        "hold_until": "10"
+      },
+      {
+        "capacity": "2",
+        "occupied": "1",
+        "reserved": "0",
+        "pack": "4",
+        "now": "10"
+      }
+    ],
+    "expected": {
+      "type": "Decision",
+      "value": {
+        "accepted": true,
+        "added": "1",
+        "free_after": "0"
+      }
+    }
+  },
+  {
+    "name": "public-5",
+    "target": "reserve",
+    "args": [
+      {
+        "staged": "4",
+        "request": "5",
+        "hold_slots": "0",
+        "hold_until": "10"
+      },
+      {
+        "capacity": "2",
+        "occupied": "1",
+        "reserved": "0",
+        "pack": "4",
+        "now": "10"
+      }
+    ],
+    "expected": {
+      "type": "Decision",
+      "value": {
+        "accepted": false,
+        "added": "2",
+        "free_after": "1"
+      }
+    }
+  },
+  {
+    "name": "public-6",
+    "target": "reserve",
+    "args": [
+      {
+        "staged": "1",
+        "request": "0",
+        "hold_slots": "0",
+        "hold_until": "10"
+      },
+      {
+        "capacity": "1",
+        "occupied": "1",
+        "reserved": "0",
+        "pack": "4",
+        "now": "10"
+      }
+    ],
+    "expected": {
+      "type": "Decision",
+      "value": {
+        "accepted": true,
+        "added": "0",
+        "free_after": "0"
+      }
+    }
+  }
+]

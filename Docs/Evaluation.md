@@ -1,5 +1,10 @@
 # Product-validation pilot v1
 
+Follow-up: the [repeated dependency/evidence study](Maintenance-study.md) completed
+three repetitions per arm on one larger synthetic task. Both arms passed; it does
+not replace or repair this pilot's failure. Product direction now prioritizes an
+end-to-end policy-change workbench rather than indefinite benchmark accumulation.
+
 ## Outcome and decision
 
 **Five of six final submissions met the frozen task contract. Wisp: 2/3; TypeScript: 3/3.** This is a small workflow pilot, not a representative benchmark, statistical ranking, token-cost comparison or proof of usefulness to external users. Keep language features frozen; improve boundary communication and measurement before broadening the language.

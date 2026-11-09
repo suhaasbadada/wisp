@@ -1,0 +1,8 @@
+{
+  "historical_input": "0",
+  "historical_failure_reproduced": true,
+  "current_old_input_passed": true,
+  "old_replay_is_full_acceptance": false,
+  "fresh_public_suite_passed": true,
+  "explanation": "The public replay tool verified and executed the archived source: input 0 returned accepted=false, added=2, free_after=1, reproducing its saved failure. The unchanged current starter already returned the expected true,1,0 on that input, yet its fresh public suite failed examples 1 and 2. The candidate changes only added_slots and credit_slots bodies, accounting for partially filled staged pallets and strictly live holds. Strict checking passed; all seven full-Decision public regressions passed; candidate historical replay passed. Independent self-authored BigInt execution passed 108856 valid-domain cases and all seven unchanged sample_ok calls. Compiler metadata, a single historical replay, and finite tests do not establish correctness over the entire domain or comparative performance."
+}

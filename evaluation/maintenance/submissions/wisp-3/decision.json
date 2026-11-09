@@ -1,0 +1,8 @@
+{
+  "historical_input": "0",
+  "historical_failure_reproduced": true,
+  "current_old_input_passed": true,
+  "old_replay_is_full_acceptance": false,
+  "fresh_public_suite_passed": true,
+  "explanation": "Native replay reproduced the archived failure at input 0 with artifact validation Ready. The unchanged current starter passed replay input 0 but failed fresh public probe input 1. The submitted candidate passes both public probe groups (seven cases), seven full-Decision typed calls from public-regressions.json, and 240 self-authored valid-input typed calls. Only added_slots and credit_slots bodies changed. Historical reproduction is not authentication; single-input replay is not domain acceptance, and these finite checks are not a proof over all valid inputs."
+}

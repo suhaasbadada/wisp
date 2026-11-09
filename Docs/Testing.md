@@ -1,5 +1,28 @@
 # Verification
 
+## Repeated maintenance study
+
+Three fresh repetitions per arm on one independent agent-authored task are locked
+and graded: all six pass 547 finite full-Decision invocations. Matching reported
+history flags are separate, unauthenticated participant assertions. Frozen hashes
+and locked results replay in `test:maintenance`, now part of `npm test`. Old pilot
+failures remain unchanged. See [Maintenance study](Maintenance-study.md) and ADR
+0009. Primary integrated verification passed 99 Rust tests, 40 Node evaluation
+tests (17 prior-pilot + 23 maintenance), 222 native/WASM comparisons and 29
+Chromium tests, plus fmt, strict Clippy, npm ci, WASM, TypeScript and static builds.
+Pretrial Joffrey review found no substantive defects. Final Joffrey review of
+`ee2ddcc` also found none, independently replayed all six 547-case outcomes and
+passed 23 maintenance tests. Frozen inputs/finals/timing boundaries and unchanged
+prior pilot were verified; full integration was not repeated independently.
+Session freshness, access compliance and the prelaunch interruption cannot be
+authenticated from logs. Exact-head remote CI/publication remain pending.
+
+PR #8 shipped at `17b908633eea8b5bcf4197b72c3a95c2c1035946`: PR Checks
+`42679867885`, post-merge Checks `42680350726`, Pages `42680350738` passed.
+Public report/CLI/ADR bytes, compiled Agent/Human content, ten public study
+artifacts and unchanged core manifest were verified. Browser interactions ran
+locally, not repeated live. [Acceptance](https://github.com/suhaasbadada/wisp/pull/8#issuecomment-6748937313).
+
 ## Product-validation increment
 
 Three preregistered paired tasks, six locked fresh-session submissions and

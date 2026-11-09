@@ -9,9 +9,11 @@
     "check": "tsc --noEmit",
     "build": "vite build && node scripts/copy-docs.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "npm run test:evaluation && node scripts/parity.mjs && playwright test",
+    "test": "npm run test:evaluation && npm run test:maintenance && node scripts/parity.mjs && playwright test",
     "test:evaluation": "node --test scripts/evaluate.test.mjs scripts/evaluation-pilot.test.mjs",
-    "evaluate": "node scripts/evaluate.mjs"
+    "evaluate": "node scripts/evaluate.mjs",
+    "test:maintenance": "node --test scripts/maintenance.test.mjs scripts/maintenance-study.test.mjs scripts/maintenance-replay.test.mjs",
+    "evaluate:maintenance": "node scripts/maintenance-study.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",

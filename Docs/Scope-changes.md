@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0009 repeats an independently agent-authored dependency/stale-evidence task against a stronger TypeScript baseline. Both arms pass; no superiority inference. Temporary feature freeze gives way to a concrete policy-change workbench, with capability upgrades driven by that workflow rather than speculative syntax or endless trials.
+
 - 2026-11-09: ADR 0008 pauses language expansion for a frozen paired workflow pilot, actual agent attempts, reproducible finite grading and preserved failures. Clarifies parsed-body/insertion boundaries without changing core behavior. No superiority or unmeasured token-cost claim.
 
 - 2026-11-09: ADR 0007 introduces guarded preparation of a single function body from a checked baseline, with exact source/body version preconditions, preserved signatures/probe text and explicit host Preview/Apply or new-file output. No auto-repair, persistent IDs, invalid-baseline repair, runtime execution or proof claim.

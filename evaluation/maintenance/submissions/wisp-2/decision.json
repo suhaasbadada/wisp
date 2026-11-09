@@ -1,0 +1,8 @@
+{
+  "historical_input": "0",
+  "historical_failure_reproduced": true,
+  "current_old_input_passed": true,
+  "old_replay_is_full_acceptance": false,
+  "fresh_public_suite_passed": true,
+  "explanation": "Native inspect reproduced the archived first failure at input 0. Native replay against the unchanged current starter passed that one input, while running its fresh probes failed at input 1. The candidate repairs incremental pallet allocation and strict live-hold credit in exactly two bodies. Native check returned Ready; native run cleared both unchanged public domains (4 and 3 cases); candidate replay passed input 0. Native typed calls matched every Decision field on all seven public JSON cases and 808 self-authored cases. These finite checks are not exhaustive acceptance, authentication of history, or evidence of comparative language performance."
+}
