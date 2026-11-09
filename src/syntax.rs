@@ -10,6 +10,8 @@ pub struct Diagnostic {
     pub kind: String,
     pub message: String,
     pub span: Span,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
 }
 pub type Result<T> = std::result::Result<T, Diagnostic>;
 pub fn err(kind: &str, message: impl Into<String>, span: Span) -> Diagnostic {
@@ -17,6 +19,7 @@ pub fn err(kind: &str, message: impl Into<String>, span: Span) -> Diagnostic {
         kind: kind.into(),
         message: message.into(),
         span,
+        path: None,
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

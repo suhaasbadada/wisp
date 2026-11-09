@@ -4,6 +4,7 @@ use std::io::{self, Read, Write};
 
 const HELP: &str = "usage: wisp FILE | wisp --json < request.json
        wisp run FILE
+       wisp call FILE FUNCTION [--args-file INPUT]
        wisp check FILE
        wisp focus FILE FUNCTION [--budget N]
        wisp archive FILE --out ARTIFACT [--probe INDEX]
@@ -63,14 +64,52 @@ fn semantic_error(mut report: Value, message: &str) -> Value {
         json!([{"kind":"Request","message":message,"span":{"start":0,"end":0}}]);
     report
 }
-fn execute(args: &[String]) -> Result<(Value, bool), String> {
+fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
     let a: Vec<&str> = args.iter().map(String::as_str).collect();
     let report = match a.as_slice() {
         ["--json"] => {
             let raw = read("-", wisp::TRANSPORT_BYTES)?;
-            return Ok((serde_json::from_str(&wisp::dispatch(&raw)).unwrap(), true));
+            let response = wisp::dispatch(&raw);
+            return Ok((
+                serde_json::from_str(&response).unwrap(),
+                true,
+                Some(response),
+            ));
         }
         ["run", path] => dispatch(json!({"op":"run","source":source(path)?})),
+        ["call", path, function] | ["call", path, function, "--args-file", _] => {
+            let input = if a.len() == 5 { Some(a[4]) } else { None };
+            if *path == "-" && input == Some("-") {
+                return Err("source and args cannot both read stdin".into());
+            }
+            let source = source(path)?;
+            let raw = input
+                .map(|p| read(p, wisp::ARGUMENT_BYTES))
+                .transpose()?
+                .unwrap_or_else(|| "[]".into());
+            // A complete standalone RawValue is required before raw embedding.
+            // Invalid JSON becomes null for shared Input diagnostics, never
+            // pasted into the envelope or expanded into an oversized string.
+            let response = if serde_json::from_str::<Box<serde_json::value::RawValue>>(&raw).is_ok()
+            {
+                let request = format!(
+                    "{{\"op\":\"call\",\"source\":{},\"function\":{},\"args\":{raw}}}",
+                    json!(source),
+                    json!(function)
+                );
+                wisp::dispatch(&request)
+            } else {
+                wisp::dispatch(
+                    &json!({"op":"call","source":source,"function":function,"args":null})
+                        .to_string(),
+                )
+            };
+            return Ok((
+                serde_json::from_str(&response).expect("core emits JSON"),
+                false,
+                Some(response),
+            ));
+        }
         ["check", path] => dispatch(json!({"op":"analyze","source":source(path)?})),
         ["focus", path, function] | ["focus", path, function, "--budget", _] => {
             let budget = if a.len() == 5 { number(a[4])? } else { 4096 };
@@ -114,6 +153,7 @@ fn execute(args: &[String]) -> Result<(Value, bool), String> {
                         semantic_error(run, "selected probe has no failed ghost")
                     },
                     false,
+                    None,
                 ));
             };
             let r = dispatch(
@@ -138,13 +178,20 @@ fn execute(args: &[String]) -> Result<(Value, bool), String> {
         }
         [path]
             if !path.starts_with('-')
-                && !["run", "check", "focus", "archive", "inspect", "replay"].contains(path) =>
+                && ![
+                    "run", "call", "check", "focus", "archive", "inspect", "replay",
+                ]
+                .contains(path) =>
         {
-            return Ok((dispatch(json!({"op":"run","source":source(path)?})), true));
+            return Ok((
+                dispatch(json!({"op":"run","source":source(path)?})),
+                true,
+                None,
+            ));
         }
         _ => return Err(HELP.into()),
     };
-    Ok((report, false))
+    Ok((report, false, None))
 }
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -153,7 +200,7 @@ fn main() {
         return;
     }
     match execute(&args) {
-        Ok((report, legacy)) => {
+        Ok((report, legacy, raw)) => {
             let code = if legacy {
                 0
             } else {
@@ -163,7 +210,8 @@ fn main() {
                     _ => 1,
                 }
             };
-            if let Err(e) = writeln!(io::stdout().lock(), "{report}") {
+            let response = raw.unwrap_or_else(|| report.to_string());
+            if let Err(e) = writeln!(io::stdout().lock(), "{response}") {
                 eprintln!("{e}");
                 std::process::exit(2);
             }

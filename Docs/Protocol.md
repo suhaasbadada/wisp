@@ -11,7 +11,7 @@ means host IO/usage failure; semantic status is in JSON (CLI exit 0).
  "limits":{"fuel":100000,"cases":1000}}
 ```
 
-`op` is `run`, `analyze`, `replay`, `archive`, `inspect-artifact`, or
+`op` is `run`, `call`, `analyze`, `replay`, `archive`, `inspect-artifact`, or
 `replay-artifact`; `source` is required (use `""` for inspection). Optional `focus`
 selects Agent View (default first function); `budget` caps only Agent View text
 UTF-8 bytes, default 4096, ceiling 65536. Optional `limits` fields: `source_bytes`,
@@ -30,7 +30,7 @@ Common: `compiler`, SHA-256 `revision` of exact source bytes, effective `limits`
 `status`, captured `output`, `diagnostics`, `probes`, `graph`. Successful checking
   also supplies `syntax_limits`, `agent_view` and `probe_metadata` (predicate and
   run dependency keys without executing probes). Diagnostics are
-`{kind,message,span:{start,end}}`; kinds Request, Syntax, Type, Purity, Runtime,
+`{kind,message,span:{start,end},path?}`; kinds Request, Input, Syntax, Type, Purity, Runtime,
 Replay, Artifact, Limit. Compilation errors have empty output/probes/graph. Limit is
 Unknown; other diagnostic kinds are Error. Diagnostic messages are human text,
 not stable programmatic identifiers. Numeric JSON fields are bounded counters,
@@ -63,6 +63,82 @@ offsets and limits, **never language i64 values**.
   completeness or minimality guarantee. Unknown focus returns an explicit
   no-match view, not a fabricated function. Record text shares the byte budget;
   overflow explicitly warns that record declarations may be truncated.
+
+## Typed function invocation
+
+```json
+{"op":"call","source":"record Item { quantity: Int, unit_price: Int } fn total(item: Item) -> Int { item.quantity * item.unit_price }","function":"total","args":[{"quantity":"9","unit_price":"100"}]}
+```
+
+`function` selects exactly one named global function. Omitted `args` means `[]`;
+explicit null is invalid. Exact arity is required. The entire source is lexed,
+parsed and checked first, including unused functions, top-level statements and
+probes. Compile errors preempt argument validation. Only the call executes:
+top-level statements and probes do not execute or consume runtime budgets.
+Nested function prints are captured normally. Agent View defaults to the target
+(an explicit `focus` still overrides it); graph describes the current checked
+source. There is no `probe_metadata` or Clear/Pass claim for an invocation.
+
+Arguments use type-directed JSON, not language source:
+
+| Language type | JSON input and result value |
+| --- | --- |
+| Int | canonical signed i64 decimal **string**, including both extrema |
+| Bool | boolean |
+| String | string (never interpreted as source or an expression) |
+| Named record | object, every declared field exactly once, no extras |
+
+Int strings reject plus signs, whitespace, redundant zeros, `-0`, fractions and
+out-of-range values. JSON numbers, null and nested arrays are invalid values;
+only the root args is an array. Record keys are compared after JSON unescaping;
+duplicates at any typed depth are errors, not last-value-wins. Output records
+use declaration order, including nested records (input order is immaterial).
+Malformed envelope JSON/schema is Request Error; well-formed but invalid argument
+data or an unknown target is Input Error. Input diagnostics have a JSON Pointer
+`path` such as `/args/0/unit_price` or `/function`, and sentinel source span
+`{start:0,end:0}`: data offsets are **not** language source offsets.
+
+The raw args JSON value is retained by Rust as `Box<RawValue>` until typed
+decoding; no client normalization through a generic JSON object is safe for
+duplicates or numeric widths. Its ceiling is 65,536 UTF-8 bytes (including
+whitespace *inside* that value), in addition to the whole 1 MiB envelope cap.
+Exceeding this argument ceiling is Limit/Unknown, before execution. Independent
+JSON nesting ceiling is 17 containers (root array plus up to 16 record objects).
+Declared record and runtime value depth ceilings remain 16. Host clients should
+bound their raw files/text before constructing a request too.
+
+Reports after a decodable call request include
+`invocation:{target,new_execution:false}` on checking/input failure, or
+`invocation:{target,new_execution:true,execution_key}` once shared evaluation
+begins, even if argument construction or execution immediately reaches a limit.
+Schema/limits decoding errors can precede this marker. Success is `status:Complete`
+plus top-level `result:{type:"Int",value:"900"}` in this example. On Error or
+Unknown there is **no** result, even if encoding had partially progressed.
+Previously completed captured prints remain in `output` on execution/encoding
+failure. `usage` reports fuel, logical allocation bytes and `attempted_cases:0`.
+This is observed execution of one input, not a finite domain check or proof.
+
+Input decoding constructs literal ASTs only, independently bounded by raw bytes
+and nesting. Evaluation, string/record construction, parameter binding, scope
+copies and value traversal use the existing shared machine's fuel, allocation
+and depth accounting unchanged. Result encoding visits every value (one fuel
+per node) and charges one fuel and one logical allocation byte per emitted JSON
+byte, including record keys, punctuation and escapes. The encoded **value** and
+captured print share `output_bytes`; result type/envelope/metadata are outside
+that ceiling. Every emitted chunk is checked before append; no oversized
+serialized intermediate or partial result is accepted. Faults are Error;
+fuel/allocation/depth/output exhaustion is Unknown. No host IO is available.
+
+The execution key hashes `[COMPILER,"call",effective_limits,target,raw_args,
+target_transitive_hash]` using Rust JSON material and SHA-256. Exact raw input
+material (including internal whitespace/field order) contributes, conservatively;
+missing args and explicit `[]` have the same material. Target transitive hashes
+already include compiler/config, reachable function source slices and **all**
+record declarations. Changed input, callee, record or effective config invalidates
+the key; an unrelated uncalled function or incidental offset shift need not.
+Source revision is separate. No cache or cross-key reuse is implemented. This
+additive host operation retains compiler **semantics-5** and existing run,
+replay and artifact hash material/acceptance unchanged.
 
 ## Identity and historical replay
 

@@ -397,7 +397,7 @@ impl<'a> Machine<'a> {
             evaluation_depth: 0,
         }
     }
-    fn alloc(&mut self, n: usize, span: Span) -> Result<()> {
+    pub(crate) fn alloc(&mut self, n: usize, span: Span) -> Result<()> {
         self.allocation = self.allocation.saturating_add(n);
         if self.allocation > self.limits.allocation_bytes {
             Err(err("Limit", "logical allocation limit exceeded", span))
@@ -405,7 +405,7 @@ impl<'a> Machine<'a> {
             Ok(())
         }
     }
-    fn tick(&mut self, n: usize, span: Span) -> Result<()> {
+    pub(crate) fn tick(&mut self, n: usize, span: Span) -> Result<()> {
         self.fuel = self.fuel.saturating_add(n as u64);
         if self.fuel > self.limits.fuel {
             return Err(err("Limit", "fuel exhausted", span));

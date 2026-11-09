@@ -1,5 +1,6 @@
 import './style.css';
 import './artifacts.css';
+import './invocation.css';
 import snacks from '../examples/snacks.wisp?raw';
 import repaired from '../examples/snacks-repaired.wisp?raw';
 import inventory from '../examples/inventory.wisp?raw';
@@ -36,7 +37,8 @@ function homeMarkup() {
       <div class="artifact-toolbar"><label for="artifact-file">Import ghost file <input id="artifact-file" type="file" accept=".json,application/json" aria-describedby="artifact-privacy"></label><p id="artifact-privacy">Explicit local files only · max 1 MiB. Exports include the entire historical source and limits. Nothing is uploaded or automatically saved. Compiler semantics-5: older-compiler artifacts are unsupported; no automatic migration.</p><p id="artifact-status" role="status" aria-live="polite">Save a ghost below, then inspect or replay it in the CLI.</p></div>
       <div class="workspace"><section class="code-panel"><div class="panel-head"><h3><span class="orange">01</span> Code</h3><span id="filename">snacks.wisp · editable</span></div><label class="sr-only" for="source">Wisp source</label><textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="editor-hint"></textarea><div class="editor-foot" id="editor-hint">Ctrl/⌘ + Enter to run · primitives + immutable records · no host IO</div><div id="diagnostics" role="status" aria-live="polite"></div></section>
         <section class="result-panel"><div class="panel-head"><h3><span class="orange">02</span> Output</h3><span class="tag" id="run-status">NOT RUN</span></div><pre id="output" tabindex="0">The bureau is open. Run the program.</pre><div class="panel-head evidence-head"><h3><span class="orange">03</span> Evidence</h3><span id="revision" class="mono">No execution yet</span></div><div id="evidence"><p class="empty">A probe checks a declared finite domain. A failure leaves a replayable ghost here.</p></div></section></div>
-      <section class="agent-panel"><div class="panel-head"><h3><span class="orange">04</span> Agent View <span class="tag">COMPILER-DERIVED</span></h3><div class="agent-controls"><label>Focus <select id="focus" aria-label="Agent View function"><option>bill</option></select></label><label>Text budget <input id="budget" type="number" min="0" max="65536" value="4096" aria-label="Agent View byte budget"> bytes</label></div></div><div class="agent-grid"><pre id="agent-text" tabindex="0">Compiler facts will appear after analysis.</pre><div><p id="agent-budget" class="mono"></p><strong>What is left out?</strong><ul id="omissions"></ul><p class="muted">Syntactic call dependencies, not a guaranteed task-relevant or complete context. The byte budget covers the text field, not this UI or JSON metadata.</p><details><summary>Inspect compiler graph / JSON</summary><pre id="graph"></pre></details></div></div></section>
+      <section class="call-panel"><div class="panel-head"><h3><span class="orange">04</span> Invoke a typed function <span class="tag">SINGLE INPUT</span></h3><button id="invoke">Invoke</button></div><div class="call-grid"><div><label for="call-target">Function <select id="call-target"><option value="bill">bill</option></select></label><label for="call-args">JSON arguments <span class="muted">Int values are decimal strings</span></label><textarea id="call-args" spellcheck="false" aria-describedby="call-hint">["9"]</textarea><p id="call-hint">An array of arguments, at most 64 KiB. Records are JSON objects. No JSON numbers, null or nested arrays. Inputs stay local and are never evaluated as source. Top-level statements/probes do not run.</p></div><div><h3>Typed return value</h3><pre id="call-result" tabindex="0">No invocation yet.</pre><p id="call-evidence" role="status" aria-live="polite">One observed execution, never a finite-domain Clear or proof. Captured function prints appear in Output above.</p></div></div></section>
+      <section class="agent-panel"><div class="panel-head"><h3><span class="orange">05</span> Agent View <span class="tag">COMPILER-DERIVED</span></h3><div class="agent-controls"><label>Focus <select id="focus" aria-label="Agent View function"><option>bill</option></select></label><label>Text budget <input id="budget" type="number" min="0" max="65536" value="4096" aria-label="Agent View byte budget"> bytes</label></div></div><div class="agent-grid"><pre id="agent-text" tabindex="0">Compiler facts will appear after analysis.</pre><div><p id="agent-budget" class="mono"></p><strong>What is left out?</strong><ul id="omissions"></ul><p class="muted">Syntactic call dependencies, not a guaranteed task-relevant or complete context. The byte budget covers the text field, not this UI or JSON metadata.</p><details><summary>Inspect compiler graph / JSON</summary><pre id="graph"></pre></details></div></div></section>
       <p class="limit-note">Bounded execution: 64 KiB source · 100k metered fuel units · 32 calls · record depth 16 · 1,000 probe inputs · 8 KiB output. Fuel includes aggregate traversal and string/output bytes, not only expressions. Stop terminates the worker. Logical allocation accounting is not an absolute browser-memory guarantee. <a href="${base}documentation/">Full limits & protocol ↗</a></p>
     </div></section>
     <section class="wrap story"><div><div class="eyebrow">A LANGUAGE WITH RECEIPTS</div><h2>Make uncertainty<br>part of the interface.</h2></div><div class="story-cards"><article><span>01 / OBSERVED</span><h3>A ghost is an input.</h3><p>Keep a failure attached to its source revision. Replay it on new code as a new execution—not a rewritten history.</p></article><article><span>02 / COMPILER-DERIVED</span><h3>A graph is a map.</h3><p>Inspect function bodies and dependency signatures. See omissions and budget overflow. A map is not proof of complete context.</p></article><article><span>03 / STILL A HYPOTHESIS</span><h3>Earn the claims.</h3><p>No speed, token or memory superiority is claimed. No solver yet. No production-readiness promise. Just a small, working experiment.</p></article></div></section>`;
@@ -59,6 +61,9 @@ if (isDocs) {
   text('cli-contract', cli);
   text('tutorial-source', snacks);
   text('invoice-tutorial', invoice);
+  el('agent-docs').insertAdjacentHTML('beforeend', '<h2>Invoke with structured data</h2><pre id="call-request-example"></pre><p>Only the selected function executes; top-level statements and probes are checked but skipped. Int values are canonical decimal strings. Input errors carry JSON Pointer paths, not source locations. One result is observed evidence, not a Clear finite domain.</p>');
+  text('call-request-example', JSON.stringify({ op: 'call', source: invoice, function: 'total', args: [{ quantity: '9', unit_price: '100' }] }, null, 2));
+  el('human-docs').insertAdjacentHTML('beforeend', '<section class="tutorial"><h2>Pass data without rewriting code</h2><p>Select the invoice example, then use <strong>Invoke a typed function</strong>. Choose <code>total</code> and supply <code>[{"quantity":"9","unit_price":"100"}]</code>. The array contains arguments; each record is an object with exactly its declared fields. Ints are decimal strings to preserve i64 precision; Bool uses true/false and String uses JSON text.</p><p>The typed result is Int/900. Only that function runs: no top-level prints and no 21-case probe. Captured prints inside the function still appear in Output. A result is one observed execution, never a proof or Clear domain. Editing source, input or target marks the prior invocation historical. Stop/deadline accepts no partial result.</p><pre>cargo run -- call examples/invoice.wisp total --args-file examples/invoice-args.json</pre><p>The CLI reads a bounded explicit local file or stdin. JSON data never becomes source or an expression. There is still no filesystem/network permission inside Wisp. Duplicate/unknown fields and incorrect types fail before execution; diagnostics point into the input, such as /args/0/quantity. Captured print and encoded return value share the output budget.</p></section>');
   el('human-docs').insertAdjacentHTML('beforeend', `<section class="tutorial"><h2>Keep a ghost after closing the tab</h2><p>Run the broken snack example, then choose <strong>Export ghost + source</strong>. The local JSON download includes the entire historical source, compiler identity, exact limits and receipt—review it before sharing. Nothing is uploaded or automatically saved.</p><pre>cargo run -- inspect path/to/ghost.json
 cargo run -- replay examples/snacks-repaired.wisp --artifact path/to/ghost.json</pre><p>Or use <strong>Import ghost file</strong> in the playground after a reload. Import leaves your current editor unchanged. Rust reproduces the recorded first failure before accepting the file; this is a new bounded validation run, not authentication of claimed history. Replay against your current code is a separate single-input execution, not a Clear domain result. Unknown/compiler-version mismatches and corrupt files are rejected, not repaired.</p><h2>Use Wisp from an agent terminal</h2><pre>cargo run -- check examples/snacks.wisp
 cargo run -- focus examples/snacks.wisp bill --budget 1024
@@ -80,12 +85,12 @@ cargo run -- archive examples/snacks.wisp --out snacks.wisp-ghost.json</pre><p><
   setupPlayground();
 }
 
-interface Diagnostic { kind: string; message: string; span: { start: number; end: number } }
+interface Diagnostic { kind: string; message: string; span: { start: number; end: number }; path?: string }
 interface Ghost { revision: string; predicate_key: string; dependency_key: string; input: string; witness_id: string }
 interface Limits { source_bytes: number; fuel: number; call_depth: number; evaluation_depth: number; output_bytes: number; allocation_bytes: number; cases: number }
 interface Artifact { format: 'wisp-ghost'; version: 1; compiler: string; source: string; limits: Limits; ghost: Ghost }
 interface Probe { status: string; completed_cases: number; domain: { start: string; end: string }; failing_input: string | null; dependency_key: string; predicate_key: string; ghost: Ghost | null; claim: string; diagnostic: Diagnostic | null }
-interface Report { revision: string; compiler: string; status: string; output: string; diagnostics: Diagnostic[]; probes: Probe[]; probe_metadata?: { predicate_key: string; dependency_key: string }[]; limits: Limits; graph: { functions: { name: string }[] }; artifact?: Artifact; validation?: { status: string; phase: string; new_execution: boolean; note: string }; agent_view?: { focus: string | null; text: string; overflow: boolean; used_bytes: number; required_bytes: number; omitted: string[] }; replay?: { status: string; input: string; new_execution: boolean; diagnostic: Diagnostic | null } }
+interface Report { revision: string; compiler: string; status: string; output: string; diagnostics: Diagnostic[]; probes: Probe[]; probe_metadata?: { predicate_key: string; dependency_key: string }[]; limits: Limits; graph: { functions: { name: string; signature?: string }[] }; invocation?: { target: string; new_execution: boolean; execution_key?: string }; result?: { type: string; value: unknown }; artifact?: Artifact; validation?: { status: string; phase: string; new_execution: boolean; note: string }; agent_view?: { focus: string | null; text: string; overflow: boolean; used_bytes: number; required_bytes: number; omitted: string[] }; replay?: { status: string; input: string; new_execution: boolean; diagnostic: Diagnostic | null } }
 interface Receipt { ghost: Ghost; source: string; limits: Limits; artifact?: Artifact; imported?: boolean; replay?: { revision: string; status: string } }
 
 function setupPlayground() {
@@ -93,25 +98,42 @@ function setupPlayground() {
   const run = el<HTMLButtonElement>('run'); const stop = el<HTMLButtonElement>('stop');
   const focus = el<HTMLSelectElement>('focus'); const budget = el<HTMLInputElement>('budget');
   const fileInput = el<HTMLInputElement>('artifact-file');
+  const invoke = el<HTMLButtonElement>('invoke'); const target = el<HTMLSelectElement>('call-target'); const args = el<HTMLTextAreaElement>('call-args');
   let serial = 0; let analysisWorker: Worker | undefined; let runWorker: Worker | undefined;
   let analysisTimer: ReturnType<typeof setTimeout>; let runDeadline: ReturnType<typeof setTimeout>;
   let latestAnalysis: Report | undefined; let lastRun: Report | undefined; let executedSource = '';
   const receipts: Receipt[] = []; // Immutable receipts live for this page session; no silent persistence or authentication claim.
   let busy = false;
   let fileReader: FileReader | undefined;
+  let callActive = false; let lastCall: { report: Report; source: string; args: string; target: string } | undefined;
+  let checkedTargets = new Set<string>();
+  let diagnosticInput: { source: string; args: string; target: string; rendered: string; sourceOnly: boolean } | undefined;
   const makeWorker = () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-  function renderDiagnostics(report: Report, submitted: string) {
+  function renderDiagnostics(report: Report, submitted: string, inputContext?: { args: string; target: string }) {
     const messages = report.diagnostics.concat(report.probes.flatMap(p => p.diagnostic ? [p.diagnostic] : []));
-    if (!messages.length) { text('diagnostics', 'Checked by Rust · no source diagnostics'); return; }
-    text('diagnostics', messages.map(d => {
+    const rendered = messages.length ? messages.map(d => {
+      if (d.path !== undefined) return `${d.kind} · ${d.path} · ${d.message}`;
       // Spans are byte offsets, not JavaScript UTF-16 offsets.
       const before = new TextDecoder().decode(new TextEncoder().encode(submitted).slice(0, d.span.start));
       const lines = before.split('\n');
       return `${d.kind} · ${lines.length}:${Array.from(lines.at(-1) ?? '').length + 1} · ${d.message}`;
-    }).join('\n'));
+    }).join('\n') : 'Checked by Rust · no source diagnostics';
+    text('diagnostics', rendered);
+    diagnosticInput = inputContext ? { ...inputContext, source: submitted, rendered, sourceOnly: messages.length > 0 && messages.every(d => ['Syntax', 'Type', 'Purity'].includes(d.kind)) } : undefined;
+  }
+  function inputEdited() {
+    renderCall();
+    if (!diagnosticInput || diagnosticInput.source !== source.value || diagnosticInput.sourceOnly) return;
+    text('diagnostics', diagnosticInput.args === args.value && diagnosticInput.target === target.value ? diagnosticInput.rendered : 'Source unchanged; current invocation input has not been checked. Prior input-dependent diagnostics are historical.');
   }
   function renderAgent(report: Report) {
     const names = report.graph.functions.map(f => f.name); const selected = focus.value;
+    checkedTargets = new Set(names);
+    const previousTarget = target.value;
+    target.replaceChildren(...report.graph.functions.map(f => new Option(f.signature ?? f.name, f.name)));
+    if (names.includes(previousTarget)) target.value = previousTarget;
+    if (!names.length) target.add(new Option(previousTarget ? `Unverified target: ${previousTarget}` : 'No checked functions', previousTarget));
+    invoke.disabled = busy || !names.length; renderCall();
     focus.replaceChildren(...names.map(n => new Option(n, n)));
     if (names.includes(selected)) focus.value = selected;
     if (!names.length) focus.add(new Option('No functions', ''));
@@ -126,6 +148,7 @@ function setupPlayground() {
     text('graph', JSON.stringify({ compiler: report.compiler, revision: report.revision, limits: report.limits, graph: report.graph, agent_view: report.agent_view }, null, 2));
   }
   function renderEvidence() {
+    renderCall();
     const container = el('evidence'); container.replaceChildren();
     if (!lastRun && !receipts.length) {
       const note = document.createElement('p'); note.className = 'empty'; note.textContent = 'A probe checks a declared finite domain. A failure leaves a replayable ghost here.'; container.append(note);
@@ -168,13 +191,52 @@ function setupPlayground() {
     };
     worker.postMessage({ id, request: { op: 'analyze', source: submitted, ...(focus.value ? { focus: focus.value } : {}), budget: Math.max(0, Math.min(65536, Number(budget.value) || 0)) } });
   }
-  function setBusy(value: boolean) { busy = value; run.disabled = value; stop.disabled = !value; fileInput.disabled = value; renderEvidence(); }
+  function renderCall() {
+    if (!lastCall || callActive) return;
+    const { report } = lastCall;
+    const historical = lastCall.source !== source.value || lastCall.args !== args.value || lastCall.target !== target.value;
+    text('call-result', report.result ? JSON.stringify(report.result, null, 2) : `No result · ${report.status}`);
+    text('call-evidence', `${historical ? 'Historical source/input/target' : 'Submitted current source/input/target'} · ${report.revision.slice(0, 10)} · ${report.invocation?.new_execution ? 'Execution attempted' : 'Not executed'} · ${report.status}${report.invocation?.execution_key ? ` · key ${report.invocation.execution_key.slice(0, 12)}` : ''}. One input only, never Clear or proof.`);
+  }
+  function setBusy(value: boolean) { busy = value; run.disabled = value; stop.disabled = !value; fileInput.disabled = value; invoke.disabled = value || !checkedTargets.has(target.value); renderEvidence(); }
   function cancel(reason: string) {
     if (!runWorker && !fileReader) return;
     fileReader?.abort(); fileReader = undefined;
     runWorker?.terminate(); runWorker = undefined; clearTimeout(runDeadline); setBusy(false);
+    if (callActive) { callActive = false; lastCall = undefined; text('call-result', 'No result · Unknown — invocation interrupted.'); text('call-evidence', 'Unknown. No result from this invocation was accepted; not Clear or proof.'); }
     text('run-status', 'UNKNOWN'); text('activity', reason); text('output', 'Unknown — execution interrupted. No result from this execution is counted as passing. Previous evidence, if any, remains historical.');
     text('artifact-status', 'Interrupted. No artifact was accepted or exported by this operation.');
+  }
+  function invokeFunction() {
+    if (busy) return;
+    const submitted = source.value; const raw = args.value; const name = target.value;
+    lastCall = undefined;
+    if (new TextEncoder().encode(raw).length > 65_536) {
+      text('call-result', 'No result · Unknown — input exceeds the 64 KiB host limit.'); text('call-evidence', 'Not executed. Input limit reached before dispatch.'); return;
+    }
+    // Validate one standalone value, but retain bytes for duplicate/type checks.
+    // Invalid syntax is sent as null so Rust still checks the whole source first.
+    let validSyntax = true; try { JSON.parse(raw); } catch { validSyntax = false; }
+    clearTimeout(analysisTimer); analysisWorker?.terminate(); analysisWorker = undefined;
+    const id = ++serial; const worker = makeWorker(); runWorker = worker; callActive = true; setBusy(true);
+    text('activity', 'Invoking one typed function locally…'); text('run-status', 'CALLING'); text('call-result', 'Running. No result accepted yet.'); text('call-evidence', 'Only the selected function will execute. Top-level statements and probes are skipped.');
+    runDeadline = setTimeout(() => cancel('Invocation deadline: worker terminated'), 5000);
+    worker.onerror = () => { if (runWorker !== worker) return; cancel('Invocation worker failure'); text('run-status', 'ERROR'); text('output', 'Error — invocation worker failed. No accepted result.'); text('call-result', 'No result · Error — invocation worker failed.'); text('call-evidence', 'Error. No accepted invocation result; not Clear or proof.'); };
+    worker.onmessage = (event: MessageEvent<{ id: number; report?: Report; error?: string }>) => {
+      if (runWorker !== worker || event.data.id !== id) return;
+      clearTimeout(runDeadline); worker.terminate(); runWorker = undefined; callActive = false;
+      const report = event.data.report;
+      if (!report) { setBusy(false); text('run-status', 'ERROR'); text('call-result', 'No result · Error — worker transport failed.'); text('call-evidence', event.data.error ?? 'No accepted invocation report.'); return; }
+      lastCall = { report, source: submitted, args: raw, target: name }; setBusy(false);
+      text('run-status', `CALL ${report.status.toUpperCase()}`); text('output', report.output || '(No captured function output; top-level statements skipped)'); text('activity', 'Typed invocation finished');
+      if (submitted === source.value) {
+        if (raw === args.value && name === target.value) renderDiagnostics(report, submitted, { args: raw, target: name });
+        renderAgent(report);
+      }
+      renderCall();
+    };
+    const requestJson = `{"op":"call","source":${JSON.stringify(submitted)},"function":${JSON.stringify(name)},"args":${validSyntax ? raw : 'null'},"focus":${JSON.stringify(focus.value || name)},"budget":${Math.max(0, Math.min(65536, Number(budget.value) || 0))}}`;
+    worker.postMessage({ id, requestJson });
   }
   function artifactTask(request: unknown, exporting?: Receipt, requestJson?: string, deadline = performance.now() + 5000) {
     if (runWorker) return;
@@ -263,9 +325,10 @@ function setupPlayground() {
     worker.postMessage({ id, request: { op: receipt?.artifact ? 'replay-artifact' : receipt ? 'replay' : 'run', source: submitted, ...(receipt?.artifact ? { artifact: receipt.artifact } : receipt ? { ghost: receipt.ghost } : {}), ...(focus.value ? { focus: focus.value } : {}), budget: Math.max(0, Math.min(65536, Number(budget.value) || 0)) } });
   }
   run.onclick = () => execute(); stop.onclick = () => cancel('Stopped: worker terminated');
-  source.oninput = () => { latestAnalysis = undefined; analysisWorker?.terminate(); renderEvidence(); text('filename', 'scratch.wisp · editable'); text('diagnostics', 'Checking current source…'); text('agent-text', 'Source changed. Previous compiler facts are not current.'); clearTimeout(analysisTimer); analysisTimer = setTimeout(analyze, 250); };
+  invoke.onclick = invokeFunction; args.oninput = inputEdited; target.onchange = inputEdited;
+  source.oninput = () => { latestAnalysis = undefined; diagnosticInput = undefined; checkedTargets.clear(); invoke.disabled = true; analysisWorker?.terminate(); renderEvidence(); text('filename', 'scratch.wisp · editable'); text('diagnostics', 'Checking current source…'); text('agent-text', 'Source changed. Previous compiler facts are not current.'); clearTimeout(analysisTimer); analysisTimer = setTimeout(analyze, 250); };
   source.onkeydown = event => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !busy) { event.preventDefault(); execute(); } };
   focus.onchange = analyze; budget.oninput = analyze;
-  el<HTMLSelectElement>('example').onchange = event => { const key = (event.target as HTMLSelectElement).value; source.value = ({ snacks, repaired, inventory, invoice } as Record<string, string>)[key]; source.dispatchEvent(new Event('input')); text('filename', `${key === 'repaired' ? 'snacks-repaired' : key}.wisp · editable`); };
+  el<HTMLSelectElement>('example').onchange = event => { const key = (event.target as HTMLSelectElement).value; source.value = ({ snacks, repaired, inventory, invoice } as Record<string, string>)[key]; args.value = key === 'invoice' ? '[{"quantity":"9","unit_price":"100"}]' : key === 'inventory' ? '["20", "5"]' : '["9"]'; source.dispatchEvent(new Event('input')); text('filename', `${key === 'repaired' ? 'snacks-repaired' : key}.wisp · editable`); };
   analyze();
 }

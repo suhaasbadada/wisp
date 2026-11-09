@@ -88,3 +88,29 @@ for (const [source, fuel, used] of [
   assert.equal(result.status, 'Complete'); assert.equal(result.usage.fuel, used);
 }
 console.log(`Records/artifact integration: 6 additional exact comparisons passed (${sources.length * 4 + 4 + artifactComparisons} total).`);
+let invocationComparisons = 0;
+function compareCall(request) {
+  const raw = typeof request === 'string' ? request : JSON.stringify(request);
+  const native = spawnSync('./target/debug/wisp', ['--json'], { input: raw, encoding: 'utf8' });
+  assert.equal(native.status, 0, native.stderr);
+  const result = JSON.parse(dispatch(raw));
+  assert.deepEqual(result, JSON.parse(native.stdout));
+  invocationComparisons++; return result;
+}
+const invocationCases = [
+  { op: 'call', source: examples[3], function: 'total', args: [{ quantity: '9', unit_price: '100' }] },
+  { op: 'call', source: examples[3], function: 'invoice', args: ['9223372036854775807'] },
+  { op: 'call', source: 'fn echo(x: Int) -> Int { x }', function: 'echo', args: ['-9223372036854775808'] },
+  { op: 'call', source: 'fn echo(x: String) -> String { print("inside"); x } print(1 / 0); probe n in 1..=1 {false}', function: 'echo', args: ['"); print(99);\n😀'] },
+  { op: 'call', source: 'fn echo(x: Bool) -> Bool { !x }', function: 'echo', args: [true] },
+  { op: 'call', source: 'fn value() -> Int { 1 }', function: 'value' },
+];
+for (const request of invocationCases) for (const limits of [{}, { fuel: 0 }, { output_bytes: 0 }, { allocation_bytes: 0 }]) compareCall({ ...request, limits });
+for (const args of [['+1'], ['01'], ['-0'], ['9223372036854775808'], [1], [null], [], [false]]) compareCall({ op: 'call', source: 'fn echo(x: Int) -> Int { x }', function: 'echo', args });
+compareCall({ op: 'call', source: examples[3], function: 'missing', args: [] });
+compareCall({ op: 'call', source: 'print(@);', function: 'missing', args: null });
+compareCall('{"op":"call","source":"record A { n: Int } fn echo(a:A)->A{a}","function":"echo","args":[{"n":"1","n":"2"}]}');
+const invoiceResult = compareCall({ op: 'call', source: examples[3], function: 'invoice', args: ['9'] });
+assert.equal(invoiceResult.output, ''); assert.equal(invoiceResult.probes.length, 0);
+assert.equal(invoiceResult.result.value.item.quantity, '9');
+console.log(`Typed invocation: ${invocationComparisons} additional native/WASM comparisons (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons} total).`);
