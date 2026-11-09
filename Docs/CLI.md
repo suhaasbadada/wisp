@@ -67,6 +67,13 @@ the prepared JSON report only after writing succeeds. This is explicit host IO,
 not a language-core filesystem capability or automatic application to the source.
 Legacy `--json` prepares only and retains semantic exit 0; it never writes files.
 
+**Strict parsed-body clients:** outer replacement whitespace is permitted and
+belongs to `insertion_range`, not `candidate_body_span`. A valid edit can add a
+newline outside the parsed braces. If your consumer requires every byte outside
+the parsed body unchanged, submit only the brace-to-brace block and independently
+check exact recomposition. The core audit does not impose that stricter rule.
+See the observed workflow failure in [Evaluation.md](Evaluation.md).
+
 ## Probe context
 
 `wisp context FILE --probe INDEX [--budget N]` emits structured compiler metadata

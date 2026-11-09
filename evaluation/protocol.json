@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "tasks": [
+    { "id": "shipping", "target": "quote", "result_type": "Int", "protected_functions": [] },
+    { "id": "refund", "target": "refund", "result_type": "Int", "protected_functions": ["unit_net"] },
+    { "id": "quota", "target": "can_reserve", "result_type": "Bool", "protected_functions": [] }
+  ],
+  "limits": { "source_bytes": 65536, "command_timeout_ms": 10000, "command_output_bytes": 1048576 },
+  "scope": "Deterministic acceptance and explicitly labeled agent workflow pilots; not a representative benchmark, sandbox, statistical estimate or performance superiority claim."
+}

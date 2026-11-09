@@ -1,5 +1,35 @@
 # Verification
 
+## Product-validation increment
+
+Three preregistered paired tasks, six locked fresh-session submissions and
+deterministic finite acceptance now complement compiler regressions. The initial
+pilot accepted five submissions; Wisp refund failed an exact-byte boundary before
+behavioral grading and remains unchanged. `npm run test:evaluation` checks harness
+negative controls and replays that expected failure; `npm run evaluate` deliberately
+exits 1 for the pilot. Results do not measure comparative agent tokens or latency.
+See [Evaluation](Evaluation.md), ADR 0008 and evaluation/README.md. Independent
+review and full local verification are complete; exact-head CI remains pending.
+
+Primary verification passed 99 Rust tests, 17 evaluation tests (including both
+1,237-case reference backends, faulty-starter negative controls and replay of the
+locked failure), 222 native/WASM comparisons and 29 Chromium tests, plus fmt,
+strict Clippy, TypeScript, npm ci, WASM and static builds. No language-core change.
+Joffrey independently reviewed `de2f009` plus the audited report and found no
+substantive defects. Independent checks passed 17 evaluation tests without skips,
+99 Rust tests, TypeScript, fmt and strict Clippy. Independent CLI replay returned
+expected exit 1 with identical grades/counts/submission hashes. Frozen inputs and
+locked submissions/logs were unchanged. The reviewer did not repeat npm ci,
+WASM/static builds, parity or Chromium; agent access/settings cannot be verified
+from self-reported logs. Remote CI/deployment remain separate pending gates.
+
+PR #7 shipped at `6f1378bdff3faa5be4606e238415c9e85d6123e0`: PR Checks
+`42665597018`, post-merge Checks `42666104788` and Pages `42666103744` passed.
+Published Preview/source/history preservation, edit-and-revert rejection, one-use
+Apply without execution, explicit finite Clear, document-scoped rejection and
+Stop were verified separately. Native exact new-file output/refused overwrite and
+Agent-default/Human docs passed. [Acceptance](https://github.com/suhaasbadada/wisp/pull/7#issuecomment-6747057218).
+
 ## Guarded edit verification
 
 Primary verification passed 99 Rust tests, 222 native/WASM comparisons (37 guarded-edit exact serialized-byte cases with independent candidate/source/body hashes and splice audits), 28 Chromium tests, fmt, strict Clippy, TypeScript, npm ci, WASM and static build. Frozen semantics-5 artifact, invocation identities and complete context report remain unchanged. Discovery advertises ten operations, fifty codes and five examples. Tests cover document provenance, exact preservation, stale guards, injection, limits, exclusive exact-byte output, preview without mutation, explicit Apply without execution, historical ghosts, edit-and-revert, target changes, Unicode and cancellation.

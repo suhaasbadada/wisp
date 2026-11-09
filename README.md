@@ -4,6 +4,16 @@ Guarded function-body editing now offers explicit **Preview → Apply** in the p
 
 **Built for agents. By agents.**
 
+## Product validation, not more features
+
+The first small paired maintenance pilot accepted **Wisp 2/3 tasks and strict
+TypeScript/BigInt 3/3**. Wisp's refund attempt failed the exact-body-boundary rule
+(an extra newline), before behavioral grading; it is retained unchanged. This is
+not a representative benchmark or evidence of language superiority. Agent tokens
+and latency were not measured. See [Evaluation](Docs/Evaluation.md) for artifacts,
+limitations and reproduction. Run `npm run test:evaluation` after `cargo build`;
+direct `npm run evaluate` intentionally exits 1 for that preserved failure.
+
 An experimental, function-oriented, statically typed language exploring inspectable context, replayable failure witnesses, and revision-aware finite evidence. One real Rust lexer/parser/checker/interpreter powers the native CLI and local WebAssembly playground. No backend, API key, or JavaScript language interpreter.
 
 **[Playground](https://suhaasbadada.github.io/wisp/)** · **[Agent / Human docs](https://suhaasbadada.github.io/wisp/documentation/)** · **[Engineering scope](Docs/Scope.md)** · **[Protocol](Docs/Protocol.md)**

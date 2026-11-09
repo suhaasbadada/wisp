@@ -1,5 +1,16 @@
 # Architecture
 
+## Product-validation tooling (outside the language core)
+
+ADR 0008 freezes three paired maintenance tasks and finite mathematical oracles.
+The Node acceptance harness verifies frozen inputs and exact one-body boundaries,
+then uses the existing Rust typed-call interface or actual strict TypeScript/BigInt
+compiler/Node adapter. TypeScript is a comparison arm, not a Wisp interpreter.
+Subprocess timeout/output limits are not security isolation; only trusted
+submissions may run. No syntax, semantics, permission or evidence identity changes.
+CI tests preserve the locked failed submission rather than require a dishonest
+all-green pilot. See Evaluation for measurements, provenance and limitations.
+
 ## Guarded body preparation
 
 ADR 0007 adds non-executing preparation over a checked baseline. Exact source/body guards precede real block parsing and bounded prefix/replacement/suffix construction. Candidate checking and preservation audits protect signatures, records, other functions, top-level expressions and indexed probe specifications. Edit v1 is independent of unchanged semantics-5 evidence identities. Typed Ready candidates can still fault or violate intent.
