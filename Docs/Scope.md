@@ -1,6 +1,6 @@
 # First playable scope
 
-Status: first playable, portable failure workflow, immutable records and bounded typed invocation shipped via PRs #1–#4. Stable diagnostic/discovery contract (ADR 0005) in progress. Experimental; not production-ready. No license selected (owner decision pending).
+Status: first playable through stable diagnostic/discovery contract shipped via PRs #1–#5. Explicit probe-context ledger (ADR 0006) in progress. Experimental; not production-ready. No license selected (owner decision pending).
 
 Wisp is function-oriented and statically typed. The first slice is a real Rust lexer, parser, checker and bounded interpreter, shared by the native CLI and browser WebAssembly. Its first domain is agent-generated sandboxed CLI/data transformations, later maintained business logic.
 
@@ -11,6 +11,8 @@ Post-first-playable increment: native check/focus/run/archive/inspect/replay com
 Structured invocation adds local type-directed input/output for one named function with native file/stdin and browser JSON hosts. Source is checked but top-level statements/probes do not execute. No language IO, new syntax, filesystem/network capability, input eval, backend or cache is added.
 
 Machine-contract hardening adds explicit stable diagnostic codes and compiler-owned capabilities/static discovery with truthful permissions, logical limits, actual features, runnable examples and uncertainty. It does not change language semantics, existing evidence identities or artifact acceptance and does not authorize automatic intent repair.
+
+Probe context adds non-executing selected-predicate/dependency source with a deterministic atomic TEXT-byte ledger and explicit budget/scope omissions. It is compiler-derived metadata, not a runtime graph interpreter, context-completeness/relevance/minimality guarantee, proof engine, persistent ID system or automatic source/spec edit.
 
 Not included: tagged unions, recursive records, collections, modules, mutable state, loops, inheritance/methods/object identity, host filesystem/network/process access, solver/proofs, automatic intent repair, native C backend, persistent stable semantic editing IDs, incremental compilation, research-grade context capsules, package ecosystem. Graphs are development metadata, not runtime graph interpretation.
 

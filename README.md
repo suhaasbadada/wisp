@@ -78,6 +78,14 @@ cargo run -- capabilities
 
 The same compiler-generated document is published as [agent.json](https://suhaasbadada.github.io/wisp/agent.json): supported operations, implemented features, permissions, logical limits, artifact compatibility, runnable requests and diagnostic codes. Dispatch form: `{"op":"capabilities","source":""}` (source stays required; no checking or execution). Diagnostics expose stable codes alongside legacy kind, human message, spans and input paths. Use code/kind plus the enclosing status, not prose parsing; unknown codes fall back to kind/status. See [Errors.md](Docs/Errors.md). This additive contract preserves current semantics-5 artifacts and execution identities; it is not a proof, automatic repair policy or performance claim.
 
+## Inspect probe context and its omissions
+
+```sh
+cargo run -- context examples/snacks.wisp --probe 0 --budget 4096
+```
+
+The non-executing query returns the selected whole probe, conservative record definitions and syntactic callee definitions, plus a ledger of exact source hashes/spans, charged/included UTF-8 bytes and omission reasons. Selection is an atomic prefix, not a relevance optimizer. Even if every candidate fits, top-level/other-probe/trivia omissions remain; full-run budgets can depend on omitted source. The TEXT budget excludes the ledger/metadata and is not a token/total-response/memory cap. No passing probe, proof, stable editing ID, completeness or run-equivalence claim is produced. See [ADR 0006](Docs/Decisions/0006-probe-context-ledger.md).
+
 ## Honest boundaries
 
 Checked i64/Bool/String, immutable let and nominal records, typed functions/blocks/if, captured print, bounded pure finite probes. Limits produce Unknown, runtime faults Error. Agent View exposes compiler-derived call/type facts, body/signature boundaries, omissions and UTF-8 text-budget overflow—not guaranteed relevance, minimal slices or context completeness. Logical allocation counters are not absolute browser memory bounds. No result cache or solver. Unions, recursive records, collections, structured editing, persistent stable IDs and C backend are deferred.

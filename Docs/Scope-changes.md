@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0006 adds a non-executing probe-context query with exact source chunks, deterministic prefix selection and inspectable byte/scope ledger. Conservative compiler metadata only; no context completeness/relevance/minimality or proof/solver claim, no source/spec rewriting and no evidence identity change.
+
 - 2026-11-09: ADR 0005 hardens agent-facing errors/discovery with explicit stable diagnostic codes and compiler-owned capabilities/static manifest. No syntax/semantics/permission/cache expansion; preserve current artifact/key compatibility and legacy status/transport rules.
 
 - 2026-11-09: ADR 0004 adds type-directed JSON input/output for invoking existing named functions. This closes a CLI/data-tool workflow gap without language IO, new syntax, host permissions or a solver. Ints remain exact decimal strings; raw input and encoded result are bounded and metered.

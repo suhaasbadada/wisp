@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import init, { dispatch } from '../web/pkg/wisp.js';
 
 const build = spawnSync('cargo', ['build', '--quiet'], { stdio: 'inherit' });
@@ -138,3 +139,46 @@ const contractRequests = [
 for (const request of contractRequests) compareCall(request);
 for (const malformed of ['{"op":"capabilities"}', '{"op":"run","source":null}', '{"op":"run","source":"","source":""}']) compareCall(malformed);
 console.log(`Machine contract: native/WASM/static manifest and runnable examples agree (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons} total native/WASM comparisons).`);
+let contextComparisons = 0;
+function compareContext(request) {
+  const raw = typeof request === 'string' ? request : JSON.stringify(request);
+  const native = spawnSync('./target/debug/wisp', ['--json'], { input: raw, encoding: 'utf8' });
+  assert.equal(native.status, 0, native.stderr);
+  const wasm = dispatch(raw);
+  assert.equal(wasm, native.stdout.trimEnd());
+  contextComparisons++; const result = JSON.parse(wasm);
+  if (result.context) {
+    assert.equal(result.new_execution, false); assert.equal(result.output, ''); assert.deepEqual(result.probes, []); assert.equal(result.usage, undefined);
+    const c = result.context; const textBytes = Buffer.from(c.text);
+    assert.equal(c.used_bytes, textBytes.length); assert.ok(c.used_bytes <= c.budget_bytes);
+    assert.equal(c.used_bytes, c.ledger.reduce((sum, entry) => sum + entry.included_bytes, 0));
+    assert.equal(c.required_bytes, c.ledger.filter(entry => entry.eligible).reduce((sum, entry) => sum + entry.chunk_bytes, 0));
+    const source = Buffer.from((typeof request === 'string' ? JSON.parse(request) : request).source);
+    let stopped = false;
+    for (const entry of c.ledger) {
+      const slice = source.subarray(entry.span.start, entry.span.end);
+      assert.equal(entry.source_hash, createHash('sha256').update(slice).digest('hex'));
+      assert.equal(entry.chunk_bytes, slice.length + 2);
+      if (entry.disposition === 'included') {
+        assert.equal(stopped, false);
+        assert.deepEqual(textBytes.subarray(entry.source_text_range.start, entry.source_text_range.end), slice);
+        assert.equal(entry.included_bytes, entry.chunk_bytes);
+        assert.deepEqual(textBytes.subarray(entry.text_range.start, entry.text_range.end), Buffer.concat([slice, Buffer.from('\n\n')]));
+      } else {
+        assert.equal(entry.included_bytes, 0); assert.equal(entry.text_range, null);
+        if (entry.eligible) stopped = true;
+      }
+    }
+  }
+  return result;
+}
+const contextSources = [examples[0], examples[3], 'print(1 / 0); probe n in 1..=1 { true }', 'fn f(n:Int)->Int{f(n)} probe n in 1..=1 {f(n)==n}', 'fn label()->String{"é😀<script>"} probe n in 1..=1 {label()==label()}'];
+for (const source of contextSources) for (const budget of [0, 1, 50, 4096, 65536]) compareContext({ op: 'context', source, focus: 'probe:0', budget });
+const fullContext = compareContext({ op: 'context', source: examples[0] });
+const exactBudget = fullContext.context.required_bytes;
+assert.equal(compareContext({ op: 'context', source: examples[0], budget: exactBudget }).context.overflow, false);
+assert.equal(compareContext({ op: 'context', source: examples[0], budget: exactBudget - 1 }).context.overflow, true);
+for (const focus of ['', 'probe:00', 'probe:-1', 'probe:18446744073709551616', 'function:bill', 'probe:1', null]) compareContext({ op: 'context', source: examples[0], focus });
+compareContext('{"op":"context","source":"probe n in 1..=1 {true}","budget":18446744073709551615}');
+compareContext({ op: 'context', source: 'fn f()->Int{true}', focus: 'invalid' });
+console.log(`Probe context: ${contextComparisons} exact serialized-byte comparisons with independently reconciled source hashes/ranges/ledger (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons} total).`);
