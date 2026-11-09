@@ -1,0 +1,19 @@
+{
+  "name": "wisp-playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "wasm": "wasm-pack build --target web --out-dir web/pkg --no-pack",
+    "dev": "vite --host 127.0.0.1",
+    "check": "tsc --noEmit",
+    "build": "vite build && node scripts/copy-docs.mjs",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node scripts/parity.mjs && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "typescript": "5.9.3",
+    "vite": "7.3.7"
+  }
+}
