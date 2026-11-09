@@ -61,7 +61,7 @@ fn rejected(d: Diagnostic, document: &str, source: &str, revision: &str, limits:
     report
 }
 
-fn text<'a>(source: &'a str, span: Span) -> &'a str {
+fn text(source: &str, span: Span) -> &str {
     &source[span.start..span.end]
 }
 
@@ -288,4 +288,49 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
     json!({"compiler":COMPILER,"revision":revision,"limits":limits,"status":"Ready","new_execution":false,"output":"","probes":[],"diagnostics":[],
         "edit":{"version":EDIT_CONTRACT_VERSION,"state":"prepared","target":target,"base_revision":revision,"candidate_revision":hash(&next),"base_body_hash":body_hash,"candidate_body_hash":hash(text(&next,updated.body.span)),"base_body_span":body,"candidate_body_span":updated.body.span,"insertion_range":insertion,"source":next,
             "preservation":{"checked":true,"prefix":true,"suffix":true,"signature":true,"records":true,"other_functions":true,"top_level_statements":true,"probes":probe_audit}}})
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preservation_mismatch_rejects_without_accepting_or_panicking() {
+        let source = "fn f(n: Int) -> Int { n } probe n in 1..=2 { f(n)==n }";
+        let base = parse(source).unwrap();
+        let body = base.functions[0].body.span;
+        let mut candidate = parse(source).unwrap();
+        candidate.probes[0].hi = 3;
+        assert!(!preserved(
+            &base, &candidate, source, source, "f", body, body
+        ));
+        let mut candidate = parse(source).unwrap();
+        candidate.functions[0].ret = Ty::Bool;
+        assert!(!preserved(
+            &base, &candidate, source, source, "f", body, body
+        ));
+        let mut candidate = parse(source).unwrap();
+        candidate.probes.push(candidate.probes[0].clone());
+        assert!(!preserved(
+            &base, &candidate, source, source, "f", body, body
+        ));
+        let report = rejected(
+            err(
+                DiagnosticCode::EditCandidate,
+                "preservation audit rejected candidate",
+                Span::default(),
+            ),
+            "candidate",
+            source,
+            &hash(source),
+            &Limits::default(),
+        );
+        assert_eq!(report["status"], "Error");
+        assert!(report["edit"]["state"].is_null());
+        assert!(report["edit"]["source"].is_null());
+        assert_eq!(
+            report["edit"]["rejected_candidate"]["document"],
+            "candidate"
+        );
+    }
 }

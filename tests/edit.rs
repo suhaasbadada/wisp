@@ -123,6 +123,20 @@ fn strict_change_envelope_and_nonedit_presence_even_early_call() {
         error(&raw(&env(&bad)), "E_EDIT_REQUEST", "Error");
     }
     for field in ["expected_revision", "expected_body_hash", "replacement"] {
+        let original = req["change"][field].to_string();
+        let duplicate = good.replace(
+            &format!("\"{field}\":"),
+            &format!("\"{field}\":{original},\"{field}\":"),
+        );
+        error(&raw(&env(&duplicate)), "E_EDIT_REQUEST", "Error");
+        let escaped = field.replacen('e', "\\u0065", 1);
+        let duplicate = good.replace(
+            &format!("\"{field}\":"),
+            &format!("\"{escaped}\":{original},\"{field}\":"),
+        );
+        error(&raw(&env(&duplicate)), "E_EDIT_REQUEST", "Error");
+    }
+    for field in ["expected_revision", "expected_body_hash", "replacement"] {
         for value in [Value::Null, json!(0), json!([]), json!({})] {
             let mut q = req.clone();
             q["change"][field] = value;
@@ -162,6 +176,44 @@ fn strict_change_envelope_and_nonedit_presence_even_early_call() {
             json!(op)
         ));
         assert_eq!(r["diagnostics"][0]["code"], "E_REQUEST_INVALID");
+    }
+}
+
+#[test]
+fn transport_schema_and_limits_preempt_edit_field_policy_on_every_operation() {
+    for op in [
+        "edit",
+        "capabilities",
+        "run",
+        "call",
+        "context",
+        "analyze",
+        "replay",
+        "archive",
+        "inspect-artifact",
+        "replay-artifact",
+    ] {
+        for extra in [
+            "",
+            ",\"source\":null",
+            ",\"source\":\"\",\"source\":\"\"",
+            ",\"source\":\"\",\"unknown\":null",
+        ] {
+            let r = raw(&format!("{{\"op\":{},\"change\":null{extra}}}", json!(op)));
+            assert_eq!(r["diagnostics"][0]["code"], "E_REQUEST_INVALID", "{r}");
+            assert!(r["revision"].as_str().unwrap().is_empty());
+        }
+        let r = send(json!({"op":op,"source":"bad","change":null,"limits":null}));
+        assert_eq!(r["diagnostics"][0]["code"], "E_REQUEST_INVALID");
+        assert!(r["diagnostics"][0]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("invalid limits:"));
+        let envelope = format!("{{\"op\":{},\"source\":\"\",\"change\":null}}", json!(op));
+        let oversized = format!("{envelope}{}", " ".repeat(wisp::TRANSPORT_BYTES));
+        let r = raw(&oversized);
+        assert_eq!(r["diagnostics"][0]["code"], "E_TRANSPORT_LIMIT");
+        assert_eq!(r["status"], "Error");
     }
 }
 
@@ -382,4 +434,36 @@ fn full_frozen_semantics5_context_response_is_unchanged() {
         json!({"op":"context","source":include_str!("../examples/snacks.wisp"),"focus":"probe:0","budget":4096}),
     );
     assert_eq!(actual, expected);
+}
+
+#[test]
+fn exact_source_and_replacement_byte_caps_and_body_guard_form_are_independent() {
+    let exact_source = format!(
+        "{}{}",
+        SOURCE,
+        " ".repeat(wisp::SOURCE_BYTES - SOURCE.len())
+    );
+    let ready = send(request(&exact_source, "twice", "{ n * 2 }"));
+    assert_eq!(ready["status"], "Ready", "{ready}");
+    let over_source = exact_source + " ";
+    let mut q = request(SOURCE, "twice", "{ n }");
+    q["source"] = json!(over_source);
+    error(&send(q), "E_LIMIT_SOURCE", "Unknown");
+    let exact_replacement = format!("{{n}}{}", " ".repeat(wisp::REPLACEMENT_BYTES - 3));
+    let r = send(request(SOURCE, "twice", &exact_replacement));
+    error(&r, "E_LIMIT_SOURCE", "Unknown");
+    assert_eq!(r["edit"]["cause"]["document"], "candidate"); // replacement itself fit
+    let r = send(request(SOURCE, "twice", &(exact_replacement + " ")));
+    error(&r, "E_LIMIT_SOURCE", "Unknown");
+    assert_eq!(r["edit"]["cause"]["document"], "replacement");
+    for bad in [
+        "F".repeat(64),
+        "0".repeat(65),
+        "0".repeat(63),
+        format!("{}\n", "0".repeat(64)),
+    ] {
+        let mut q = request(SOURCE, "twice", "invalid");
+        q["change"]["expected_body_hash"] = json!(bad);
+        error(&send(q), "E_EDIT_REQUEST", "Error");
+    }
 }
