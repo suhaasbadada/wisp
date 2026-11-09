@@ -24,6 +24,11 @@ macro_rules! codes {
     };
 }
 codes! {
+    ReviewRequest => ("E_REVIEW_REQUEST", "Request", "Invalid review fields or strict suite schema."),
+    ReviewTarget => ("E_REVIEW_TARGET", "Input", "Missing or incompatible review target boundary."),
+    ReviewExpectation => ("E_REVIEW_EXPECTATION", "Input", "Invalid typed candidate expectation."),
+    LimitReviewBytes => ("E_LIMIT_REVIEW_BYTES", "Limit", "Raw suite exceeds 65536 bytes."),
+    LimitReviewCases => ("E_LIMIT_REVIEW_CASES", "Limit", "Review suite exceeds sixteen cases."),
     RequestInvalid => ("E_REQUEST_INVALID", "Request", "Invalid request schema, limits, or operation-specific fields."),
     EditRequest => ("E_EDIT_REQUEST", "Request", "Invalid edit fields, explicit focus, change schema or canonical hash guards."),
     EditConflict => ("E_EDIT_CONFLICT", "Request", "Edit revision or exact body hash guard does not match the checked baseline."),

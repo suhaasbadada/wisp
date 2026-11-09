@@ -43,7 +43,7 @@ fn exhaustive_unique_wire_catalog_kinds_and_docs_are_one_contract() {
         .as_array()
         .unwrap();
     assert_eq!(codes.len(), C::ALL.len());
-    assert_eq!(codes.len(), 50);
+    assert_eq!(codes.len(), 55);
     let mut unique = BTreeSet::new();
     let docs = include_str!("../Docs/Errors.md");
     for (code, entry) in C::ALL.iter().zip(codes) {
@@ -87,8 +87,9 @@ fn capabilities_are_bounded_source_independent_nonexecuting_and_runnable() {
     assert_eq!(c["diagnostic_contract_version"], 1);
     assert_eq!(c["diagnostics"]["version"], 1);
     assert_eq!(c["context_contract_version"], 1);
-    assert_eq!(c["operations"].as_array().unwrap().len(), 10);
-    assert_eq!(c["examples"].as_array().unwrap().len(), 5);
+    assert_eq!(c["operations"].as_array().unwrap().len(), 11);
+    assert_eq!(c["examples"].as_array().unwrap().len(), 6);
+    assert_eq!(c["review_contract_version"], 1);
     assert_eq!(c["edit_contract_version"], 1);
     let context = c["operations"]
         .as_array()
@@ -135,6 +136,7 @@ fn capabilities_are_bounded_source_independent_nonexecuting_and_runnable() {
             "run",
             "call",
             "edit",
+            "review",
             "analyze",
             "context",
             "replay",

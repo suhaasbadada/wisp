@@ -1,5 +1,9 @@
 # Repeated dependency and stale-evidence study
 
+Follow-on: [policy workbench v1](Workbench.md) now implements the first concrete
+workflow slice. The product-decision section below records the study-time plan,
+not a claim that further evaluation or feature upgrades are unnecessary.
+
 ## Result
 
 **Both arms completed all three repetitions.** Each of six locked candidates passed exact preservation/compilation gates and 547 finite full-Decision invocations. All six structured history assertions matched the scenario. Assertions and self-reported logs are not authenticated execution telemetry or proof of understanding.
@@ -31,6 +35,14 @@ The Wisp source is 3,870 UTF-8 bytes; TypeScript is 4,118. They have the same si
 Artifacts and self-reported evidence: [repository study directory](https://github.com/suhaasbadada/wisp/tree/main/evaluation/maintenance). `private/` means withheld from trial instructions, **not technically inaccessible**: all sessions used one assigned checkout with instruction-only restrictions. Complete host interaction/access audits and verified model/settings/token records were unavailable. No blind or security-isolated holdout claim.
 
 ## Limits and measurements
+
+Post-study tooling maintenance: exact snapshots of the four public documentation
+inputs and original lifecycle source now live under `historical-inputs/`. Their
+hashes still match the original, unchanged manifest. Live documentation and the
+snapshot resolver can evolve; cases, execution/grading helpers and final
+submissions remain hash-verified at their original live paths. New reports record
+current tooling hashes separately. This changes neither the original study
+results nor any acceptance expectation, and does not hide changed grading logic.
 
 Actual grading checks every returned Decision field against an independently authored unit-placement oracle, rather than copying the implementation's rounding formula. The 547 invocations include seven public examples and a 540-case grid; semantic inputs may overlap and the valid domain is not exhausted. Errors, Unknown, incomplete reports and changed specifications cannot pass. Finite acceptance is not a proof.
 

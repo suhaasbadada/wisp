@@ -6,6 +6,8 @@ const HELP: &str = "usage: wisp FILE | wisp --json < request.json
        wisp capabilities
        wisp run FILE
        wisp call FILE FUNCTION [--args-file INPUT]
+       wisp review BEFORE AFTER --suite CASES
+       wisp verify SOURCE --suite CASES
        wisp edit FILE FUNCTION --replacement-file BODY --expected-revision SHA --expected-body SHA --out NEWFILE
        wisp check FILE
        wisp focus FILE FUNCTION [--budget N]
@@ -61,6 +63,42 @@ fn artifact_request(op: &str, source: &str, path: &str) -> Result<Value, String>
 fn number(s: &str) -> Result<u64, String> {
     s.parse().map_err(|_| "expected unsigned integer".into())
 }
+fn review_request(
+    before: &str,
+    after: &str,
+    suite: &str,
+    self_comparison: bool,
+) -> Result<Value, String> {
+    if [before, after, suite]
+        .iter()
+        .any(|p| p.is_empty() || p.starts_with("--"))
+    {
+        return Err(HELP.into());
+    }
+    if usize::from(before == "-")
+        + usize::from(!self_comparison && after == "-")
+        + usize::from(suite == "-")
+        > 1
+    {
+        return Err("at most one physical input may read stdin".into());
+    }
+    let baseline = source(before)?;
+    let candidate = if self_comparison {
+        baseline.clone()
+    } else {
+        source(after)?
+    };
+    let raw = read(suite, wisp::REVIEW_BYTES)?;
+    let raw = serde_json::from_str::<Box<serde_json::value::RawValue>>(&raw)
+        .map(|v| v.get().to_owned())
+        .unwrap_or_else(|_| "null".into());
+    let request = format!(
+        "{{\"op\":\"review\",\"source\":{},\"candidate\":{},\"suite\":{raw}}}",
+        json!(baseline),
+        json!(candidate)
+    );
+    Ok(serde_json::from_str(&wisp::dispatch(&request)).expect("core emits JSON"))
+}
 fn semantic_error(mut report: Value, code: wisp::DiagnosticCode, message: &str) -> Value {
     report["status"] = json!("Error");
     report["diagnostics"] =
@@ -70,6 +108,8 @@ fn semantic_error(mut report: Value, code: wisp::DiagnosticCode, message: &str) 
 fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
     let a: Vec<&str> = args.iter().map(String::as_str).collect();
     let report = match a.as_slice() {
+        ["review", before, after, "--suite", suite] => review_request(before, after, suite, false)?,
+        ["verify", path, "--suite", suite] => review_request(path, path, suite, true)?,
         ["capabilities"] => dispatch(json!({"op":"capabilities","source":""})),
         ["--json"] => {
             let raw = read("-", wisp::TRANSPORT_BYTES)?;
@@ -255,7 +295,7 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
             if !path.starts_with('-')
                 && ![
                     "run", "call", "edit", "check", "focus", "context", "archive", "inspect",
-                    "replay",
+                    "replay", "review", "verify",
                 ]
                 .contains(path) =>
         {

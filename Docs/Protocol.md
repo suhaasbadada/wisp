@@ -512,3 +512,69 @@ a runnable fifth example. No existing artifact, invocation or dependency hash
 material includes discovery features. Hosts independently guard application;
 native create-new behavior is in [CLI.md](CLI.md). Treat responses as untrusted
 transport data and review candidate content before explicitly applying it.
+## Policy review contract v1
+
+`{"op":"review","source":BEFORE,"candidate":AFTER,"suite":SUITE,"limits":{...}}`
+compares explicit caller-owned cases using the shared Rust invocation engine.
+Both sources are required strings. Candidate and suite presence (including null)
+is rejected on every other operation before early call/discovery dispatch.
+Review rejects args/change presence and non-null function/focus/budget/ghost/artifact.
+Legacy nullable focus/budget/ghost/artifact treat null as absent. Explicit
+`function:null` remains an envelope Error on every operation, as before review.
+
+Suite objects are strict (no unknown, missing, null or duplicate members):
+`{"version":1,"target":"twice","cases":[{"id":"positive","args":["2"],"expect":{"result":{"type":"Int","value":"4"},"output":""}}]}`.
+Args and expected values retain raw JSON through typed validation, including
+duplicate keys. IDs are unique ASCII `[A-Za-z0-9_-]{1,64}`. There must be 1–16
+cases (zero: Request/Error; 17: Limit/Unknown). Retained suite JSON is at most
+65,536 UTF-8 bytes, excluding outer whitespace; expected output is an exact
+mandatory string of at most 8,192 UTF-8 bytes. No newline normalization.
+
+Precedence: transport/envelope, limits, operation fields and suite cap/schema,
+version/count/IDs, both independent source caps, whole baseline parse/check,
+whole candidate parse/check, target boundary, all args on both programs and all
+typed expectations, then execution. Every preflight failure creates zero
+Machines and returns no partial cases. Target signatures include parameter
+names. Recursively reachable nominal records must have identical ordered
+fields/types; unrelated records, trivia and declaration placement are ignored.
+Expected type is the checked candidate return type; no evaluation decodes it.
+
+Each case executes baseline then candidate, each with fresh effective runtime
+limits (at most 32 invocations). No top-level statements/probes run. `limits.cases`
+remains the probe budget. Existing raw-args call execution identities are unchanged.
+Complete results compare typed values plus exact output, ignoring JSON object
+order/escape spelling. Complete/Complete is Changed or Unchanged; baseline
+Error/candidate Complete is Changed with `baseline_fault_repaired`; candidate
+Error is Faulted, except any-side Unknown makes comparison Unknown.
+Candidate expectation independently reports Pass/Fail/Error/Unknown.
+Root precedence: candidate Error, either-side Unknown, expectation Fail, Pass.
+All cases continue after runtime faults. Baseline faults remain visible; baseline
+Unknown cannot Pass. Finite matching examples are not equivalence or intent proof.
+
+Root fields include compiler, baseline revision, effective limits, status,
+`output:""`, `probes:[]`, diagnostics, and `review`:
+- `contract_version:1`, `phase:"preflight"|"executed"`,
+  `approval:"not_granted"`, `new_execution`;
+- `baseline_revision`, `candidate_revision`, retained `suite_hash`, and
+  domain-separated `query_key` hashing version/compiler/both revisions/suite/limits;
+- `target` after execution and `cases` (empty on preflight failure);
+- executed `summary`: total, changed, unchanged, faulted, unknown,
+  expectation_pass/fail/error/unknown, attempted_invocations.
+
+Each case is `{id,index,comparison,comparison_reason,expectation,expected,before,after}`.
+Expected holds typed result and output. Before/after slim observations carry
+document (`baseline`/`candidate`), status, revision, new_execution, invocation
+(target, execution_key, new_execution), output, diagnostics, and optional result
+and attempted usage. No source echo, repeated graphs/Agent Views, root usage or
+fictional probes. Nested result object keys may serialize sorted.
+Preflight `review.diagnostic_document` owns source failures. Candidate roots use
+`/candidate` sentinel diagnostics; `review.cause` retains document and original
+diagnostic spans. Suite pointers own input failures. Non-limit invalid expectations
+use E_REVIEW_EXPECTATION plus tagged suite cause; resource reasons stay original
+Limit/Unknown. Executed diagnostics remain source-owned inside observations.
+
+Suite argument/expectation failures set `diagnostic_document:"suite"`; argument
+schema origin may be retained separately as `argument_schema_document`. Expected
+depth limits retain their tagged suite cause and original Limit reason. Comparison
+reasons are `incomplete_execution`, `candidate_fault`, `baseline_fault_repaired`
+or `observed_result_and_output`; they describe observations, never approval.

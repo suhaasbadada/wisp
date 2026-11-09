@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0010 starts an end-to-end policy-change workbench: explicit typed cases, shared Rust before/after evaluation, honest differences/expectations and revision-linked evidence. No automatic approval, source/spec repair or deployment; no core host permissions or language-semantics change.
+
 - 2026-11-09: ADR 0009 repeats an independently agent-authored dependency/stale-evidence task against a stronger TypeScript baseline. Both arms pass; no superiority inference. Temporary feature freeze gives way to a concrete policy-change workbench, with capability upgrades driven by that workflow rather than speculative syntax or endless trials.
 
 - 2026-11-09: ADR 0008 pauses language expansion for a frozen paired workflow pilot, actual agent attempts, reproducible finite grading and preserved failures. Clarifies parsed-body/insertion boundaries without changing core behavior. No superiority or unmeasured token-cost claim.

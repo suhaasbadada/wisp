@@ -1,5 +1,18 @@
 # Browser playground
 
+## Policy review
+
+The workbench explicitly captures a baseline, reviews the current Code candidate
+against raw case JSON and renders Rust's before/after results and expectations.
+Load reservation walkthrough is labeled as replacing the editor; it does not run.
+Review never replaces Run output/ghosts, applies code, approves or deploys. Every
+source/suite/baseline change (including edit-and-revert, recapture, examples and
+guarded Apply) invalidates prior reviews via generations. Stop/5-second deadline
+discards late replies without inventing executed counts. Source/suite host caps
+are 64 KiB; standalone JSON syntax is checked without rebuilding raw numeric or
+duplicate fields. Actual typing/comparison is Rust only. Text rendering is inert.
+See [Workbench](Workbench.md) for the end-to-end workflow and status boundaries.
+
 ## Guarded body edits
 
 The collapsed panel offers Load, Preview, Stop and one-use Apply. Only checked functions are eligible. Load copies exact compiler body bytes; changing targets never silently rewrites replacement input. Preview uses source/body guards and independent cancellation/deadline, leaving editor/output/ghosts untouched. Review before/after bytes, candidate source and document-tagged JSON before Apply.

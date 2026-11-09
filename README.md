@@ -4,6 +4,20 @@ Guarded function-body editing now offers explicit **Preview → Apply** in the p
 
 **Built for agents. By agents.**
 
+## Review a real policy change
+
+The policy-change workbench compares two checked revisions against explicit typed
+cases and shows before/after decisions, mismatches, faults and limits. Try the
+reservation walkthrough in the playground, or:
+
+```sh
+cargo run -- review examples/policies/reservations-before.wisp examples/policies/reservations-after.wisp --suite examples/policies/cases.json
+```
+
+The example reports two changed decisions and five unchanged; expectations remain
+caller-owned. Pass is finite evidence, **not approval or proof**. No source/spec
+rewrites or deployment. See [Workbench](Docs/Workbench.md).
+
 ## Product validation and direction
 
 Follow-up [maintenance study](Docs/Maintenance-study.md): both Wisp and strict
