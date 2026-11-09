@@ -11,7 +11,7 @@ means host IO/usage failure; semantic status is in JSON (CLI exit 0).
  "limits":{"fuel":100000,"cases":1000}}
 ```
 
-`op` is `run`, `call`, `analyze`, `replay`, `archive`, `inspect-artifact`, or
+`op` is `capabilities`, `run`, `call`, `analyze`, `replay`, `archive`, `inspect-artifact`, or
 `replay-artifact`; `source` is required (use `""` for inspection). Optional `focus`
 selects Agent View (default first function); `budget` caps only Agent View text
 UTF-8 bytes, default 4096, ceiling 65536. Optional `limits` fields: `source_bytes`,
@@ -30,10 +30,15 @@ Common: `compiler`, SHA-256 `revision` of exact source bytes, effective `limits`
 `status`, captured `output`, `diagnostics`, `probes`, `graph`. Successful checking
   also supplies `syntax_limits`, `agent_view` and `probe_metadata` (predicate and
   run dependency keys without executing probes). Diagnostics are
-`{kind,message,span:{start,end},path?}`; kinds Request, Input, Syntax, Type, Purity, Runtime,
+`{code,kind,message,span:{start,end},path?}`; kinds Request, Input, Syntax, Type, Purity, Runtime,
 Replay, Artifact, Limit. Compilation errors have empty output/probes/graph. Limit is
-Unknown; other diagnostic kinds are Error. Diagnostic messages are human text,
-not stable programmatic identifiers. Numeric JSON fields are bounded counters,
+Unknown; other diagnostic kinds normally mean Error. Exceptions: blocked probes
+remain Limit/Unknown after a top-level Runtime/Error, and bounded artifact
+reproduction may be overall Unknown with an Artifact diagnostic. Do not derive
+all report statuses from kind/code. Diagnostic messages are human text,
+not stable programmatic identifiers. Codes and their exhaustive kind mappings
+are pinned in diagnostic contract v1; new codes are additive and unknown codes
+fall back to kind/status. See [Errors.md](Errors.md). Numeric JSON fields are bounded counters,
 offsets and limits, **never language i64 values**.
 
 - `analyze`: `status: Ready`; performs whole-program checking, not execution.
@@ -63,6 +68,54 @@ offsets and limits, **never language i64 values**.
   completeness or minimality guarantee. Unknown focus returns an explicit
   no-match view, not a fabricated function. Record text shares the byte budget;
   overflow explicitly warns that record declarations may be truncated.
+
+## Compiler-owned discovery
+
+```json
+{"op":"capabilities","source":""}
+```
+
+`source` remains required and must be a string for **all** operations, including
+discovery. Missing/null/duplicate/unknown envelope fields keep existing strict
+decoding behavior. Known unused fields are decoded normally and ignored;
+`function` or `args` on non-call operations still cause Request/Error, and
+`limits` are always decoded first. Discovery does not parse, check, execute,
+hash or reflect submitted source or unused request data. It ignores source
+budgets (the whole raw request cap still applies) and has no runtime usage.
+
+Discovery is a distinct report shape: root `status:"Ready"`, exact `compiler`,
+and `capabilities` only. `capabilities` contains:
+
+- `discovery_contract_version:1`, `diagnostic_contract_version:1`, independent
+  of compiler semantics identity and never part of existing hash material.
+- `operations`: `{op,required_fields,optional_fields,scope}`. Required fields
+  include prerequisites for a successful operation (e.g. ghost for replay and
+  function for call), not just envelope decoding. A call function is
+  schema-optional but omission fails input target validation; omitted args means
+  `[]`. `request.operation_fields` distinguishes operational prerequisites from
+  decoder acceptance; the remaining request policy is unchanged.
+- `features` (implemented only), `permissions.language_core` with filesystem,
+  network, process and arbitrary_host_code all false; native explicit file IO
+  is separately described host transport.
+- `limits.configurable`: every limit's name, default, ceiling, unit and scope;
+  `limits.fixed`: fixed ceilings/units/scopes; `agent_view_text` and native
+  reader exclusions. Logical units are not absolute memory/CPU bounds; output
+  and Agent View ceilings exclude report metadata.
+- `artifacts`: format/version, exact compiler compatibility, unauthenticated
+  bounded reproduction policy. `diagnostics`: version, shape, span and consumer
+  policy plus `codes:[{code,kind,meaning}]`, generated from the diagnostic enum.
+- `uncertainty`: finite observations, conservative graph, truncation, logical
+  budgets and no proof/intent/completeness promises. `docs`: relative links to
+  `Docs/Language.md`, `Docs/Protocol.md`, `Docs/CLI.md`, `Docs/Errors.md`,
+  `Docs/Scope.md`. `examples`: runnable `{request,expected_status}` entries,
+  optionally with `expected_result`; checking, finite run and typed call.
+
+The entire serialized discovery document is bounded to 32,768 UTF-8 bytes by
+a static contract test (not a configurable runtime limit). Native
+`wisp capabilities` returns the same compiler-generated document, without files
+or source input. The static `/wisp/agent.json` is generated from this same WASM
+operation, not a hand-maintained second implementation. It is discovery data,
+not executable instructions, certification or an automatic repair plan.
 
 ## Typed function invocation
 

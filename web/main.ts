@@ -8,6 +8,7 @@ import invoice from '../examples/invoice.wisp?raw';
 import language from '../Docs/Language.md?raw';
 import protocol from '../Docs/Protocol.md?raw';
 import cli from '../Docs/CLI.md?raw';
+import errors from '../Docs/Errors.md?raw';
 
 const base = import.meta.env.BASE_URL;
 const repo = 'https://github.com/suhaasbadada/wisp';
@@ -59,6 +60,11 @@ if (isDocs) {
   text('language-contract', language);
   text('protocol-contract', protocol);
   text('cli-contract', cli);
+  el('agent-docs').insertAdjacentHTML('afterbegin', `<section class="docs-callout"><strong>COMPILER-OWNED DISCOVERY / CONTRACT v1</strong><p><a href="${base}agent.json">Compiler capabilities — agent.json ↗</a> · <a href="${base}Docs/Errors.md">Stable diagnostic reference ↗</a></p><pre>{"op":"capabilities","source":""}</pre><p>Non-executing metadata: actual operations, permissions, limits, runnable requests and diagnostic codes. Source stays required, even for discovery. Check code + kind + enclosing status; messages are human text. Unknown codes fall back to kind/status. No code can choose human intent or prove correctness.</p></section>`);
+  el('agent-docs').insertAdjacentHTML('beforeend', '<h2>Diagnostic contract v1</h2><pre class="contract" id="error-contract"></pre>');
+  text('error-contract', errors);
+  document.querySelector('.doc-links')?.insertAdjacentHTML('beforeend', `<a href="${base}Docs/Errors.md">Diagnostic reference ↗</a><a href="${base}agent.json">Compiler manifest ↗</a>${['0003-immutable-records', '0004-typed-function-invocation', '0005-machine-contract'].map((name, index) => `<a href="${base}Docs/Decisions/${name}.md">ADR 000${index + 3} ↗</a>`).join('')}`);
+  el('human-docs').insertAdjacentHTML('beforeend', `<section class="tutorial"><h2>Errors an agent can read</h2><p>Diagnostics now include stable codes such as <code>E_DIV_ZERO</code> and <code>E_LIMIT_FUEL</code>, alongside kind, human message, UTF-8 span and optional input path. Codes describe what happened—not the repair you intended. Unknown is incomplete work, not success. Check the enclosing report/probe/replay status; not every status can be inferred from the diagnostic kind.</p><p><code>cargo run -- capabilities</code> and <a href="${base}agent.json">agent.json</a> return the same compiler-owned catalog. The manifest lists only built features, permissions and exact logical limits, not planned features or absolute memory/security guarantees. See <a href="${base}Docs/Errors.md">Errors.md</a> for code meanings and compatibility rules.</p></section>`);
   text('tutorial-source', snacks);
   text('invoice-tutorial', invoice);
   el('agent-docs').insertAdjacentHTML('beforeend', '<h2>Invoke with structured data</h2><pre id="call-request-example"></pre><p>Only the selected function executes; top-level statements and probes are checked but skipped. Int values are canonical decimal strings. Input errors carry JSON Pointer paths, not source locations. One result is observed evidence, not a Clear finite domain.</p>');
@@ -85,7 +91,7 @@ cargo run -- archive examples/snacks.wisp --out snacks.wisp-ghost.json</pre><p><
   setupPlayground();
 }
 
-interface Diagnostic { kind: string; message: string; span: { start: number; end: number }; path?: string }
+interface Diagnostic { code?: string; kind: string; message: string; span: { start: number; end: number }; path?: string }
 interface Ghost { revision: string; predicate_key: string; dependency_key: string; input: string; witness_id: string }
 interface Limits { source_bytes: number; fuel: number; call_depth: number; evaluation_depth: number; output_bytes: number; allocation_bytes: number; cases: number }
 interface Artifact { format: 'wisp-ghost'; version: 1; compiler: string; source: string; limits: Limits; ghost: Ghost }
@@ -109,14 +115,15 @@ function setupPlayground() {
   let checkedTargets = new Set<string>();
   let diagnosticInput: { source: string; args: string; target: string; rendered: string; sourceOnly: boolean } | undefined;
   const makeWorker = () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+  const diagnosticMessage = (d: Diagnostic) => `${d.message}${d.code ? ` [${d.code}]` : ''}`;
   function renderDiagnostics(report: Report, submitted: string, inputContext?: { args: string; target: string }) {
     const messages = report.diagnostics.concat(report.probes.flatMap(p => p.diagnostic ? [p.diagnostic] : []));
     const rendered = messages.length ? messages.map(d => {
-      if (d.path !== undefined) return `${d.kind} · ${d.path} · ${d.message}`;
+      if (d.path !== undefined) return `${d.kind} · ${d.path} · ${diagnosticMessage(d)}`;
       // Spans are byte offsets, not JavaScript UTF-16 offsets.
       const before = new TextDecoder().decode(new TextEncoder().encode(submitted).slice(0, d.span.start));
       const lines = before.split('\n');
-      return `${d.kind} · ${lines.length}:${Array.from(lines.at(-1) ?? '').length + 1} · ${d.message}`;
+      return `${d.kind} · ${lines.length}:${Array.from(lines.at(-1) ?? '').length + 1} · ${diagnosticMessage(d)}`;
     }).join('\n') : 'Checked by Rust · no source diagnostics';
     text('diagnostics', rendered);
     diagnosticInput = inputContext ? { ...inputContext, source: submitted, rendered, sourceOnly: messages.length > 0 && messages.every(d => ['Syntax', 'Type', 'Purity'].includes(d.kind)) } : undefined;
@@ -250,7 +257,7 @@ function setupPlayground() {
       if (runWorker !== worker || event.data.id !== id) return;
       finish(); const report = event.data.report;
       if (report?.status !== 'Ready' || !report.artifact) {
-        text('artifact-status', `${report?.status ?? 'Error'} — ${report?.diagnostics.map(d => d.message).join('; ') || event.data.error || 'Artifact validation failed'}. No artifact accepted.`);
+        text('artifact-status', `${report?.status ?? 'Error'} — ${report?.diagnostics.map(diagnosticMessage).join('; ') || event.data.error || 'Artifact validation failed'}. No artifact accepted.`);
         text('activity', 'Artifact not accepted'); return;
       }
       const artifact = report.artifact;
@@ -308,7 +315,7 @@ function setupPlayground() {
       if (!report) { setBusy(false); text('run-status', 'ERROR'); text('output', `Error — ${event.data.error ?? 'Worker transport failure'}`); text('activity', 'Execution failed'); return; }
       if (receipt?.artifact && !report.artifact) {
         setBusy(false); text('run-status', report.status.toUpperCase());
-        text('output', `Historical artifact not accepted. No current-source replay executed.\n${report.diagnostics.map(d => d.message).join('\n')}`);
+        text('output', `Historical artifact not accepted. No current-source replay executed.\n${report.diagnostics.map(diagnosticMessage).join('\n')}`);
         text('activity', 'Historical validation failed'); return;
       }
       if (receipt) receipt.replay = { revision: report.revision, status: report.replay?.status ?? report.status };
@@ -317,7 +324,7 @@ function setupPlayground() {
         for (const p of report.probes) if (p.ghost && !receipts.some(r => r.ghost.witness_id === p.ghost!.witness_id)) receipts.push({ ghost: p.ghost, source: submitted, limits: report.limits });
       }
       setBusy(false); text('run-status', (report.replay?.status ?? report.status).toUpperCase());
-      text('output', receipt ? `Replay input ${receipt.ghost.input}: ${report.replay?.status ?? report.status}. New execution on ${report.revision.slice(0, 10)}. Not a full-domain probe.\n${report.replay?.diagnostic?.message ?? report.diagnostics.map(d => d.message).join('\n')}` : report.output || '(No captured output)');
+      text('output', receipt ? `Replay input ${receipt.ghost.input}: ${report.replay?.status ?? report.status}. New execution on ${report.revision.slice(0, 10)}. Not a full-domain probe.\n${report.replay?.diagnostic ? diagnosticMessage(report.replay.diagnostic) : report.diagnostics.map(diagnosticMessage).join('\n')}` : report.output || '(No captured output)');
       text('activity', `Local execution finished${submitted !== source.value ? ' · historical source' : ''}`);
       if (submitted === source.value) { renderDiagnostics(report, submitted); renderAgent(report); }
       renderEvidence();

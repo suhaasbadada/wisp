@@ -58,6 +58,34 @@ fn report(o: &Output, code: i32, status: &str) -> Value {
     v
 }
 #[test]
+fn compiler_discovery_and_cli_created_diagnostics_use_shared_codes() {
+    let expected: Value =
+        serde_json::from_str(&wisp::dispatch(r#"{"op":"capabilities","source":""}"#)).unwrap();
+    let native = cli(&["capabilities"], None);
+    assert_eq!(report(&native, 0, "Ready"), expected);
+    assert!(native.stderr.is_empty());
+    assert!(native.stdout.len() <= wisp::CAPABILITIES_BYTES + 1);
+    let t = Temp::new();
+    let source = t.file("plain.wisp", "fn f()->Int{1}");
+    let r = report(&cli(&["focus", &source, "missing"], None), 1, "Error");
+    assert_eq!(r["diagnostics"][0]["code"], "E_FOCUS_UNKNOWN");
+    assert_eq!(r["diagnostics"][0]["kind"], "Request");
+    assert!(r["diagnostics"][0].get("path").is_none());
+    let out = t.path("never-created.json");
+    let r = report(&cli(&["archive", &source, "--out", &out], None), 1, "Error");
+    assert_eq!(r["diagnostics"][0]["code"], "E_ARCHIVE_SELECTION");
+    assert!(!std::path::Path::new(&out).exists());
+    let r = report(
+        &cli(&["--json"], Some(r#"{"op":"run","source":"print(1/0);"}"#)),
+        0,
+        "Error",
+    );
+    assert_eq!(r["diagnostics"][0]["code"], "E_DIV_ZERO");
+    let o = cli(&["capabilities", "unexpected"], None);
+    assert_eq!(o.status.code(), Some(2));
+    assert!(o.stdout.is_empty());
+}
+#[test]
 fn typed_call_native_files_stdin_defaults_and_shared_transport() {
     let t = Temp::new();
     let src = "record Item {quantity:Int,unit_price:Int} fn total(item:Item)->Int{item.quantity*item.unit_price} print(1/0);";

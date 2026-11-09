@@ -1,7 +1,11 @@
 //! One bounded implementation shared by native and WebAssembly clients.
+mod capabilities;
+mod diagnostics;
 mod engine;
 mod invocation;
 mod syntax;
+pub use capabilities::{CAPABILITIES_BYTES, DISCOVERY_CONTRACT_VERSION};
+pub use diagnostics::{DiagnosticCode, DIAGNOSTIC_CONTRACT_VERSION};
 use engine::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as Json};
@@ -70,21 +74,29 @@ pub const TRANSPORT_BYTES: usize = 1_048_576;
 pub const SOURCE_BYTES: usize = 65_536;
 pub use invocation::ARGUMENT_BYTES;
 
-fn artifact_error(message: &str, source: &str, limits: &Limits) -> Json {
-    let mut report = diagnostic_report(
-        err("Artifact", message, Span::default()),
-        &hash(source),
-        limits,
-    );
+fn artifact_error(code: DiagnosticCode, message: &str, source: &str, limits: &Limits) -> Json {
+    let mut report = diagnostic_report(err(code, message, Span::default()), &hash(source), limits);
     report["validation"] = json!({"status":"Error","phase":"artifact","new_execution":false});
     report
 }
 
 fn validate_artifact(a: &Artifact) -> std::result::Result<Json, Json> {
     let defaults = Limits::default();
-    let invalid = |message: &str| artifact_error(message, &a.source, &defaults);
+    let invalid = |message: &str| {
+        artifact_error(
+            DiagnosticCode::ArtifactInvalid,
+            message,
+            &a.source,
+            &defaults,
+        )
+    };
     if a.format != "wisp-ghost" || a.version != 1 || a.compiler != COMPILER {
-        return Err(invalid("unsupported artifact format, version or compiler"));
+        return Err(artifact_error(
+            DiagnosticCode::ArtifactCompatibility,
+            "unsupported artifact format, version or compiler",
+            &a.source,
+            &defaults,
+        ));
     }
     let limits: Limits =
         serde_json::from_str(a.limits.get()).map_err(|_| invalid("invalid archived limits"))?;
@@ -112,7 +124,12 @@ fn validate_artifact(a: &Artifact) -> std::result::Result<Json, Json> {
     });
     if !exact {
         let unknown = run["status"] == "Unknown";
-        let mut report = invalid("historical first failure could not be reproduced exactly");
+        let mut report = artifact_error(
+            DiagnosticCode::ArtifactReproduction,
+            "historical first failure could not be reproduced exactly",
+            &a.source,
+            &defaults,
+        );
         if unknown {
             report["status"] = json!("Unknown");
         }
@@ -134,7 +151,11 @@ fn execute_request(r: Request) -> Json {
         Ok(limits) => limits.unwrap_or_default(),
         Err(e) => {
             return diagnostic_report(
-                err("Request", format!("invalid limits: {e}"), Span::default()),
+                err(
+                    DiagnosticCode::RequestInvalid,
+                    format!("invalid limits: {e}"),
+                    Span::default(),
+                ),
                 &hash(&r.source),
                 &Limits::default(),
             )
@@ -146,7 +167,7 @@ fn execute_request(r: Request) -> Json {
     if r.function.is_some() || r.args.is_some() {
         return diagnostic_report(
             err(
-                "Request",
+                DiagnosticCode::RequestInvalid,
                 "function and args require call operation",
                 Span::default(),
             ),
@@ -154,13 +175,22 @@ fn execute_request(r: Request) -> Json {
             &limits,
         );
     }
+    if r.op == "capabilities" {
+        return capabilities::document();
+    }
     if ["archive", "inspect-artifact", "replay-artifact"].contains(&r.op.as_str()) {
         let a = if r.op == "archive" {
             let Some(ghost) = r.ghost else {
-                return artifact_error("archive requires ghost", &r.source, &limits);
+                return artifact_error(
+                    DiagnosticCode::ArtifactInvalid,
+                    "archive requires ghost",
+                    &r.source,
+                    &limits,
+                );
             };
             if r.limits.is_none() {
                 return artifact_error(
+                    DiagnosticCode::ArtifactInvalid,
                     "archive requires historical effective limits",
                     &r.source,
                     &limits,
@@ -176,7 +206,12 @@ fn execute_request(r: Request) -> Json {
             }
         } else {
             let Some(a) = r.artifact else {
-                return artifact_error("operation requires artifact", &r.source, &limits);
+                return artifact_error(
+                    DiagnosticCode::ArtifactInvalid,
+                    "operation requires artifact",
+                    &r.source,
+                    &limits,
+                );
             };
             a
         };
@@ -196,7 +231,11 @@ fn execute_request(r: Request) -> Json {
         } else {
             // The validation already checked and executed the historical source.
             diagnostic_report(
-                err("Artifact", "validated", Span::default()),
+                err(
+                    DiagnosticCode::ArtifactInvalid,
+                    "validated",
+                    Span::default(),
+                ),
                 &hash(&a.source),
                 &serde_json::from_str(a.limits.get()).unwrap(),
             )
@@ -425,7 +464,11 @@ fn execute_language(
     let revision = hash(&r.source);
     if !["run", "analyze", "replay"].contains(&r.op.as_str()) {
         return diagnostic_report(
-            err("Request", "unknown operation", Span::default()),
+            err(
+                DiagnosticCode::OperationUnknown,
+                "unknown operation",
+                Span::default(),
+            ),
             &revision,
             &r.limits,
         );
@@ -433,7 +476,7 @@ fn execute_language(
     if r.source.len() > r.limits.source_bytes {
         return diagnostic_report(
             err(
-                "Limit",
+                DiagnosticCode::LimitSource,
                 "source byte limit exceeded",
                 Span {
                     start: 0,
@@ -463,14 +506,22 @@ fn execute_language(
     if r.op == "replay" {
         let Some(g) = r.ghost else {
             return diagnostic_report(
-                err("Request", "replay requires ghost", Span::default()),
+                err(
+                    DiagnosticCode::RequestInvalid,
+                    "replay requires ghost",
+                    Span::default(),
+                ),
                 &revision,
                 &r.limits,
             );
         };
         if witness_id(&g) != g.witness_id {
             return diagnostic_report(
-                err("Replay", "invalid witness identity", Span::default()),
+                err(
+                    DiagnosticCode::ReplayReceipt,
+                    "invalid witness identity",
+                    Span::default(),
+                ),
                 &revision,
                 &r.limits,
             );
@@ -482,7 +533,7 @@ fn execute_language(
         else {
             return diagnostic_report(
                 err(
-                    "Replay",
+                    DiagnosticCode::ReplaySpecification,
                     "predicate or domain changed; historical ghost cannot be reinterpreted",
                     Span::default(),
                 ),
@@ -494,7 +545,11 @@ fn execute_language(
             Ok(n) if n >= probe.lo && n <= probe.hi => n,
             _ => {
                 return diagnostic_report(
-                    err("Replay", "invalid ghost input", probe.span),
+                    err(
+                        DiagnosticCode::ReplayReceipt,
+                        "invalid ghost input",
+                        probe.span,
+                    ),
                     &revision,
                     &r.limits,
                 )
@@ -510,7 +565,11 @@ fn execute_language(
         );
         let mut env = Env::from([(probe.var.clone(), Value::Int(input))]);
         let execution = if r.limits.cases == 0 {
-            Err(err("Limit", "probe case limit exceeded", probe.span))
+            Err(err(
+                DiagnosticCode::LimitCases,
+                "probe case limit exceeded",
+                probe.span,
+            ))
         } else {
             machine.eval(&probe.body, &mut env)
         };
@@ -559,18 +618,26 @@ fn execute_language(
         if blocked {
             status = "Unknown";
             diagnostic = Some(err(
-                "Limit",
+                DiagnosticCode::ExecutionBlocked,
                 "not executed after interrupted top-level execution",
                 probe.span,
             ));
         } else if probe.lo > probe.hi {
             status = "Error";
-            diagnostic = Some(err("Runtime", "reversed or empty probe range", probe.span));
+            diagnostic = Some(err(
+                DiagnosticCode::ProbeDomain,
+                "reversed or empty probe range",
+                probe.span,
+            ));
         } else {
             let count = i128::from(probe.hi) - i128::from(probe.lo) + 1;
             if count > i128::from(r.limits.cases.saturating_sub(total_cases)) {
                 status = "Unknown";
-                diagnostic = Some(err("Limit", "probe case limit exceeded", probe.span));
+                diagnostic = Some(err(
+                    DiagnosticCode::LimitCases,
+                    "probe case limit exceeded",
+                    probe.span,
+                ));
             } else {
                 for n in probe.lo..=probe.hi {
                     total_cases += 1;
@@ -629,7 +696,7 @@ pub fn dispatch(request_json: &str) -> String {
     if request_json.len() > TRANSPORT_BYTES {
         return diagnostic_report(
             err(
-                "Request",
+                DiagnosticCode::TransportLimit,
                 "request exceeds 1 MiB transport limit",
                 Span::default(),
             ),
@@ -641,7 +708,11 @@ pub fn dispatch(request_json: &str) -> String {
     let report = match serde_json::from_str::<Request>(request_json) {
         Ok(r) => execute_request(r),
         Err(e) => diagnostic_report(
-            err("Request", format!("invalid request: {e}"), Span::default()),
+            err(
+                DiagnosticCode::RequestInvalid,
+                format!("invalid request: {e}"),
+                Span::default(),
+            ),
             "",
             &Limits::default(),
         ),

@@ -70,6 +70,14 @@ cargo run -- call examples/invoice.wisp total --args-file examples/invoice-args.
 
 Returns `result: {"type":"Int","value":"900"}` without executing top-level statements or probes. JSON args are data, never code: Ints are exact decimal strings, Bool/String use JSON primitives, and records are exact-field objects. The browser offers a separate typed invocation form. Whole-program checking still applies; nested function prints are captured. Inputs, aggregate evaluation and result encoding are bounded. One returned value is observed execution, not finite-probe Clear or proof. See the [invocation protocol](Docs/Protocol.md#typed-function-invocation).
 
+## Discover the actual compiler contract
+
+```sh
+cargo run -- capabilities
+```
+
+The same compiler-generated document is published as [agent.json](https://suhaasbadada.github.io/wisp/agent.json): supported operations, implemented features, permissions, logical limits, artifact compatibility, runnable requests and diagnostic codes. Dispatch form: `{"op":"capabilities","source":""}` (source stays required; no checking or execution). Diagnostics expose stable codes alongside legacy kind, human message, spans and input paths. Use code/kind plus the enclosing status, not prose parsing; unknown codes fall back to kind/status. See [Errors.md](Docs/Errors.md). This additive contract preserves current semantics-5 artifacts and execution identities; it is not a proof, automatic repair policy or performance claim.
+
 ## Honest boundaries
 
 Checked i64/Bool/String, immutable let and nominal records, typed functions/blocks/if, captured print, bounded pure finite probes. Limits produce Unknown, runtime faults Error. Agent View exposes compiler-derived call/type facts, body/signature boundaries, omissions and UTF-8 text-budget overflow—not guaranteed relevance, minimal slices or context completeness. Logical allocation counters are not absolute browser memory bounds. No result cache or solver. Unions, recursive records, collections, structured editing, persistent stable IDs and C backend are deferred.

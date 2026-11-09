@@ -1,4 +1,5 @@
 use crate::syntax::*;
+use crate::DiagnosticCode;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 pub type Env<T> = BTreeMap<String, T>;
@@ -24,6 +25,7 @@ mod aggregate_bounds_tests {
             value = Value::Record("A".into(), vec![("x".into(), value)]);
         }
         let error = machine.copy(&value, Span::default()).unwrap_err();
+        assert_eq!(error.code, DiagnosticCode::LimitValueDepth);
         assert_eq!(error.kind, "Limit");
         assert!(error.message.contains("value depth"));
         assert_eq!(machine.allocation, 0);
@@ -132,12 +134,20 @@ pub fn check(p: &Program) -> Result<Facts> {
     let mut records = Env::new();
     for r in &p.records {
         if records.insert(r.name.clone(), r).is_some() {
-            return Err(err("Type", "duplicate record", r.span));
+            return Err(err(
+                DiagnosticCode::NameDuplicate,
+                "duplicate record",
+                r.span,
+            ));
         }
         let mut names = BTreeSet::new();
         for (n, _, span) in &r.fields {
             if !names.insert(n) {
-                return Err(err("Type", "duplicate record field", *span));
+                return Err(err(
+                    DiagnosticCode::FieldDuplicate,
+                    "duplicate record field",
+                    *span,
+                ));
             }
         }
     }
@@ -153,22 +163,38 @@ pub fn check(p: &Program) -> Result<Facts> {
         }
         let r = rs[n];
         if !active.insert(n.into()) {
-            return Err(err("Type", "recursive record type", r.span));
+            return Err(err(
+                DiagnosticCode::TypeRecursive,
+                "recursive record type",
+                r.span,
+            ));
         }
         if active.len() > 16 {
-            return Err(err("Limit", "record type depth exceeds 16", r.span));
+            return Err(err(
+                DiagnosticCode::LimitTypeDepth,
+                "record type depth exceeds 16",
+                r.span,
+            ));
         }
         let mut depth = 1;
         for (_, t, span) in &r.fields {
             if let Ty::Named(child) = t {
                 if !rs.contains_key(child) {
-                    return Err(err("Type", format!("unknown type {child}"), *span));
+                    return Err(err(
+                        DiagnosticCode::NameUnknown,
+                        format!("unknown type {child}"),
+                        *span,
+                    ));
                 }
                 depth = depth.max(1 + height(child, rs, active, done)?);
             }
         }
         if depth > 16 {
-            return Err(err("Limit", "record type depth exceeds 16", r.span));
+            return Err(err(
+                DiagnosticCode::LimitTypeDepth,
+                "record type depth exceeds 16",
+                r.span,
+            ));
         }
         active.remove(n);
         done.insert(n.into(), depth);
@@ -192,12 +218,20 @@ pub fn check(p: &Program) -> Result<Facts> {
         {
             if let Ty::Named(n) = t {
                 if !records.contains_key(n) {
-                    return Err(err("Type", format!("unknown type {n}"), f.span));
+                    return Err(err(
+                        DiagnosticCode::NameUnknown,
+                        format!("unknown type {n}"),
+                        f.span,
+                    ));
                 }
             }
         }
         if funcs.insert(f.name.clone(), f).is_some() {
-            return Err(err("Type", "duplicate function", f.span));
+            return Err(err(
+                DiagnosticCode::NameDuplicate,
+                "duplicate function",
+                f.span,
+            ));
         }
         let mut cs = BTreeSet::new();
         let mut imp = false;
@@ -211,13 +245,17 @@ pub fn check(p: &Program) -> Result<Facts> {
         let mut env = Env::new();
         for (n, t) in &f.params {
             if env.insert(n.clone(), t.clone()).is_some() {
-                return Err(err("Type", "duplicate parameter", f.span));
+                return Err(err(
+                    DiagnosticCode::NameDuplicate,
+                    "duplicate parameter",
+                    f.span,
+                ));
             }
         }
         let t = type_expr(&f.body, &mut env, &funcs, &records)?;
         if t != f.ret {
             return Err(err(
-                "Type",
+                DiagnosticCode::TypeMismatch,
                 "function result does not match declared type",
                 f.body.span,
             ));
@@ -231,14 +269,18 @@ pub fn check(p: &Program) -> Result<Facts> {
         let mut env = Env::new();
         env.insert(probe.var.clone(), Ty::Int);
         if type_expr(&probe.body, &mut env, &funcs, &records)? != Ty::Bool {
-            return Err(err("Type", "probe must produce Bool", probe.span));
+            return Err(err(
+                DiagnosticCode::TypeMismatch,
+                "probe must produce Bool",
+                probe.span,
+            ));
         }
         let mut direct = false;
         scan(&probe.body, &mut BTreeSet::new(), &mut direct);
         let deps = closure(&dependencies(&probe.body), &facts.calls);
         if direct || deps.iter().any(|n| facts.impure.contains(n)) {
             return Err(err(
-                "Purity",
+                DiagnosticCode::ProbeImpure,
                 "probe transitively contains print",
                 probe.span,
             ));
@@ -250,63 +292,115 @@ fn type_stmt(s: &Stmt, env: &mut Env<Ty>, fs: &Env<&Function>, rs: &Env<&Record>
     let t = type_expr(stmt_expr(s), env, fs, rs)?;
     if let Stmt::Let(n, e) = s {
         if env.contains_key(n) {
-            return Err(err("Type", "duplicate immutable binding", e.span));
+            return Err(err(
+                DiagnosticCode::NameDuplicate,
+                "duplicate immutable binding",
+                e.span,
+            ));
         }
         env.insert(n.clone(), t);
     }
     Ok(())
 }
 fn type_expr(e: &Expr, env: &mut Env<Ty>, fs: &Env<&Function>, rs: &Env<&Record>) -> Result<Ty> {
-    let bad = || err("Type", "incompatible expression types", e.span);
+    let bad = || {
+        err(
+            DiagnosticCode::TypeMismatch,
+            "incompatible expression types",
+            e.span,
+        )
+    };
     Ok(match &e.kind {
         ExprKind::Int(_) => Ty::Int,
         ExprKind::Bool(_) => Ty::Bool,
         ExprKind::String(_) => Ty::String,
         ExprKind::Var(n) => env
             .get(n)
-            .ok_or_else(|| err("Type", format!("unknown variable {n}"), e.span))?
+            .ok_or_else(|| {
+                err(
+                    DiagnosticCode::NameUnknown,
+                    format!("unknown variable {n}"),
+                    e.span,
+                )
+            })?
             .clone(),
         ExprKind::Construct(n, fields) => {
-            let r = rs
-                .get(n)
-                .ok_or_else(|| err("Type", format!("unknown record {n}"), e.span))?;
+            let r = rs.get(n).ok_or_else(|| {
+                err(
+                    DiagnosticCode::NameUnknown,
+                    format!("unknown record {n}"),
+                    e.span,
+                )
+            })?;
             let mut seen = BTreeSet::new();
             for (name, span, value) in fields {
                 if !seen.insert(name) {
-                    return Err(err("Type", "duplicate initializer field", *span));
+                    return Err(err(
+                        DiagnosticCode::FieldDuplicate,
+                        "duplicate initializer field",
+                        *span,
+                    ));
                 }
-                let (_, ty, _) = r
-                    .fields
-                    .iter()
-                    .find(|(f, _, _)| f == name)
-                    .ok_or_else(|| err("Type", format!("unknown field {name}"), *span))?;
+                let (_, ty, _) = r.fields.iter().find(|(f, _, _)| f == name).ok_or_else(|| {
+                    err(
+                        DiagnosticCode::FieldUnknown,
+                        format!("unknown field {name}"),
+                        *span,
+                    )
+                })?;
                 if type_expr(value, env, fs, rs)? != *ty {
-                    return Err(err("Type", "field initializer type mismatch", value.span));
+                    return Err(err(
+                        DiagnosticCode::TypeMismatch,
+                        "field initializer type mismatch",
+                        value.span,
+                    ));
                 }
             }
             if fields.len() != r.fields.len() {
-                return Err(err("Type", "missing record field", e.span));
+                return Err(err(
+                    DiagnosticCode::FieldMissing,
+                    "missing record field",
+                    e.span,
+                ));
             }
             Ty::Named(n.clone())
         }
         ExprKind::Project(receiver, name, span) => {
             let Ty::Named(n) = type_expr(receiver, env, fs, rs)? else {
-                return Err(err("Type", "projection requires record", *span));
+                return Err(err(
+                    DiagnosticCode::TypeMismatch,
+                    "projection requires record",
+                    *span,
+                ));
             };
             rs[&n]
                 .fields
                 .iter()
                 .find(|(f, _, _)| f == name)
-                .ok_or_else(|| err("Type", format!("unknown field {name}"), *span))?
+                .ok_or_else(|| {
+                    err(
+                        DiagnosticCode::FieldUnknown,
+                        format!("unknown field {name}"),
+                        *span,
+                    )
+                })?
                 .1
                 .clone()
         }
         ExprKind::Call(n, args) => {
-            let f = fs
-                .get(n)
-                .ok_or_else(|| err("Type", format!("unknown function {n}"), e.span))?;
+            let f = fs.get(n).ok_or_else(|| {
+                err(
+                    DiagnosticCode::NameUnknown,
+                    format!("unknown function {n}"),
+                    e.span,
+                )
+            })?;
             if args.len() != f.params.len() {
-                return Err(err("Type", "argument count mismatch", e.span));
+                return Err(err(
+                    DiagnosticCode::TypeMismatch,
+                    "argument count mismatch",
+                    e.span,
+                ));
             }
             for (a, (_, t)) in args.iter().zip(&f.params) {
                 if type_expr(a, env, fs, rs)? != *t {
@@ -400,7 +494,11 @@ impl<'a> Machine<'a> {
     pub(crate) fn alloc(&mut self, n: usize, span: Span) -> Result<()> {
         self.allocation = self.allocation.saturating_add(n);
         if self.allocation > self.limits.allocation_bytes {
-            Err(err("Limit", "logical allocation limit exceeded", span))
+            Err(err(
+                DiagnosticCode::LimitAllocation,
+                "logical allocation limit exceeded",
+                span,
+            ))
         } else {
             Ok(())
         }
@@ -408,7 +506,7 @@ impl<'a> Machine<'a> {
     pub(crate) fn tick(&mut self, n: usize, span: Span) -> Result<()> {
         self.fuel = self.fuel.saturating_add(n as u64);
         if self.fuel > self.limits.fuel {
-            return Err(err("Limit", "fuel exhausted", span));
+            return Err(err(DiagnosticCode::LimitFuel, "fuel exhausted", span));
         }
         Ok(())
     }
@@ -427,7 +525,11 @@ impl<'a> Machine<'a> {
                 }
                 Value::Record(n, fields) => {
                     if depth >= 16 {
-                        return Err(err("Limit", "record value depth exceeds 16", span));
+                        return Err(err(
+                            DiagnosticCode::LimitValueDepth,
+                            "record value depth exceeds 16",
+                            span,
+                        ));
                     }
                     bytes = bytes.saturating_add(32 + n.len() + fields.len() * 32);
                     for (name, child) in fields {
@@ -486,7 +588,11 @@ impl<'a> Machine<'a> {
     fn emit(&mut self, text: &str, span: Span) -> Result<()> {
         self.tick(text.len(), span)?;
         if self.output.len().saturating_add(text.len()) > self.limits.output_bytes {
-            return Err(err("Limit", "output limit exceeded", span));
+            return Err(err(
+                DiagnosticCode::LimitOutput,
+                "output limit exceeded",
+                span,
+            ));
         }
         self.output.push_str(text);
         Ok(())
@@ -549,7 +655,11 @@ impl<'a> Machine<'a> {
     }
     pub fn eval(&mut self, e: &Expr, env: &mut Env<Value>) -> Result<Value> {
         if self.evaluation_depth >= self.limits.evaluation_depth {
-            return Err(err("Limit", "evaluation stack depth exceeded", e.span));
+            return Err(err(
+                DiagnosticCode::LimitEvaluationDepth,
+                "evaluation stack depth exceeded",
+                e.span,
+            ));
         }
         self.evaluation_depth += 1;
         let result = self.eval_inner(e, env);
@@ -589,7 +699,11 @@ impl<'a> Machine<'a> {
                     self.tick(1, e.span)?;
                     if let Value::Record(_, children) = value {
                         if depth >= 16 {
-                            return Err(err("Limit", "record value depth exceeds 16", e.span));
+                            return Err(err(
+                                DiagnosticCode::LimitValueDepth,
+                                "record value depth exceeds 16",
+                                e.span,
+                            ));
                         }
                         stack.extend(children.iter().map(|(_, v)| (v, depth + 1)));
                     }
@@ -611,7 +725,11 @@ impl<'a> Machine<'a> {
             }
             ExprKind::Call(n, args) => {
                 if self.depth >= self.limits.call_depth {
-                    return Err(err("Limit", "call depth exceeded", e.span));
+                    return Err(err(
+                        DiagnosticCode::LimitCallDepth,
+                        "call depth exceeded",
+                        e.span,
+                    ));
                 }
                 let f = self.functions[n];
                 let mut local = Env::new();
@@ -625,14 +743,15 @@ impl<'a> Machine<'a> {
                 self.depth -= 1;
                 result?
             }
-            ExprKind::Unary(op, a) => match (self.eval(a, env)?, op.as_str()) {
-                (Value::Bool(b), "!") => Value::Bool(!b),
-                (Value::Int(n), "-") => Value::Int(
-                    n.checked_neg()
-                        .ok_or_else(|| err("Runtime", "integer overflow", e.span))?,
-                ),
-                _ => unreachable!(),
-            },
+            ExprKind::Unary(op, a) => {
+                match (self.eval(a, env)?, op.as_str()) {
+                    (Value::Bool(b), "!") => Value::Bool(!b),
+                    (Value::Int(n), "-") => Value::Int(n.checked_neg().ok_or_else(|| {
+                        err(DiagnosticCode::IntOverflow, "integer overflow", e.span)
+                    })?),
+                    _ => unreachable!(),
+                }
+            }
             ExprKind::Binary(op, a, b) => {
                 let x = self.eval(a, env)?;
                 if op == "&&" && matches!(x, Value::Bool(false)) {
@@ -665,7 +784,12 @@ impl<'a> Machine<'a> {
                                     _ => unreachable!(),
                                 };
                                 Value::Int(n.ok_or_else(|| {
-                                    err("Runtime", "integer overflow or division by zero", e.span)
+                                    let code = if b == 0 && matches!(op.as_str(), "/" | "%") {
+                                        DiagnosticCode::DivZero
+                                    } else {
+                                        DiagnosticCode::IntOverflow
+                                    };
+                                    err(code, "integer overflow or division by zero", e.span)
                                 })?)
                             }
                         }

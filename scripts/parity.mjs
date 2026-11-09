@@ -114,3 +114,27 @@ const invoiceResult = compareCall({ op: 'call', source: examples[3], function: '
 assert.equal(invoiceResult.output, ''); assert.equal(invoiceResult.probes.length, 0);
 assert.equal(invoiceResult.result.value.item.quantity, '9');
 console.log(`Typed invocation: ${invocationComparisons} additional native/WASM comparisons (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons} total).`);
+const discoveryRequest = '{"op":"capabilities","source":""}';
+const discovery = compareCall(discoveryRequest);
+const nativeDiscovery = spawnSync('./target/debug/wisp', ['capabilities'], { encoding: 'utf8' });
+assert.equal(nativeDiscovery.status, 0);
+assert.deepEqual(discovery, JSON.parse(nativeDiscovery.stdout));
+assert.deepEqual(discovery, JSON.parse(readFileSync('dist/agent.json', 'utf8')));
+assert.ok(Buffer.byteLength(JSON.stringify(discovery)) <= 32768);
+for (const example of discovery.capabilities.examples) {
+  const result = compareCall(example.request);
+  assert.equal(result.status, example.expected_status);
+  if (example.expected_result) assert.deepEqual(result.result, example.expected_result);
+}
+const pinned = JSON.parse(readFileSync('tests/fixtures/semantics5-ghost.json', 'utf8'));
+assert.equal(compareCall({ op: 'inspect-artifact', source: '', artifact: pinned }).status, 'Ready');
+const contractRequests = [
+  { op: 'run', source: 'print(1 / 0);' },
+  { op: 'run', source: 'print(-9223372036854775808 / -1);' },
+  { op: 'run', source: 'print(1 / 0); probe n in 1..=1 { true }' },
+  { op: 'run', source: 'probe n in 1..=1 { true }', limits: { cases: 0 } },
+  { op: 'call', source: 'fn f(n:Int)->Int{n}', function: 'f', args: ['01'] },
+];
+for (const request of contractRequests) compareCall(request);
+for (const malformed of ['{"op":"capabilities"}', '{"op":"run","source":null}', '{"op":"run","source":"","source":""}']) compareCall(malformed);
+console.log(`Machine contract: native/WASM/static manifest and runnable examples agree (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons} total native/WASM comparisons).`);

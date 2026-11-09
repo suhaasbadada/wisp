@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0005 hardens agent-facing errors/discovery with explicit stable diagnostic codes and compiler-owned capabilities/static manifest. No syntax/semantics/permission/cache expansion; preserve current artifact/key compatibility and legacy status/transport rules.
+
 - 2026-11-09: ADR 0004 adds type-directed JSON input/output for invoking existing named functions. This closes a CLI/data-tool workflow gap without language IO, new syntax, host permissions or a solver. Ints remain exact decimal strings; raw input and encoded result are bounded and metered.
 
 - 2026-11-09: ADR 0003 advances the previously agreed records direction for invoice/inventory data. Explicit immutable nominal construction/projection and bounded aggregate operations only; no object model, recursive types, mutation or host permissions. Compiler identity will change; old-compiler artifacts are rejected explicitly rather than migrated.
