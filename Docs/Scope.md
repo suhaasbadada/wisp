@@ -2,7 +2,7 @@
 
 Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger through PR #6 is shipped; guarded edits are under verification.
 
-Status: first playable through stable diagnostic/discovery contract shipped via PRs #1–#5. Explicit probe-context ledger (ADR 0006) in progress. Experimental; not production-ready. No license selected (owner decision pending).
+Status: first playable through explicit probe-context ledger shipped via PRs #1–#6. Guarded body preparation (ADR 0007) locally verified and independently reviewed; remote CI/deployment pending. Experimental; not production-ready. No license selected (owner decision pending).
 
 Wisp is function-oriented and statically typed. The first slice is a real Rust lexer, parser, checker and bounded interpreter, shared by the native CLI and browser WebAssembly. Its first domain is agent-generated sandboxed CLI/data transformations, later maintained business logic.
 
