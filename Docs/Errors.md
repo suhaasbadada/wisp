@@ -1,5 +1,21 @@
 # Diagnostic contract v1
 
+Review contract v1 adds five explicit codes. Candidate preflight causes retain
+their original diagnostic under `review.cause`, tagged with `document`;
+root candidate diagnostics use `/candidate` and sentinel `0..0`, not baseline
+offsets. Suite paths use `/suite/cases/INDEX/...`. Expected-value non-limit
+failures use E_REVIEW_EXPECTATION with a tagged suite cause; Limit reasons
+remain their original code/kind and Unknown. Runtime diagnostics remain inside
+the source-owned before/after cell.
+
+| Code | Kind | Meaning |
+| --- | --- | --- |
+| E_REVIEW_REQUEST | Request | Invalid review fields or strict suite schema. |
+| E_REVIEW_TARGET | Input | Missing or incompatible review target boundary. |
+| E_REVIEW_EXPECTATION | Input | Invalid typed candidate expectation. |
+| E_LIMIT_REVIEW_BYTES | Limit | Raw suite exceeds 65536 bytes. |
+| E_LIMIT_REVIEW_CASES | Limit | Review suite exceeds sixteen cases. |
+
 Every diagnostic has stable `code` and legacy `kind`, human `message`, half-open
 UTF-8 source `span:{start,end}`, and optional JSON Pointer `path`. An absent
 path is omitted, not null. Input data uses sentinel source span `0..0`.

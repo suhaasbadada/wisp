@@ -36,6 +36,7 @@ pub(super) fn document() -> Json {
             vec!["focus", "change", "limits"],
             "checked-baseline function-body preparation only; no execution or automatic application",
         ),
+        ("review", vec!["candidate", "suite", "limits"], "explicit finite policy cases across two checked revisions; fresh per-cell invocations; no approval or application"),
         (
             "replay",
             vec!["ghost", "focus", "budget", "limits"],
@@ -62,6 +63,7 @@ pub(super) fn document() -> Json {
         let required = match op {
             "call" => vec!["op", "source", "function"],
             "edit" => vec!["op", "source", "focus", "change"],
+            "review" => vec!["op", "source", "candidate", "suite"],
             "replay" => vec!["op", "source", "ghost"],
             "archive" => vec!["op", "source", "ghost", "limits"],
             "inspect-artifact" | "replay-artifact" => vec!["op", "source", "artifact"],
@@ -88,6 +90,9 @@ pub(super) fn document() -> Json {
         ("request_bytes", TRANSPORT_BYTES, "UTF-8 bytes", "entire raw dispatch request before parsing; Request/Error on excess"),
         ("argument_bytes", ARGUMENT_BYTES, "UTF-8 bytes", "raw args value, including internal whitespace; envelope excluded"),
         ("replacement_bytes", REPLACEMENT_BYTES, "UTF-8 bytes", "raw replacement block including outer whitespace; candidate also obeys effective source_bytes"),
+        ("review_bytes", REVIEW_BYTES, "UTF-8 bytes", "retained raw suite value, excluding outer whitespace"),
+        ("review_cases", 16, "cases", "explicit suite cases, independent of limits.cases"),
+        ("review_expected_output_bytes", 8192, "UTF-8 bytes", "exact expected captured output per case"),
         ("tokens", 8192, "tokens", "language lexer tokens, excluding end sentinel"),
         ("syntax_depth", 64, "nodes", "syntax/AST, operator and projection chains"),
         ("record_fields", 32, "fields", "per declaration or constructor"),
@@ -103,11 +108,12 @@ pub(super) fn document() -> Json {
             "diagnostic_contract_version":DIAGNOSTIC_CONTRACT_VERSION,
             "context_contract_version":CONTEXT_CONTRACT_VERSION,
             "edit_contract_version":EDIT_CONTRACT_VERSION,
+            "review_contract_version":REVIEW_CONTRACT_VERSION,
             "operations":operations,
             "request":{
                 "required_fields":["op","source"],
                 "operation_fields":"Per-operation required_fields describe prerequisites for success; omission may decode and then produce an Input/Request diagnostic rather than a schema error.",
-                "optional_fields":["focus","budget","ghost","artifact","function","args","limits","change"],
+                "optional_fields":["focus","budget","ghost","artifact","function","args","limits","change","candidate","suite"],
                 "policy":"Unknown/duplicate envelope fields rejected; source is always a string. Known unused fields are decoded and ignored, except function/args require call and change presence (even null) requires edit. Limits are always decoded first. Edit requires explicit focus and strict change with three required strings: expected_revision, expected_body_hash, replacement; guards are lowercase SHA-256. Missing args means []; explicit null args is invalid for call. Missing function decodes but fails target validation for call.",
                 "capabilities":"Source is required but never checked, executed, hashed or reflected. Valid known unused fields do not alter discovery."
             },
@@ -129,7 +135,8 @@ pub(super) fn document() -> Json {
                 {"request":{"op":"run","source":"probe n in 1..=3 { n + 1 > n }"},"expected_status":"Complete"},
                 {"request":{"op":"call","source":"fn twice(n: Int) -> Int { n * 2 }","function":"twice","args":["21"]},"expected_status":"Complete","expected_result":{"type":"Int","value":"42"}},
                 {"request":{"op":"context","source":"probe n in 1..=3 { n + 1 > n }","focus":"probe:0","budget":4096},"expected_status":"Ready"},
-                {"request":{"op":"edit","source":"fn twice(n: Int) -> Int { n * 2 }","focus":"twice","change":{"expected_revision":"f59809bffc2adfed70f4dbc000d5bb7223b50359189a05c1fa312a0f017f86c7","expected_body_hash":"64cd3cbb8f071e01a74d17007ab3df19b7d47332bf133633a0f8171e92b50928","replacement":"{ n + n }"}},"expected_status":"Ready"}
+                {"request":{"op":"edit","source":"fn twice(n: Int) -> Int { n * 2 }","focus":"twice","change":{"expected_revision":"f59809bffc2adfed70f4dbc000d5bb7223b50359189a05c1fa312a0f017f86c7","expected_body_hash":"64cd3cbb8f071e01a74d17007ab3df19b7d47332bf133633a0f8171e92b50928","replacement":"{ n + n }"}},"expected_status":"Ready"},
+                {"request":{"op":"review","source":"fn twice(n: Int) -> Int { n * 2 }","candidate":"fn twice(n: Int) -> Int { n + n }","suite":{"version":1,"target":"twice","cases":[{"id":"positive","args":["2"],"expect":{"result":{"type":"Int","value":"4"},"output":""}}]}},"expected_status":"Pass"}
             ]
         }
     })

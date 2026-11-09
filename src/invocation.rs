@@ -42,7 +42,13 @@ impl<'de> Deserialize<'de> for Fields {
     }
 }
 
-fn literal(raw: &RawValue, ty: &Ty, p: &Program, path: &str, depth: usize) -> Result<Expr> {
+pub(super) fn literal(
+    raw: &RawValue,
+    ty: &Ty,
+    p: &Program,
+    path: &str,
+    depth: usize,
+) -> Result<Expr> {
     if depth > 16 {
         let mut d = err(
             DiagnosticCode::LimitInputDepth,
@@ -117,7 +123,7 @@ fn literal(raw: &RawValue, ty: &Ty, p: &Program, path: &str, depth: usize) -> Re
     })
 }
 
-fn arguments(raw: &str, f: &Function, p: &Program) -> Result<Vec<Expr>> {
+pub(super) fn arguments(raw: &str, f: &Function, p: &Program) -> Result<Vec<Expr>> {
     if raw.len() > ARGUMENT_BYTES {
         let mut d = err(
             DiagnosticCode::LimitInputBytes,
@@ -127,36 +133,7 @@ fn arguments(raw: &str, f: &Function, p: &Program) -> Result<Vec<Expr>> {
         d.path = Some("/args".into());
         return Err(d);
     }
-    // Bound nesting independently of serde and the expected type, without
-    // allocating or recursively visiting untrusted JSON. Quotes/escapes are
-    // handled here only for depth counting; serde remains the syntax decoder.
-    let (mut depth, mut quoted, mut escaped) = (0usize, false, false);
-    for b in raw.bytes() {
-        if quoted {
-            if escaped {
-                escaped = false;
-            } else if b == b'\\' {
-                escaped = true;
-            } else if b == b'"' {
-                quoted = false;
-            }
-        } else if b == b'"' {
-            quoted = true;
-        } else if b == b'[' || b == b'{' {
-            depth += 1;
-            if depth > 17 {
-                let mut d = err(
-                    DiagnosticCode::LimitInputDepth,
-                    "argument JSON nesting exceeds 17",
-                    Span::default(),
-                );
-                d.path = Some("/args".into());
-                return Err(d);
-            }
-        } else if b == b']' || b == b'}' {
-            depth = depth.saturating_sub(1);
-        }
-    }
+    json_depth(raw, "/args", 17)?;
     // RawValue's parser has a fixed JSON nesting ceiling too. Typed decoding
     // below independently limits record depth; unsupported values never recurse.
     let args: Vec<Box<RawValue>> = serde_json::from_str(raw).map_err(|_| {
@@ -178,6 +155,44 @@ fn arguments(raw: &str, f: &Function, p: &Program) -> Result<Vec<Expr>> {
         .enumerate()
         .map(|(i, (raw, (_, ty)))| literal(raw, ty, p, &format!("/args/{i}"), 0))
         .collect()
+}
+
+pub(super) fn json_depth(raw: &str, path: &str, ceiling: usize) -> Result<()> {
+    // Bound nesting independently of serde and the expected type, without
+    // allocating or recursively visiting untrusted JSON. Quotes/escapes are
+    // handled here only for depth counting; serde remains the syntax decoder.
+    let (mut depth, mut quoted, mut escaped) = (0usize, false, false);
+    for b in raw.bytes() {
+        if quoted {
+            if escaped {
+                escaped = false;
+            } else if b == b'\\' {
+                escaped = true;
+            } else if b == b'"' {
+                quoted = false;
+            }
+        } else if b == b'"' {
+            quoted = true;
+        } else if b == b'[' || b == b'{' {
+            depth += 1;
+            if depth > ceiling {
+                let mut d = err(
+                    DiagnosticCode::LimitInputDepth,
+                    if path == "/args" {
+                        "argument JSON nesting exceeds 17".into()
+                    } else {
+                        format!("input JSON nesting exceeds {ceiling}")
+                    },
+                    Span::default(),
+                );
+                d.path = Some(path.into());
+                return Err(d);
+            }
+        } else if b == b']' || b == b'}' {
+            depth = depth.saturating_sub(1);
+        }
+    }
+    Ok(())
 }
 
 // Every chunk is metered before appending. No unbounded serialized string or

@@ -195,3 +195,29 @@ No host expression evaluation, automatic upload, persistence, filesystem or
 network access is added to the language core. File IO is native CLI transport
 only. Inspecting untrusted artifacts does bounded fresh work; it does not trust
 the claimed receipt or execute arbitrary host commands.
+# Policy case review
+
+```
+wisp review BEFORE AFTER --suite CASES
+wisp verify SOURCE --suite CASES
+```
+
+Both emit structured shared review JSON to stdout and write no files. Verify
+reads SOURCE once and logically uses it for both documents, including stdin.
+Exactly one `--suite` is required; unknown/missing/duplicate flags are usage
+errors. There is no output-file, apply or approval option. At most one physical
+input can be `-`. Sources and suite use bounded UTF-8 cap+1 readers (65,536 bytes).
+Suite file JSON is validated as a standalone RawValue before embedding; valid
+raw duplicate members and number spelling reach the shared decoder unchanged.
+Invalid JSON becomes a shared review Request/Error, never envelope injection.
+Host IO/usage errors: stderr and exit 2. Semantic exits: Pass 0, Fail/Error 1,
+Unknown 3. Legacy FILE/`--json` semantic exit 0 is unchanged.
+
+```
+wisp review examples/policies/reservations-before.wisp examples/policies/reservations-after.wisp --suite examples/policies/cases.json
+wisp verify examples/policies/reservations-after.wisp --suite examples/policies/cases.json
+```
+
+The seven explicit reservation cases show two Changed, five Unchanged and
+candidate Pass. Verifying the baseline returns Fail, not a parse error.
+Pass is not authorization to apply, merge or deploy.

@@ -5,6 +5,7 @@ mod diagnostics;
 mod edit;
 mod engine;
 mod invocation;
+mod review;
 mod syntax;
 pub use capabilities::{CAPABILITIES_BYTES, DISCOVERY_CONTRACT_VERSION};
 pub use context::CONTEXT_CONTRACT_VERSION;
@@ -37,11 +38,15 @@ struct Request {
     limits: Option<Box<serde_json::value::RawValue>>,
     #[serde(default, deserialize_with = "present_limits")]
     change: Option<Box<serde_json::value::RawValue>>,
+    #[serde(default, deserialize_with = "present_limits")]
+    candidate: Option<Box<serde_json::value::RawValue>>,
+    #[serde(default, deserialize_with = "present_limits")]
+    suite: Option<Box<serde_json::value::RawValue>>,
 }
 fn function_name<'de, D: serde::Deserializer<'de>>(
     d: D,
 ) -> std::result::Result<Option<String>, D::Error> {
-    String::deserialize(d).map(Some)
+    Option::<String>::deserialize(d)
 }
 fn present_limits<'de, D: serde::Deserializer<'de>>(
     d: D,
@@ -79,6 +84,7 @@ struct Artifact {
 pub const TRANSPORT_BYTES: usize = 1_048_576;
 pub const SOURCE_BYTES: usize = 65_536;
 pub use invocation::ARGUMENT_BYTES;
+pub use review::{REVIEW_BYTES, REVIEW_CONTRACT_VERSION};
 
 fn artifact_error(code: DiagnosticCode, message: &str, source: &str, limits: &Limits) -> Json {
     let mut report = diagnostic_report(err(code, message, Span::default()), &hash(source), limits);
@@ -167,6 +173,20 @@ fn execute_request(r: Request) -> Json {
             )
         }
     };
+    if r.op == "review" {
+        return review::execute(r, limits);
+    }
+    if r.candidate.is_some() || r.suite.is_some() {
+        return diagnostic_report(
+            err(
+                DiagnosticCode::RequestInvalid,
+                "candidate and suite require review operation",
+                Span::default(),
+            ),
+            &hash(&r.source),
+            &limits,
+        );
+    }
     if r.op != "edit" && r.change.is_some() {
         return diagnostic_report(
             err(
