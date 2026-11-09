@@ -9,6 +9,7 @@ plain program output. Captured program output lives in the report's `output`.
 wisp run examples/snacks.wisp                  # Fail, exit 1
 wisp check examples/snacks.wisp                # Ready, exit 0; no execution
 wisp focus examples/snacks.wisp bill --budget 4096
+wisp call examples/invoice.wisp total --args-file item.json
 wisp archive examples/snacks.wisp --out failure.json --probe 0
 wisp inspect failure.json
 wisp replay examples/snacks-repaired.wisp --artifact failure.json
@@ -21,6 +22,40 @@ expressions on the host. Missing functions return Error. The report's
 `agent_view.focus` names the actual selection; `overflow`, `required_bytes` and
 `used_bytes` truthfully describe UTF-8 text truncation. Budget is an unsigned
 integer (default 4096, effective ceiling 65536), not a completeness guarantee.
+
+## Typed calls
+
+`wisp call FILE FUNCTION [--args-file INPUT]` checks the entire source, then
+executes only the selected global function: no top-level statements or probes.
+Function-internal print remains captured and bounded. No arguments file means
+`[]` (exact arity still required). For the existing `examples/invoice.wisp`
+function `total`, an `item.json` containing
+`[{"quantity":"9","unit_price":"100"}]` yields a typed Int result value
+`"900"`; this is the same program and language syntax, not generated source.
+See [Protocol.md](Protocol.md#typed-function-invocation) for strict primitive and
+nested record encoding, input error paths, result shape and execution identities.
+
+`INPUT` is a UTF-8 local file or `-` stdin. `FILE` may likewise be `-`, but both
+cannot consume stdin in one call (usage error, exit 2). There is deliberately no
+inline `--args` option: do not place potentially sensitive JSON in process
+arguments. The CLI does not upload, persist, modify or echo the input file.
+Language prints/results may of course disclose data explicitly used by source.
+
+The reader consumes at most 65,537 bytes; files exceeding 65,536 bytes, invalid
+UTF-8 and missing/unreadable files are host errors (exit 2). Valid standalone
+JSON is preserved raw when embedded in the request so duplicate fields and
+numeric widths reach the shared decoder unchanged. Invalid standalone JSON is
+never interpolated into the request: it is represented as null args for a shared
+Input Error (exit 1). Thus malformed text cannot inject envelope fields. Source
+checking errors can preempt that input error. Core dispatch independently caps
+the raw argument value at 65,536 bytes (Limit/Unknown; explicit command exit 3),
+and the full escaped request at 1 MiB (Request Error). These differ from the
+CLI's host file limit, which includes leading/trailing whitespace too.
+
+Success is Complete (exit 0), not Clear. Error exits 1, Unknown exits 3; usage/IO
+exits 2, as for other explicit commands. No partial result is emitted on an
+interrupted call; previously completed prints remain captured. `--json` can
+express custom limits and retains its legacy exit-code behavior.
 
 `archive FILE --out ARTIFACT [--probe INDEX]` runs the source, selects the
 zero-based probe (default 0), and passes its ghost and the run's **effective**

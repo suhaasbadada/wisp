@@ -58,6 +58,117 @@ fn report(o: &Output, code: i32, status: &str) -> Value {
     v
 }
 #[test]
+fn typed_call_native_files_stdin_defaults_and_shared_transport() {
+    let t = Temp::new();
+    let src = "record Item {quantity:Int,unit_price:Int} fn total(item:Item)->Int{item.quantity*item.unit_price} print(1/0);";
+    let file = t.file("invoice.wisp", src);
+    let raw = r#"[{"quantity":"9","unit_price":"100"}]"#;
+    let args = t.file("input.json", raw);
+    let native = report(
+        &cli(&["call", &file, "total", "--args-file", &args], None),
+        0,
+        "Complete",
+    );
+    let request = format!(
+        r#"{{"op":"call","source":{},"function":"total","args":{raw}}}"#,
+        serde_json::json!(src)
+    );
+    let core: Value = serde_json::from_str(&wisp::dispatch(&request)).unwrap();
+    assert_eq!(native, core);
+    assert_eq!(native["result"]["value"], "900");
+    assert_eq!(native["output"], "");
+    assert_eq!(
+        report(
+            &cli(&["call", &file, "total", "--args-file", "-"], Some(raw)),
+            0,
+            "Complete"
+        ),
+        core
+    );
+    assert_eq!(
+        report(
+            &cli(&["call", "-", "total", "--args-file", &args], Some(src)),
+            0,
+            "Complete"
+        ),
+        core
+    );
+    let noargs = t.file("noargs.wisp", "fn f()->Int{42}");
+    assert_eq!(
+        report(&cli(&["call", &noargs, "f"], None), 0, "Complete")["result"]["value"],
+        "42"
+    );
+    assert_eq!(
+        cli(&["call", "-", "f", "--args-file", "-"], None)
+            .status
+            .code(),
+        Some(2)
+    );
+    for a in [
+        vec!["call", &file],
+        vec!["call", &file, "total", "--args", raw],
+        vec!["call", &file, "total", "--args-file"],
+    ] {
+        assert_eq!(cli(&a, None).status.code(), Some(2));
+    }
+}
+
+#[test]
+fn typed_call_cli_invalid_data_bounds_exit_codes_and_raw_order() {
+    let t = Temp::new();
+    let file = t.file("source.wisp", "record A{z:Int,a:Int} fn f(x:A)->A{x}");
+    for raw in [
+        r#"[{"z":"1","z":"2","a":"3"}]"#,
+        r#"[{"z":1,"a":"2"}]"#,
+        r#"[],"op":"run"}"#,
+        "[",
+        "null",
+    ] {
+        let args = t.file("args.json", raw);
+        let r = report(
+            &cli(&["call", &file, "f", "--args-file", &args], None),
+            1,
+            "Error",
+        );
+        assert_eq!(r["invocation"]["new_execution"], false);
+        assert_eq!(r["diagnostics"][0]["kind"], "Input");
+    }
+    let args = t.file("args.json", r#"[{"a":"2","z":"1"}]"#);
+    let output = cli(&["call", &file, "f", "--args-file", &args], None);
+    report(&output, 0, "Complete");
+    assert!(String::from_utf8(output.stdout)
+        .unwrap()
+        .contains(r#""value":{"z":"1","a":"2"}"#));
+    let large = t.file("large.json", &" ".repeat(wisp::ARGUMENT_BYTES + 1));
+    assert_eq!(
+        cli(&["call", &file, "f", "--args-file", &large], None)
+            .status
+            .code(),
+        Some(2)
+    );
+    let invalid = t.path("invalid.json");
+    fs::write(&invalid, [0xff, 0xfe]).unwrap();
+    assert_eq!(
+        cli(&["call", &file, "f", "--args-file", &invalid], None)
+            .status
+            .code(),
+        Some(2)
+    );
+    assert_eq!(
+        cli(
+            &["call", &file, "f", "--args-file", &t.path("absent")],
+            None
+        )
+        .status
+        .code(),
+        Some(2)
+    );
+    let recursive = t.file("recursive.wisp", "fn f()->Int{f()}");
+    report(&cli(&["call", &recursive, "f"], None), 3, "Unknown");
+    let broken = t.file("fault.wisp", "fn f()->Int{1/0}");
+    report(&cli(&["call", &broken, "f"], None), 1, "Error");
+}
+#[test]
 fn records_use_identical_native_core_for_check_run_focus_and_artifacts() {
     let t = Temp::new();
     let invoice = include_str!("../examples/invoice.wisp");
