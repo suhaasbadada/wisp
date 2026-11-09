@@ -39,11 +39,15 @@ fn dispatch(request: Value) -> Value {
 fn source(path: &str) -> Result<String, String> {
     read(path, wisp::SOURCE_BYTES)
 }
-fn artifact(path: &str) -> Result<Value, String> {
+fn artifact_request(op: &str, source: &str, path: &str) -> Result<Value, String> {
     let raw = read(path, wisp::TRANSPORT_BYTES)?;
-    // Keep malformed artifact data a semantic Request Error from the core,
-    // rather than confusing it with a filesystem/usage failure.
-    Ok(serde_json::from_str(&raw).unwrap_or(Value::String(raw)))
+    // Preserve duplicate fields and numeric widths for the shared Rust decoder.
+    let request = format!(
+        "{{\"op\":{},\"source\":{},\"artifact\":{raw}}}",
+        json!(op),
+        json!(source)
+    );
+    Ok(serde_json::from_str(&wisp::dispatch(&request)).expect("core emits JSON"))
 }
 fn number(s: &str) -> Result<u64, String> {
     s.parse().map_err(|_| "expected unsigned integer".into())
@@ -74,12 +78,10 @@ fn execute(args: &[String]) -> Result<(Value, bool), String> {
                 r
             }
         }
-        ["inspect", path] => {
-            dispatch(json!({"op":"inspect-artifact","source":"","artifact":artifact(path)?}))
+        ["inspect", path] => artifact_request("inspect-artifact", "", path)?,
+        ["replay", path, "--artifact", archive] => {
+            artifact_request("replay-artifact", &source(path)?, archive)?
         }
-        ["replay", path, "--artifact", archive] => dispatch(
-            json!({"op":"replay-artifact","source":source(path)?,"artifact":artifact(archive)?}),
-        ),
         ["archive", path, rest @ ..] => {
             let mut out = None;
             let mut probe = None;

@@ -20,8 +20,13 @@ struct Request {
     budget: Option<u64>,
     ghost: Option<Ghost>,
     artifact: Option<Artifact>,
-    #[serde(default)]
-    limits: Option<Json>,
+    #[serde(default, deserialize_with = "present_limits")]
+    limits: Option<Box<serde_json::value::RawValue>>,
+}
+fn present_limits<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> std::result::Result<Option<Box<serde_json::value::RawValue>>, D::Error> {
+    Box::<serde_json::value::RawValue>::deserialize(d).map(Some)
 }
 struct LanguageRequest {
     op: String,
@@ -48,7 +53,7 @@ struct Artifact {
     version: u64,
     compiler: String,
     source: String,
-    limits: Json,
+    limits: Box<serde_json::value::RawValue>,
     ghost: Ghost,
 }
 pub const TRANSPORT_BYTES: usize = 1_048_576;
@@ -71,12 +76,14 @@ fn validate_artifact(a: &Artifact) -> std::result::Result<Json, Json> {
         return Err(invalid("unsupported artifact format, version or compiler"));
     }
     let limits: Limits =
-        serde_json::from_value(a.limits.clone()).map_err(|_| invalid("invalid archived limits"))?;
+        serde_json::from_str(a.limits.get()).map_err(|_| invalid("invalid archived limits"))?;
     let mut effective = limits.clone();
     effective.clamp();
     // Exact equality also requires every field and rejects values that would
     // otherwise be clamped (including host-sized transport conversions).
-    if serde_json::to_value(&effective).unwrap() != a.limits {
+    if serde_json::to_value(&effective).unwrap()
+        != serde_json::from_str::<Json>(a.limits.get()).unwrap()
+    {
         return Err(invalid(
             "artifact requires full effective limits within ceilings",
         ));
@@ -107,7 +114,12 @@ fn validate_artifact(a: &Artifact) -> std::result::Result<Json, Json> {
 }
 
 fn execute_request(r: Request) -> Json {
-    let limits: Limits = match r.limits.clone().map(serde_json::from_value).transpose() {
+    let limits: Limits = match r
+        .limits
+        .as_ref()
+        .map(|raw| serde_json::from_str(raw.get()))
+        .transpose()
+    {
         Ok(limits) => limits.unwrap_or_default(),
         Err(e) => {
             return diagnostic_report(
@@ -161,7 +173,7 @@ fn execute_request(r: Request) -> Json {
             diagnostic_report(
                 err("Artifact", "validated", Span::default()),
                 &hash(&a.source),
-                &serde_json::from_value(a.limits.clone()).unwrap(),
+                &serde_json::from_str(a.limits.get()).unwrap(),
             )
         };
         if r.op != "replay-artifact" {

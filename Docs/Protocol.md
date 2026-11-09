@@ -103,6 +103,10 @@ become retroactive passes. Limits/configuration can differ: this is a new run.
 The exact file envelope has six required fields; unknown fields are rejected,
 including inside `ghost` and `limits`:
 
+Native and browser clients preserve raw artifact JSON through shared Rust schema
+decoding; duplicate fields are errors, not last-value-wins normalization. File
+input must be valid UTF-8; a BOM is not silently stripped before JSON decoding.
+
 ```json
 {"format":"wisp-ghost","version":1,"compiler":"wisp-0.1.0-semantics-4",
  "source":"<exact historical complete source>",

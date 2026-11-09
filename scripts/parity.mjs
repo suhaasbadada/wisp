@@ -33,3 +33,32 @@ for (const value of ['4294967296', '18446744073709551615']) {
   assert.deepEqual(wasm, JSON.parse(native.stdout));
 }
 console.log('Native/WASM large transport integer clamping: 2 comparisons passed.');
+let artifactComparisons = 0;
+function compareArtifact(request) {
+  const raw = typeof request === 'string' ? request : JSON.stringify(request);
+  const native = spawnSync('./target/debug/wisp', ['--json'], { input: raw, encoding: 'utf8' });
+  assert.equal(native.status, 0, native.stderr);
+  const wasm = JSON.parse(dispatch(raw));
+  assert.deepEqual(wasm, JSON.parse(native.stdout));
+  artifactComparisons++; return wasm;
+}
+const archive = compareArtifact({ op: 'archive', source: examples[0], ghost, limits: broken.limits });
+assert.equal(archive.status, 'Ready');
+const artifact = archive.artifact;
+compareArtifact({ op: 'inspect-artifact', source: '', artifact });
+for (const source of [examples[0], examples[1], 'print(@);', examples[0].replace('1..=11', '1..=12')]) {
+  compareArtifact({ op: 'replay-artifact', source, artifact });
+}
+for (const changed of [
+  { ...artifact, source: examples[1] },
+  { ...artifact, version: 2 },
+  { ...artifact, compiler: 'different' },
+  { ...artifact, limits: { ...artifact.limits, fuel: 0 } },
+  { ...artifact, limits: { ...artifact.limits, call_depth: 4294967296 } },
+  { ...artifact, limits: { ...artifact.limits, unknown: 1 } },
+  { ...artifact, ghost: { ...ghost, input: '8' } },
+]) compareArtifact({ op: 'inspect-artifact', source: '', artifact: changed });
+const raw = JSON.stringify({ op: 'inspect-artifact', source: '', artifact });
+assert.equal(compareArtifact(raw.replace('"fuel":100000', '"fuel":100000,"fuel":100000')).status, 'Error');
+assert.equal(compareArtifact('{"op":"run","source":"","limits":null}').status, 'Error');
+console.log(`Portable artifacts native/WASM agreement: ${artifactComparisons} exact comparisons passed.`);
