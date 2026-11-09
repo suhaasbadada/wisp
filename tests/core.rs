@@ -7,6 +7,148 @@ fn run(source: &str) -> Value {
 }
 const BROKEN: &str = include_str!("../examples/snacks.wisp");
 const REPAIRED: &str = include_str!("../examples/snacks-repaired.wisp");
+fn archive(source: &str) -> Value {
+    let run = run(source);
+    let r = request(
+        json!({"op":"archive","source":source,"ghost":run["probes"][0]["ghost"],"limits":run["limits"]}),
+    );
+    assert_eq!(r["status"], "Ready", "{r}");
+    r["artifact"].clone()
+}
+fn reidentify(g: &mut Value) {
+    use sha2::{Digest, Sha256};
+    let material = json!([
+        g["revision"],
+        g["predicate_key"],
+        g["dependency_key"],
+        g["input"]
+    ]);
+    g["witness_id"] = json!(format!(
+        "{:x}",
+        Sha256::digest(material.to_string().as_bytes())
+    ));
+}
+#[test]
+fn portable_artifact_roundtrip_and_current_errors_are_distinct() {
+    let a = archive(BROKEN);
+    assert_eq!(a.as_object().unwrap().len(), 6);
+    assert_eq!(a["compiler"], wisp::COMPILER);
+    assert_eq!(a["ghost"]["input"], "9");
+    let inspect = request(json!({"op":"inspect-artifact","source":"","artifact":a}));
+    assert_eq!(inspect["status"], "Ready");
+    assert_eq!(inspect["artifact"], a);
+    assert_eq!(inspect["validation"]["new_execution"], true);
+    for (source, status) in [
+        (BROKEN, "Fail"),
+        (REPAIRED, "Pass"),
+        ("print(true + 1);", "Error"),
+        ("probe n in 1..=2 { true }", "Error"),
+    ] {
+        let r = request(json!({"op":"replay-artifact","source":source,"artifact":a}));
+        assert_eq!(r["status"], status, "{r}");
+        assert_eq!(r["validation"]["status"], "Ready");
+        assert_eq!(r["artifact"], a);
+        assert_eq!(r["new_execution"], true);
+    }
+    let r =
+        request(json!({"op":"replay-artifact","source":REPAIRED,"artifact":a,"limits":{"fuel":0}}));
+    assert_eq!(r["status"], "Unknown");
+    assert_eq!(r["validation"]["status"], "Ready");
+    assert_eq!(r["artifact"], a);
+}
+#[test]
+fn artifacts_reject_corruption_and_nonfirst_failure_even_with_rehashed_identity() {
+    let a = archive("probe n in 1..=3 { n < 2 }");
+    for (path, value) in [
+        (vec!["format"], json!("other")),
+        (vec!["version"], json!(2)),
+        (vec!["compiler"], json!("future")),
+        (vec!["source"], json!(REPAIRED)),
+        (vec!["extra"], json!(true)),
+        (vec!["ghost", "extra"], json!(true)),
+        (vec!["ghost", "witness_id"], json!("bad")),
+        (vec!["ghost", "revision"], json!("bad")),
+        (vec!["limits", "fuel"], json!(100001)),
+        (vec!["limits", "source_bytes"], json!(u64::MAX)),
+        (vec!["limits", "extra"], json!(1)),
+        (vec!["ghost", "dependency_key"], json!("bad")),
+    ] {
+        let mut corrupt = a.clone();
+        let mut field = &mut corrupt;
+        for key in path {
+            field = &mut field[key];
+        }
+        *field = value;
+        let r = request(json!({"op":"inspect-artifact","source":"","artifact":corrupt}));
+        assert_eq!(r["status"], "Error", "{r}");
+        assert!(r.get("artifact").is_none());
+    }
+    for input in ["1", "3", "02", "9223372036854775808"] {
+        let mut corrupt = a.clone();
+        corrupt["ghost"]["input"] = json!(input);
+        reidentify(&mut corrupt["ghost"]);
+        let r = request(json!({"op":"inspect-artifact","source":"","artifact":corrupt}));
+        assert_eq!(r["status"], "Error", "{r}");
+        assert!(r.get("artifact").is_none());
+    }
+    let mut partial = a.clone();
+    partial["limits"].as_object_mut().unwrap().remove("fuel");
+    assert_eq!(
+        request(json!({"op":"inspect-artifact","source":"","artifact":partial}))["status"],
+        "Error"
+    );
+}
+#[test]
+fn unknown_historical_reproduction_never_accepts_artifact() {
+    let mut a = archive(BROKEN);
+    a["limits"]["fuel"] = json!(0);
+    let analyzed = request(json!({"op":"analyze","source":BROKEN,"limits":a["limits"]}));
+    a["ghost"]["dependency_key"] = analyzed["probe_metadata"][0]["dependency_key"].clone();
+    reidentify(&mut a["ghost"]);
+    for op in ["inspect-artifact", "replay-artifact"] {
+        let r = request(json!({"op":op,"source":REPAIRED,"artifact":a}));
+        assert_eq!(r["status"], "Unknown");
+        assert_eq!(r["validation"]["phase"], "artifact");
+        assert!(r.get("artifact").is_none());
+        assert!(r.get("replay").is_none());
+    }
+}
+#[test]
+fn artifact_transport_and_archival_requests_are_strict() {
+    let b = run(BROKEN);
+    for limits in [json!({}), json!({"fuel":100000}), json!(null)] {
+        assert_eq!(
+            request(
+                json!({"op":"archive","source":BROKEN,"ghost":b["probes"][0]["ghost"],"limits":limits})
+            )["status"],
+            "Error"
+        );
+    }
+    for v in [
+        json!({"op":"archive","source":BROKEN}),
+        json!({"op":"inspect-artifact","source":""}),
+        json!({"op":"run","source":"","unexpected":true}),
+    ] {
+        assert_eq!(request(v)["status"], "Error");
+    }
+    let raw = format!(
+        "{}{}",
+        json!({"op":"run","source":""}),
+        " ".repeat(wisp::TRANSPORT_BYTES)
+    );
+    let r: Value = serde_json::from_str(&wisp::dispatch(&raw)).unwrap();
+    assert_eq!(r["status"], "Error");
+    assert_eq!(r["diagnostics"][0]["kind"], "Request");
+}
+#[test]
+fn portable_artifact_preserves_large_i64_input_as_string() {
+    let a = archive("probe n in 9223372036854775807..=9223372036854775807 { false }");
+    assert_eq!(a["ghost"]["input"], "9223372036854775807");
+    assert_eq!(
+        request(json!({"op":"inspect-artifact","source":"","artifact":a}))["status"],
+        "Ready"
+    );
+}
 #[test]
 fn snack_witness_and_exact_repaired_domain() {
     let b = run(BROKEN);

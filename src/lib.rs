@@ -19,10 +19,19 @@ struct Request {
     focus: Option<String>,
     budget: Option<u64>,
     ghost: Option<Ghost>,
+    artifact: Option<Artifact>,
     #[serde(default)]
+    limits: Option<Json>,
+}
+struct LanguageRequest {
+    op: String,
+    source: String,
+    focus: Option<String>,
+    budget: Option<u64>,
+    ghost: Option<Ghost>,
     limits: Limits,
 }
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Ghost {
     pub revision: String,
@@ -30,6 +39,142 @@ pub struct Ghost {
     pub dependency_key: String,
     pub input: String,
     pub witness_id: String,
+}
+/// Unauthenticated portable data; acceptance always requires bounded reproduction.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct Artifact {
+    format: String,
+    version: u64,
+    compiler: String,
+    source: String,
+    limits: Json,
+    ghost: Ghost,
+}
+pub const TRANSPORT_BYTES: usize = 1_048_576;
+pub const SOURCE_BYTES: usize = 65_536;
+
+fn artifact_error(message: &str, source: &str, limits: &Limits) -> Json {
+    let mut report = diagnostic_report(
+        err("Artifact", message, Span::default()),
+        &hash(source),
+        limits,
+    );
+    report["validation"] = json!({"status":"Error","phase":"artifact","new_execution":false});
+    report
+}
+
+fn validate_artifact(a: &Artifact) -> std::result::Result<Json, Json> {
+    let defaults = Limits::default();
+    let invalid = |message: &str| artifact_error(message, &a.source, &defaults);
+    if a.format != "wisp-ghost" || a.version != 1 || a.compiler != COMPILER {
+        return Err(invalid("unsupported artifact format, version or compiler"));
+    }
+    let limits: Limits =
+        serde_json::from_value(a.limits.clone()).map_err(|_| invalid("invalid archived limits"))?;
+    let mut effective = limits.clone();
+    effective.clamp();
+    // Exact equality also requires every field and rejects values that would
+    // otherwise be clamped (including host-sized transport conversions).
+    if serde_json::to_value(&effective).unwrap() != a.limits {
+        return Err(invalid(
+            "artifact requires full effective limits within ceilings",
+        ));
+    }
+    if a.source.len() > SOURCE_BYTES
+        || a.ghost.revision != hash(&a.source)
+        || a.ghost.witness_id != witness_id(&a.ghost)
+    {
+        return Err(invalid("invalid source revision or witness identity"));
+    }
+    let run = execute_language("run", &a.source, None, None, None, limits);
+    let exact = run["probes"].as_array().is_some_and(|ps| {
+        ps.iter()
+            .any(|p| p["status"] == "Fail" && p["ghost"] == json!(a.ghost))
+    });
+    if !exact {
+        let unknown = run["status"] == "Unknown";
+        let mut report = invalid("historical first failure could not be reproduced exactly");
+        if unknown {
+            report["status"] = json!("Unknown");
+        }
+        report["validation"] = json!({"status":if unknown {"Unknown"} else {"Error"},"phase":"artifact","new_execution":true,"reproduction_status":run["status"]});
+        return Err(report);
+    }
+    Ok(
+        json!({"status":"Ready","phase":"artifact","new_execution":true,"note":"Exact historical first failure reproduced by bounded execution; not authentication or proof of history."}),
+    )
+}
+
+fn execute_request(r: Request) -> Json {
+    let limits: Limits = match r.limits.clone().map(serde_json::from_value).transpose() {
+        Ok(limits) => limits.unwrap_or_default(),
+        Err(e) => {
+            return diagnostic_report(
+                err("Request", format!("invalid limits: {e}"), Span::default()),
+                &hash(&r.source),
+                &Limits::default(),
+            )
+        }
+    };
+    if ["archive", "inspect-artifact", "replay-artifact"].contains(&r.op.as_str()) {
+        let a = if r.op == "archive" {
+            let Some(ghost) = r.ghost else {
+                return artifact_error("archive requires ghost", &r.source, &limits);
+            };
+            if r.limits.is_none() {
+                return artifact_error(
+                    "archive requires historical effective limits",
+                    &r.source,
+                    &limits,
+                );
+            }
+            Artifact {
+                format: "wisp-ghost".into(),
+                version: 1,
+                compiler: COMPILER.into(),
+                source: r.source.clone(),
+                limits: r.limits.unwrap(),
+                ghost,
+            }
+        } else {
+            let Some(a) = r.artifact else {
+                return artifact_error("operation requires artifact", &r.source, &limits);
+            };
+            a
+        };
+        let validation = match validate_artifact(&a) {
+            Ok(v) => v,
+            Err(e) => return e,
+        };
+        let mut report = if r.op == "replay-artifact" {
+            execute_language(
+                "replay",
+                &r.source,
+                r.focus,
+                r.budget,
+                Some(a.ghost.clone()),
+                limits,
+            )
+        } else {
+            // The validation already checked and executed the historical source.
+            diagnostic_report(
+                err("Artifact", "validated", Span::default()),
+                &hash(&a.source),
+                &serde_json::from_value(a.limits.clone()).unwrap(),
+            )
+        };
+        if r.op != "replay-artifact" {
+            report["status"] = json!("Ready");
+            report["diagnostics"] = json!([]);
+        } else {
+            report["new_execution"] = json!(true);
+        }
+        report["artifact"] = json!(a);
+        report["validation"] = validation;
+        return report;
+    }
+    execute_language(&r.op, &r.source, r.focus, r.budget, r.ghost, limits)
 }
 fn witness_id(g: &Ghost) -> String {
     hash(&json!([g.revision, g.predicate_key, g.dependency_key, g.input]).to_string())
@@ -193,7 +338,23 @@ fn run_keys(
         })
         .collect()
 }
-fn execute_request(mut r: Request) -> Json {
+fn execute_language(
+    op: &str,
+    source: &str,
+    focus: Option<String>,
+    budget: Option<u64>,
+    ghost: Option<Ghost>,
+    limits: Limits,
+) -> Json {
+    // Keep the language execution path and its identities unchanged.
+    let mut r = LanguageRequest {
+        op: op.into(),
+        source: source.into(),
+        focus,
+        budget,
+        ghost,
+        limits,
+    };
     r.limits.clamp();
     let revision = hash(&r.source);
     if !["run", "analyze", "replay"].contains(&r.op.as_str()) {
@@ -399,6 +560,18 @@ fn execute_request(mut r: Request) -> Json {
 /// JSON transport shared byte-for-byte by CLI and WASM. No host execution.
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn dispatch(request_json: &str) -> String {
+    if request_json.len() > TRANSPORT_BYTES {
+        return diagnostic_report(
+            err(
+                "Request",
+                "request exceeds 1 MiB transport limit",
+                Span::default(),
+            ),
+            "",
+            &Limits::default(),
+        )
+        .to_string();
+    }
     let report = match serde_json::from_str::<Request>(request_json) {
         Ok(r) => execute_request(r),
         Err(e) => diagnostic_report(
