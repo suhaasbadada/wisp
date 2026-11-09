@@ -3,6 +3,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 
 const HELP: &str = "usage: wisp FILE | wisp --json < request.json
+       wisp capabilities
        wisp run FILE
        wisp call FILE FUNCTION [--args-file INPUT]
        wisp check FILE
@@ -58,15 +59,16 @@ fn artifact_request(op: &str, source: &str, path: &str) -> Result<Value, String>
 fn number(s: &str) -> Result<u64, String> {
     s.parse().map_err(|_| "expected unsigned integer".into())
 }
-fn semantic_error(mut report: Value, message: &str) -> Value {
+fn semantic_error(mut report: Value, code: wisp::DiagnosticCode, message: &str) -> Value {
     report["status"] = json!("Error");
     report["diagnostics"] =
-        json!([{"kind":"Request","message":message,"span":{"start":0,"end":0}}]);
+        json!([{"code":code,"kind":code.kind(),"message":message,"span":{"start":0,"end":0}}]);
     report
 }
 fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
     let a: Vec<&str> = args.iter().map(String::as_str).collect();
     let report = match a.as_slice() {
+        ["capabilities"] => dispatch(json!({"op":"capabilities","source":""})),
         ["--json"] => {
             let raw = read("-", wisp::TRANSPORT_BYTES)?;
             let response = wisp::dispatch(&raw);
@@ -117,7 +119,11 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
                 json!({"op":"analyze","source":source(path)?,"focus":function,"budget":budget}),
             );
             if r["status"] == "Ready" && r["agent_view"]["focus"].is_null() {
-                semantic_error(r, "no matching focus function")
+                semantic_error(
+                    r,
+                    wisp::DiagnosticCode::FocusUnknown,
+                    "no matching focus function",
+                )
             } else {
                 r
             }
@@ -150,7 +156,11 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
                     if run["status"] == "Unknown" {
                         run
                     } else {
-                        semantic_error(run, "selected probe has no failed ghost")
+                        semantic_error(
+                            run,
+                            wisp::DiagnosticCode::ArchiveSelection,
+                            "selected probe has no failed ghost",
+                        )
                     },
                     false,
                     None,

@@ -7,8 +7,8 @@ use std::fmt;
 
 pub const ARGUMENT_BYTES: usize = 65_536;
 
-fn input(message: impl Into<String>, path: &str) -> Diagnostic {
-    let mut d = err("Input", message, Span::default());
+fn input(code: DiagnosticCode, message: impl Into<String>, path: &str) -> Diagnostic {
+    let mut d = err(code, message, Span::default());
     d.path = Some(path.into());
     d
 }
@@ -44,19 +44,31 @@ impl<'de> Deserialize<'de> for Fields {
 
 fn literal(raw: &RawValue, ty: &Ty, p: &Program, path: &str, depth: usize) -> Result<Expr> {
     if depth > 16 {
-        let mut d = err("Limit", "input record depth exceeds 16", Span::default());
+        let mut d = err(
+            DiagnosticCode::LimitInputDepth,
+            "input record depth exceeds 16",
+            Span::default(),
+        );
         d.path = Some(path.into());
         return Err(d);
     }
-    let bad = || input(format!("expected {ty}"), path);
+    let bad = || input(DiagnosticCode::InputType, format!("expected {ty}"), path);
     let kind = match ty {
         Ty::Int => {
             let s: String = serde_json::from_str(raw.get()).map_err(|_| bad())?;
-            let n: i64 = s
-                .parse()
-                .map_err(|_| input("expected canonical i64 decimal string", path))?;
+            let n: i64 = s.parse().map_err(|_| {
+                input(
+                    DiagnosticCode::InputIntCanonical,
+                    "expected canonical i64 decimal string",
+                    path,
+                )
+            })?;
             if n.to_string() != s {
-                return Err(input("expected canonical i64 decimal string", path));
+                return Err(input(
+                    DiagnosticCode::InputIntCanonical,
+                    "expected canonical i64 decimal string",
+                    path,
+                ));
             }
             ExprKind::Int(n)
         }
@@ -69,19 +81,26 @@ fn literal(raw: &RawValue, ty: &Ty, p: &Program, path: &str, depth: usize) -> Re
             for (key, _) in &fields {
                 let child = pointer(path, key);
                 if !seen.insert(key) {
-                    return Err(input("duplicate field", &child));
+                    return Err(input(
+                        DiagnosticCode::InputFieldDuplicate,
+                        "duplicate field",
+                        &child,
+                    ));
                 }
                 if !record.fields.iter().any(|(n, _, _)| n == key) {
-                    return Err(input("unknown field", &child));
+                    return Err(input(
+                        DiagnosticCode::InputFieldUnknown,
+                        "unknown field",
+                        &child,
+                    ));
                 }
             }
             let mut values = Vec::new();
             for (key, ty, _) in &record.fields {
                 let child = pointer(path, key);
-                let raw = fields
-                    .iter()
-                    .find(|(n, _)| n == key)
-                    .ok_or_else(|| input("missing field", &child))?;
+                let raw = fields.iter().find(|(n, _)| n == key).ok_or_else(|| {
+                    input(DiagnosticCode::InputFieldMissing, "missing field", &child)
+                })?;
                 values.push((
                     key.clone(),
                     Span::default(),
@@ -100,7 +119,11 @@ fn literal(raw: &RawValue, ty: &Ty, p: &Program, path: &str, depth: usize) -> Re
 
 fn arguments(raw: &str, f: &Function, p: &Program) -> Result<Vec<Expr>> {
     if raw.len() > ARGUMENT_BYTES {
-        let mut d = err("Limit", "raw arguments exceed 65536 bytes", Span::default());
+        let mut d = err(
+            DiagnosticCode::LimitInputBytes,
+            "raw arguments exceed 65536 bytes",
+            Span::default(),
+        );
         d.path = Some("/args".into());
         return Err(d);
     }
@@ -122,7 +145,11 @@ fn arguments(raw: &str, f: &Function, p: &Program) -> Result<Vec<Expr>> {
         } else if b == b'[' || b == b'{' {
             depth += 1;
             if depth > 17 {
-                let mut d = err("Limit", "argument JSON nesting exceeds 17", Span::default());
+                let mut d = err(
+                    DiagnosticCode::LimitInputDepth,
+                    "argument JSON nesting exceeds 17",
+                    Span::default(),
+                );
                 d.path = Some("/args".into());
                 return Err(d);
             }
@@ -132,10 +159,19 @@ fn arguments(raw: &str, f: &Function, p: &Program) -> Result<Vec<Expr>> {
     }
     // RawValue's parser has a fixed JSON nesting ceiling too. Typed decoding
     // below independently limits record depth; unsupported values never recurse.
-    let args: Vec<Box<RawValue>> =
-        serde_json::from_str(raw).map_err(|_| input("args must be a JSON array", "/args"))?;
+    let args: Vec<Box<RawValue>> = serde_json::from_str(raw).map_err(|_| {
+        input(
+            DiagnosticCode::InputType,
+            "args must be a JSON array",
+            "/args",
+        )
+    })?;
     if args.len() != f.params.len() {
-        return Err(input("argument count mismatch", "/args"));
+        return Err(input(
+            DiagnosticCode::InputArity,
+            "argument count mismatch",
+            "/args",
+        ));
     }
     args.iter()
         .zip(&f.params)
@@ -157,7 +193,7 @@ fn encode(machine: &mut Machine<'_>, value: &Value) -> Result<String> {
             > m.limits.output_bytes
         {
             return Err(err(
-                "Limit",
+                DiagnosticCode::LimitOutput,
                 "output limit exceeded encoding call result",
                 Span::default(),
             ));
@@ -193,7 +229,7 @@ fn encode(machine: &mut Machine<'_>, value: &Value) -> Result<String> {
             Value::Record(_, fields) => {
                 if depth >= 16 {
                     return Err(err(
-                        "Limit",
+                        DiagnosticCode::LimitValueDepth,
                         "record value depth exceeds 16",
                         Span::default(),
                     ));
@@ -226,7 +262,11 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
         report
     };
     if r.source.len() > limits.source_bytes {
-        return fail(err("Limit", "source byte limit exceeded", Span::default()));
+        return fail(err(
+            DiagnosticCode::LimitSource,
+            "source byte limit exceeded",
+            Span::default(),
+        ));
     }
     let p = match parse(&r.source) {
         Ok(p) => p,
@@ -243,7 +283,13 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
             .functions
             .iter()
             .find(|f| f.name == target)
-            .ok_or_else(|| input("unknown global function", "/function"))?;
+            .ok_or_else(|| {
+                input(
+                    DiagnosticCode::InputTarget,
+                    "unknown global function",
+                    "/function",
+                )
+            })?;
         let raw = r.args.as_ref().map_or("[]", |raw| raw.get());
         let args = arguments(raw, f, &p)?;
         Ok((f, args, raw))

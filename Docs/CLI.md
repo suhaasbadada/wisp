@@ -6,6 +6,7 @@ plain program output. Captured program output lives in the report's `output`.
 `--help` (also `-h`) prints usage and exits 0.
 
 ```sh
+wisp capabilities                             # Ready, exit 0; no files/execution
 wisp run examples/snacks.wisp                  # Fail, exit 1
 wisp check examples/snacks.wisp                # Ready, exit 0; no execution
 wisp focus examples/snacks.wisp bill --budget 4096
@@ -22,6 +23,17 @@ expressions on the host. Missing functions return Error. The report's
 `agent_view.focus` names the actual selection; `overflow`, `required_bytes` and
 `used_bytes` truthfully describe UTF-8 text truncation. Budget is an unsigned
 integer (default 4096, effective ceiling 65536), not a completeness guarantee.
+
+`wisp capabilities` reads no source/files and returns the compiler-generated
+bounded discovery document, including operation/limit/permission metadata,
+diagnostic codes and runnable examples. It is the same response as
+`{"op":"capabilities","source":""}` via `--json` or WASM; see
+[Protocol.md](Protocol.md#compiler-owned-discovery). Diagnostic contract v1 adds
+stable `code` alongside unchanged human message, legacy kind, source span and
+optional path. See [Errors.md](Errors.md) for taxonomy and unknown-code fallback.
+Native focus/archive-selection diagnostics also carry explicit codes. Host
+usage/IO failures still use stderr/exit 2 without guaranteed JSON, and legacy
+`--json` semantic statuses still exit 0.
 
 ## Typed calls
 

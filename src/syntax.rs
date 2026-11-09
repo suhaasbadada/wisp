@@ -1,3 +1,4 @@
+use crate::DiagnosticCode;
 use serde::Serialize;
 
 #[derive(Clone, Copy, Debug, Default, Serialize)]
@@ -7,6 +8,7 @@ pub struct Span {
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct Diagnostic {
+    pub code: DiagnosticCode,
     pub kind: String,
     pub message: String,
     pub span: Span,
@@ -14,9 +16,10 @@ pub struct Diagnostic {
     pub path: Option<String>,
 }
 pub type Result<T> = std::result::Result<T, Diagnostic>;
-pub fn err(kind: &str, message: impl Into<String>, span: Span) -> Diagnostic {
+pub fn err(code: DiagnosticCode, message: impl Into<String>, span: Span) -> Diagnostic {
     Diagnostic {
-        kind: kind.into(),
+        code,
+        kind: code.kind().into(),
         message: message.into(),
         span,
         path: None,
@@ -128,7 +131,11 @@ fn lex(source: &str) -> Result<Vec<Token>> {
                 }
                 if ch == '\\' {
                     let escape = source[i..].chars().next().ok_or_else(|| {
-                        err("Syntax", "unterminated escape", Span { start, end: i })
+                        err(
+                            DiagnosticCode::Syntax,
+                            "unterminated escape",
+                            Span { start, end: i },
+                        )
                     })?;
                     i += escape.len_utf8();
                     s.push(match escape {
@@ -138,7 +145,11 @@ fn lex(source: &str) -> Result<Vec<Token>> {
                         '"' => '"',
                         '\\' => '\\',
                         _ => {
-                            return Err(err("Syntax", "unsupported escape", Span { start, end: i }))
+                            return Err(err(
+                                DiagnosticCode::Syntax,
+                                "unsupported escape",
+                                Span { start, end: i },
+                            ))
                         }
                     });
                 } else {
@@ -146,7 +157,11 @@ fn lex(source: &str) -> Result<Vec<Token>> {
                 }
             }
             if !closed {
-                return Err(err("Syntax", "unterminated string", Span { start, end: i }));
+                return Err(err(
+                    DiagnosticCode::Syntax,
+                    "unterminated string",
+                    Span { start, end: i },
+                ));
             }
             s
         } else if c.is_ascii_digit() || c.is_ascii_alphabetic() || c == '_' {
@@ -172,7 +187,7 @@ fn lex(source: &str) -> Result<Vec<Token>> {
                 c.to_string()
             } else {
                 return Err(err(
-                    "Syntax",
+                    DiagnosticCode::Syntax,
                     "unsupported character",
                     Span {
                         start,
@@ -187,7 +202,11 @@ fn lex(source: &str) -> Result<Vec<Token>> {
             string,
         });
         if out.len() > 8192 {
-            return Err(err("Limit", "token limit exceeded", Span { start, end: i }));
+            return Err(err(
+                DiagnosticCode::LimitTokens,
+                "token limit exceeded",
+                Span { start, end: i },
+            ));
         }
     }
     out.push(Token {
@@ -221,7 +240,11 @@ impl Parser {
         if self.take(s) {
             Ok(())
         } else {
-            Err(err("Syntax", format!("expected {s}"), self.token().span))
+            Err(err(
+                DiagnosticCode::Syntax,
+                format!("expected {s}"),
+                self.token().span,
+            ))
         }
     }
     fn name(&mut self) -> Result<String> {
@@ -240,7 +263,7 @@ impl Parser {
             self.pos += 1;
             Ok(t.text)
         } else {
-            Err(err("Syntax", "expected identifier", t.span))
+            Err(err(DiagnosticCode::Syntax, "expected identifier", t.span))
         }
     }
     fn ty(&mut self) -> Result<Ty> {
@@ -258,12 +281,21 @@ impl Parser {
         let neg = self.take("-");
         let t = self.token().clone();
         if t.string {
-            return Err(err("Syntax", "expected integer, not string", t.span));
+            return Err(err(
+                DiagnosticCode::Syntax,
+                "expected integer, not string",
+                t.span,
+            ));
         }
         self.pos += 1;
         let text = if neg { format!("-{}", t.text) } else { t.text };
-        text.parse()
-            .map_err(|_| err("Syntax", "integer outside i64 or invalid integer", t.span))
+        text.parse().map_err(|_| {
+            err(
+                DiagnosticCode::Syntax,
+                "integer outside i64 or invalid integer",
+                t.span,
+            )
+        })
     }
     fn stmt(&mut self) -> Result<Option<Stmt>> {
         if self.take("let") {
@@ -285,7 +317,11 @@ impl Parser {
     fn expr(&mut self, min: u8) -> Result<Expr> {
         self.depth += 1;
         if self.depth > 64 {
-            return Err(err("Limit", "syntax depth exceeded", self.token().span));
+            return Err(err(
+                DiagnosticCode::LimitSyntaxDepth,
+                "syntax depth exceeded",
+                self.token().span,
+            ));
         }
         let start = self.token().span.start;
         let mut left = if self.at("-")
@@ -324,7 +360,11 @@ impl Parser {
                     self.expect(":")?;
                     fields.push((field, span, self.expr(0)?));
                     if fields.len() > 32 {
-                        return Err(err("Limit", "record field limit exceeded", span));
+                        return Err(err(
+                            DiagnosticCode::LimitRecordFields,
+                            "record field limit exceeded",
+                            span,
+                        ));
                     }
                     if !self.take(",") {
                         break;
@@ -407,7 +447,11 @@ impl Parser {
             if self.take(".") {
                 chain += 1;
                 if chain > 64 {
-                    return Err(err("Limit", "projection chain depth exceeded", left.span));
+                    return Err(err(
+                        DiagnosticCode::LimitSyntaxDepth,
+                        "projection chain depth exceeded",
+                        left.span,
+                    ));
                 }
                 let field_span = self.token().span;
                 let field = self.name()?;
@@ -435,7 +479,11 @@ impl Parser {
             }
             chain += 1;
             if chain > 64 {
-                return Err(err("Limit", "operator chain depth exceeded", left.span));
+                return Err(err(
+                    DiagnosticCode::LimitSyntaxDepth,
+                    "operator chain depth exceeded",
+                    left.span,
+                ));
             }
             self.pos += 1;
             let right = self.expr(prec + 1)?;
@@ -511,7 +559,11 @@ pub fn parse(source: &str) -> Result<Program> {
                         },
                     ));
                     if fields.len() > 32 {
-                        return Err(err("Limit", "record field limit exceeded", span));
+                        return Err(err(
+                            DiagnosticCode::LimitRecordFields,
+                            "record field limit exceeded",
+                            span,
+                        ));
                     }
                     if !p.take(",") {
                         break;
@@ -594,7 +646,11 @@ pub fn parse(source: &str) -> Result<Program> {
     }
     while let Some((e, d)) = stack.pop() {
         if d > 64 {
-            return Err(err("Limit", "AST depth exceeded", e.span));
+            return Err(err(
+                DiagnosticCode::LimitSyntaxDepth,
+                "AST depth exceeded",
+                e.span,
+            ));
         }
         for child in children(e) {
             stack.push((child, d + 1));
