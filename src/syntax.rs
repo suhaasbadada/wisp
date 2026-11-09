@@ -644,6 +644,10 @@ pub fn parse(source: &str) -> Result<Program> {
     for s in &program.statements {
         stack.push((stmt_expr(s), 0));
     }
+    validate_depth(stack)?;
+    Ok(program)
+}
+fn validate_depth(mut stack: Vec<(&Expr, usize)>) -> Result<()> {
     while let Some((e, d)) = stack.pop() {
         if d > 64 {
             return Err(err(
@@ -656,7 +660,28 @@ pub fn parse(source: &str) -> Result<Program> {
             stack.push((child, d + 1));
         }
     }
-    Ok(program)
+    Ok(())
+}
+/// Standalone replacement syntax, with the exact same lexer and AST ceiling.
+pub fn parse_block(source: &str) -> Result<Expr> {
+    let mut p = Parser {
+        tokens: lex(source)?,
+        pos: 0,
+        depth: 0,
+    };
+    let body = p.block()?;
+    p.expect("<eof>")?;
+    if !source[..body.span.start].chars().all(char::is_whitespace)
+        || !source[body.span.end..].chars().all(char::is_whitespace)
+    {
+        return Err(err(
+            DiagnosticCode::Syntax,
+            "only whitespace is allowed outside replacement braces",
+            Span::default(),
+        ));
+    }
+    validate_depth(vec![(&body, 0)])?;
+    Ok(body)
 }
 pub fn stmt_expr(s: &Stmt) -> &Expr {
     match s {

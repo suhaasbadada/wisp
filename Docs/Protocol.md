@@ -11,7 +11,7 @@ means host IO/usage failure; semantic status is in JSON (CLI exit 0).
  "limits":{"fuel":100000,"cases":1000}}
 ```
 
-`op` is `capabilities`, `run`, `call`, `analyze`, `context`, `replay`, `archive`, `inspect-artifact`, or
+`op` is `capabilities`, `run`, `call`, `edit`, `analyze`, `context`, `replay`, `archive`, `inspect-artifact`, or
 `replay-artifact`; `source` is required (use `""` for inspection). Optional `focus`
 selects Agent View (default first function), except `context` selects a probe as below; `budget` caps only the selected view's text
 UTF-8 bytes, default 4096, ceiling 65536. Optional `limits` fields: `source_bytes`,
@@ -419,6 +419,96 @@ Native commands, bounded file reading, output safety and exit codes are specifie
 in [CLI.md](CLI.md). Artifacts/files are capped at 1 MiB by native readers;
 dispatch's request cap additionally applies to the full JSON envelope.
 
-Deferred: version negotiation, persistent IDs, structured semantic edits, remote
+Deferred: version negotiation, persistent IDs, general structured semantic edits, remote
 storage, cache reuse, proof/solver results, property-specific slices, modules,
 source-map line/column conveniences and independently signed execution receipts.
+
+## Guarded function-body preparation (edit contract v1)
+
+```json
+{"op":"edit","source":"fn twice(n: Int) -> Int { n * 2 }","focus":"twice",
+ "change":{"expected_revision":"f59809bffc2adfed70f4dbc000d5bb7223b50359189a05c1fa312a0f017f86c7",
+ "expected_body_hash":"64cd3cbb8f071e01a74d17007ab3df19b7d47332bf133633a0f8171e92b50928",
+ "replacement":"{ n + n }"}}
+```
+
+Core **prepares data only**. It does not apply edits, execute a Machine, observe
+probes, charge runtime usage, repair invalid baselines, or prove behavior/intent.
+`focus` is a required nonempty global function name, never the first function by
+default. Names are revision-local, not persistent symbol IDs. `change` preserves
+presence: on every other operation, even `change:null` is `E_REQUEST_INVALID`,
+before early call dispatch. For edit it is a strict object of the three required
+strings shown above: missing, duplicate (including escaped names), null, wrong-type
+and unknown members are rejected. Hashes must be exactly 64 lowercase hex digits.
+`function`/`args` remain call-only; edit rejects non-null budget/ghost/artifact.
+Legacy null handling of these preexisting optional fields remains unchanged.
+
+Precedence is transport/envelope schema → limits decoding → operation fields,
+change schema, explicit focus and hash form → baseline effective source-byte cap,
+parse and **whole-program** checking → exact revision guard → unique global
+target → exact body hash guard → replacement cap/standalone block syntax →
+combined candidate cap/parse/check → preservation audit. Thus invalid baseline
+code (including an unused function or impure probe) preempts stale guards and
+cannot be repaired here. Limits are clamped as before.
+
+Replacement is at most 65,536 UTF-8 bytes, including outer whitespace. The real
+Rust `Parser::block`, EOF check and shared iterative AST-depth validator are used.
+Every raw character outside the parsed brace span must satisfy the lexer's
+`char::is_whitespace`; leading/trailing comments are rejected even when terminated.
+Comments and brace-looking strings inside the block are allowed. No additional
+expression, block or definition is accepted. Candidate size is checked against
+effective `source_bytes` **before allocation**. Construction is exactly original
+prefix + submitted replacement + original suffix: no trimming, formatting,
+newline insertion or line-ending normalization.
+
+Success has only root `compiler`, baseline `revision`, effective `limits`,
+`status:"Ready"`, `new_execution:false`, `output:""`, `probes:[]`,
+`diagnostics:[]`, and `edit`:
+
+```text
+{version:1, state:"prepared", target,
+ base_revision, candidate_revision, base_body_hash, candidate_body_hash,
+ base_body_span:{start,end}, candidate_body_span:{start,end},
+ insertion_range:{start,end}, source: exactCandidateSource,
+ preservation:{checked:true,prefix:true,suffix:true,signature:true,records:true,
+   other_functions:true,top_level_statements:true,
+   probes:[{index,predicate_key,text_preserved:true,domain_preserved:true}, ...]}}
+```
+
+All ranges are half-open UTF-8 byte offsets. Base body span belongs to baseline;
+candidate body span and insertion range belong to candidate. The insertion range
+includes all submitted whitespace; candidate body hash covers only parsed braces,
+exactly matching analyze metadata. Immutable original header bytes and canonical
+signature are preserved; leading whitespace may extend the parsed candidate
+header range, so identical raw parsed header slices are **not** claimed. The
+audit checks exact prefix/suffix, record declarations, other functions, top-level
+expressions, and every indexed probe's text/domain/predicate key (including
+duplicates). Dependency keys and offsets may change legitimately. There is no
+root candidate graph or fabricated base span. A type-correct runtime fault or a
+body that breaks a probe can be Ready, even with fuel zero. Probe text preservation
+does not preserve every human requirement; comments inside the body are explicitly
+under the replacement author's control. Review the diff and run acceptance tests.
+
+Failures never contain `edit.source` or a prepared state. Root revision always
+identifies the baseline. Baseline diagnostics retain baseline spans. Replacement
+syntax errors use root Input `E_EDIT_REPLACEMENT`, `/change/replacement`, sentinel
+`0..0`, plus `edit:{version:1,cause:{document:"replacement",revision,
+diagnostics}}` with replacement-relative diagnostics and replacement hash.
+Candidate parse/type/purity/audit errors use root Input `E_EDIT_CANDIDATE` at the
+same sentinel/path, plus `edit.rejected_candidate:{document:"candidate",source,
+revision,diagnostics}`. This source is **rejected**, never accepted editor content;
+its diagnostics own candidate byte offsets, potentially in an unchanged downstream
+probe whose offset shifted. Clients must not underline those offsets in baseline.
+Resource exhaustion remains **Unknown with its original E_LIMIT_* code, kind and
+reason**, using the same tagged document detail, not a generic edit Error.
+Candidate-size preflight has no allocated candidate: it uses
+`edit.cause:{document:"candidate",phase:"size_preflight",diagnostics}` without
+candidate source/revision. Root nonbaseline diagnostics use the data path/sentinel.
+Schema and guard failures use Request codes; see [Errors.md](Errors.md).
+
+Edit version1, diagnostic/discovery/context versions and compiler semantics-5
+are independent. Discovery advertises this checked-baseline/body-only scope and
+a runnable fifth example. No existing artifact, invocation or dependency hash
+material includes discovery features. Hosts independently guard application;
+native create-new behavior is in [CLI.md](CLI.md). Treat responses as untrusted
+transport data and review candidate content before explicitly applying it.

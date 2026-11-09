@@ -2,12 +2,14 @@
 mod capabilities;
 mod context;
 mod diagnostics;
+mod edit;
 mod engine;
 mod invocation;
 mod syntax;
 pub use capabilities::{CAPABILITIES_BYTES, DISCOVERY_CONTRACT_VERSION};
 pub use context::CONTEXT_CONTRACT_VERSION;
 pub use diagnostics::{DiagnosticCode, DIAGNOSTIC_CONTRACT_VERSION};
+pub use edit::{EDIT_CONTRACT_VERSION, REPLACEMENT_BYTES};
 use engine::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as Json};
@@ -33,6 +35,8 @@ struct Request {
     args: Option<Box<serde_json::value::RawValue>>,
     #[serde(default, deserialize_with = "present_limits")]
     limits: Option<Box<serde_json::value::RawValue>>,
+    #[serde(default, deserialize_with = "present_limits")]
+    change: Option<Box<serde_json::value::RawValue>>,
 }
 fn function_name<'de, D: serde::Deserializer<'de>>(
     d: D,
@@ -163,6 +167,17 @@ fn execute_request(r: Request) -> Json {
             )
         }
     };
+    if r.op != "edit" && r.change.is_some() {
+        return diagnostic_report(
+            err(
+                DiagnosticCode::RequestInvalid,
+                "change requires edit operation",
+                Span::default(),
+            ),
+            &hash(&r.source),
+            &limits,
+        );
+    }
     if r.op == "call" {
         return invocation::execute(r, limits);
     }
@@ -176,6 +191,9 @@ fn execute_request(r: Request) -> Json {
             &hash(&r.source),
             &limits,
         );
+    }
+    if r.op == "edit" {
+        return edit::execute(r, limits);
     }
     if r.op == "capabilities" {
         return capabilities::document();
