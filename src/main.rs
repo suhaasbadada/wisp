@@ -41,6 +41,11 @@ fn source(path: &str) -> Result<String, String> {
 }
 fn artifact_request(op: &str, source: &str, path: &str) -> Result<Value, String> {
     let raw = read(path, wisp::TRANSPORT_BYTES)?;
+    // Require one complete JSON value before embedding, retaining original bytes
+    // for strict schema/duplicate checks in the shared decoder.
+    if serde_json::from_str::<Box<serde_json::value::RawValue>>(&raw).is_err() {
+        return Ok(dispatch(json!({"op":op,"source":source,"artifact":raw})));
+    }
     // Preserve duplicate fields and numeric widths for the shared Rust decoder.
     let request = format!(
         "{{\"op\":{},\"source\":{},\"artifact\":{raw}}}",

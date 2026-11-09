@@ -58,6 +58,40 @@ fn report(o: &Output, code: i32, status: &str) -> Value {
     v
 }
 #[test]
+fn artifact_files_cannot_escape_into_outer_request_fields() {
+    let t = Temp::new();
+    let source = t.file("broken.wisp", include_str!("../examples/snacks.wisp"));
+    let repaired = t.file(
+        "fixed.wisp",
+        include_str!("../examples/snacks-repaired.wisp"),
+    );
+    let artifact_path = t.path("ghost.json");
+    report(
+        &cli(&["archive", &source, "--out", &artifact_path], None),
+        0,
+        "Ready",
+    );
+    let raw = fs::read_to_string(&artifact_path).unwrap();
+    for suffix in [",\"limits\":{\"cases\":0}", ",\"op\":\"run\""] {
+        let injected = format!("{}{suffix}", raw.trim_end());
+        let inspected = report(&cli(&["inspect", "-"], Some(&injected)), 1, "Error");
+        assert!(inspected.get("artifact").is_none());
+        let replayed = report(
+            &cli(&["replay", &repaired, "--artifact", "-"], Some(&injected)),
+            1,
+            "Error",
+        );
+        assert!(replayed.get("replay").is_none());
+    }
+}
+#[test]
+fn request_limits_preserve_null_and_duplicate_field_rejection() {
+    for limits in ["null", "{\"fuel\":1,\"fuel\":1}"] {
+        let raw = format!("{{\"op\":\"run\",\"source\":\"print(1);\",\"limits\":{limits}}}");
+        report(&cli(&["--json"], Some(&raw)), 0, "Error");
+    }
+}
+#[test]
 fn explicit_commands_statuses_and_legacy_compatibility() {
     let t = Temp::new();
     for (source, status, code) in [

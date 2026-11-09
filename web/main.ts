@@ -174,12 +174,12 @@ function setupPlayground() {
     text('run-status', 'UNKNOWN'); text('activity', reason); text('output', 'Unknown — execution interrupted. No result from this execution is counted as passing. Previous evidence, if any, remains historical.');
     text('artifact-status', 'Interrupted. No artifact was accepted or exported by this operation.');
   }
-  function artifactTask(request: unknown, exporting?: Receipt, requestJson?: string) {
+  function artifactTask(request: unknown, exporting?: Receipt, requestJson?: string, deadline = performance.now() + 5000) {
     if (runWorker) return;
     clearTimeout(analysisTimer); analysisWorker?.terminate(); analysisWorker = undefined;
     const id = ++serial; const worker = makeWorker(); runWorker = worker; setBusy(true);
     text('activity', 'Reproducing historical failure locally…'); text('artifact-status', 'Validating source, configuration and first failure with Rust…');
-    runDeadline = setTimeout(() => cancel('Artifact deadline: worker terminated'), 5000);
+    runDeadline = setTimeout(() => cancel('Artifact deadline: worker terminated'), Math.max(0, deadline - performance.now()));
     const finish = () => { clearTimeout(runDeadline); worker.terminate(); runWorker = undefined; setBusy(false); };
     worker.onerror = () => { if (runWorker !== worker) return; finish(); text('artifact-status', 'Error — artifact worker failed. No artifact accepted.'); text('activity', 'Artifact validation failed'); };
     worker.onmessage = (event: MessageEvent<{ id: number; report?: Report; error?: string }>) => {
@@ -211,15 +211,22 @@ function setupPlayground() {
     if (!file || busy) return;
     if (file.size > 1_048_576) { text('artifact-status', 'Error — file exceeds the 1 MiB import limit. No artifact accepted.'); return; }
     const reader = new FileReader(); fileReader = reader; setBusy(true); text('artifact-status', 'Reading selected local file. Nothing is uploaded.');
-    reader.onerror = () => { if (fileReader !== reader) return; fileReader = undefined; setBusy(false); text('artifact-status', 'Error — could not read local file. No artifact accepted.'); };
+    const deadline = performance.now() + 5000;
+    runDeadline = setTimeout(() => cancel('Artifact deadline: file read interrupted'), 5000);
+    const failRead = (message: string) => { clearTimeout(runDeadline); fileReader = undefined; setBusy(false); text('artifact-status', `Error — ${message}. No artifact accepted.`); };
+    reader.onerror = () => { if (fileReader !== reader) return; failRead('could not read local file'); };
     reader.onload = () => {
       if (fileReader !== reader) return;
-      fileReader = undefined;
+      if (performance.now() >= deadline) { cancel('Artifact deadline: file read interrupted'); return; }
       // Preserve raw JSON: Rust validates duplicate fields and numeric widths.
       let raw: string;
       try { raw = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(reader.result as ArrayBuffer); }
-      catch { setBusy(false); text('artifact-status', 'Error — file is not valid UTF-8. No artifact accepted.'); return; }
-      artifactTask(undefined, undefined, `{"op":"inspect-artifact","source":"","artifact":${raw}}`);
+      catch { failRead('file is not valid UTF-8'); return; }
+      // Syntax-only check; discard the result and retain raw bytes for Rust.
+      try { JSON.parse(raw); } catch { failRead('file must contain one standalone JSON value'); return; }
+      if (performance.now() >= deadline) { cancel('Artifact deadline: file read interrupted'); return; }
+      clearTimeout(runDeadline); fileReader = undefined;
+      artifactTask(undefined, undefined, `{"op":"inspect-artifact","source":"","artifact":${raw}}`, deadline);
     };
     reader.readAsArrayBuffer(file);
   };

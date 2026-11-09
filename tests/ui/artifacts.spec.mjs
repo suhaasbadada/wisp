@@ -41,9 +41,16 @@ test('native artifact imports; corrupt, duplicate, unsupported, oversized and in
   const archived = cli('archive', 'examples/snacks.wisp', '--out', file);
   expect(archived.status, archived.stderr).toBe(0);
   const raw = readFileSync(file, 'utf8'); const artifact = JSON.parse(raw);
+  const injected = `${raw.trimEnd()},"limits":{"cases":0}`;
+  const injectedPath = info.outputPath('injected.json'); writeFileSync(injectedPath, injected);
+  expect(cli('inspect', injectedPath).status).toBe(1);
+  expect(cli('replay', 'examples/snacks-repaired.wisp', '--artifact', injectedPath).status).toBe(1);
   await page.goto('');
   await page.locator('#artifact-file').setInputFiles(file);
   await expect(page.locator('#artifact-status')).toContainText('Imported: historical failure reproduced');
+  await expect(page.locator('.ghost-card')).toHaveCount(1);
+  await page.locator('#artifact-file').setInputFiles({ name: 'injected.json', mimeType: 'application/json', buffer: Buffer.from(injected) });
+  await expect(page.locator('#artifact-status')).toContainText('one standalone JSON value');
   await expect(page.locator('.ghost-card')).toHaveCount(1);
   for (const [name, value] of [
     ['corrupt', { ...artifact, source: artifact.source.replace('80', '81') }],
@@ -87,4 +94,29 @@ test('Stop excludes late artifact acceptance and import errors do not replace cu
   await page.locator('#artifact-file').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{}') });
   await expect(page.locator('#artifact-status')).toContainText('No artifact accepted');
   await expect(page.locator('#diagnostics')).toContainText('Syntax');
+});
+
+test('import deadline covers stalled file reading and rejects late completion', async ({ page }, info) => {
+  const file = info.outputPath('delayed.json');
+  expect(cli('archive', 'examples/snacks.wisp', '--out', file).status).toBe(0);
+  await page.clock.install();
+  await page.goto('');
+  await page.evaluate(() => {
+    const read = FileReader.prototype.readAsArrayBuffer;
+    FileReader.prototype.readAsArrayBuffer = function(file) {
+      window.resumeRead = () => new Promise(resolve => {
+        this.addEventListener('loadend', () => resolve(), { once: true });
+        read.call(this, file);
+      });
+    };
+  });
+  await page.locator('#artifact-file').setInputFiles(file);
+  await expect(page.locator('#artifact-status')).toContainText('Reading selected local file');
+  await page.clock.fastForward(5001);
+  await expect(page.locator('#activity')).toContainText('file read interrupted');
+  await expect(page.locator('#artifact-status')).toContainText('No artifact was accepted');
+  await expect(page.locator('#run')).toBeEnabled();
+  await page.evaluate(() => window.resumeRead());
+  await expect(page.locator('.ghost-card')).toHaveCount(0);
+  await expect(page.locator('#artifact-status')).toContainText('No artifact was accepted');
 });
