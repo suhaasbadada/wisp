@@ -384,3 +384,63 @@ fn aggregate_interruption_is_unknown_not_bool_or_clear_and_faults_are_errors() {
     assert_eq!(r["status"], "Error");
     assert_eq!(r["probes"][0]["diagnostic"]["kind"], "Runtime");
 }
+
+#[test]
+fn aggregate_copy_sites_have_documented_target_independent_payload_charges() {
+    for (source, allocation, fuel) in [
+        (
+            "record A {s:String} let a = new A {s:\"abc\"}; let b = a;",
+            252,
+            12,
+        ),
+        (
+            "record A {s:String} let a = new A {s:\"abc\"}; {a};",
+            369,
+            18,
+        ),
+        (
+            "record A {s:String} fn id(a:A)->A {a} id(new A {s:\"abc\"});",
+            385,
+            19,
+        ),
+        (
+            "record A {s:String} let a = new A {s:\"abc\"}; a.s;",
+            238,
+            17,
+        ),
+        (
+            "record A {s:String} new A {s:\"abc\"} == new A {s:\"abc\"};",
+            218,
+            21,
+        ),
+        ("record A {s:String} print(new A {s:\"abc\"});", 101, 23),
+    ] {
+        let r = run(source);
+        assert_eq!(r["status"], "Complete", "{r}");
+        assert_eq!(
+            r["usage"]["logical_allocation_bytes"], allocation,
+            "{source}"
+        );
+        assert_eq!(r["usage"]["fuel"], fuel, "{source}");
+    }
+}
+
+#[test]
+fn branching_value_expansion_stops_at_cumulative_resource_limits() {
+    let mut source = chain(16, true);
+    source.push_str("fn make0()->R0 {new R0 {}}\n");
+    for i in 1..16 {
+        source.push_str(&format!(
+            "fn make{i}()->R{i} {{new R{i} {{a:make{}(),b:make{}()}}}}\n",
+            i - 1,
+            i - 1
+        ));
+    }
+    source.push_str("make15();");
+    let r = run(&source);
+    assert_eq!(r["status"], "Unknown", "{r}");
+    assert_eq!(r["diagnostics"][0]["kind"], "Limit");
+    // Allocation/fuel/call limits are allowed to interrupt before the full tree
+    // exists. Analyze checks only the shared type DAG, not its expanded tree.
+    assert_eq!(analyze(&source)["status"], "Ready");
+}
