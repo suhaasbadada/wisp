@@ -62,6 +62,14 @@ Records are immutable nominal values, not classes. Initializers run in source or
 
 **Compiler compatibility:** semantics-5 adds reserved words and changes resource metering. Older-compiler artifacts are explicitly rejected before execution; artifact envelope v1 does not imply cross-compiler compatibility. No silent migration rewrites historical evidence.
 
+## Invoke with structured data
+
+```sh
+cargo run -- call examples/invoice.wisp total --args-file examples/invoice-args.json
+```
+
+Returns `result: {"type":"Int","value":"900"}` without executing top-level statements or probes. JSON args are data, never code: Ints are exact decimal strings, Bool/String use JSON primitives, and records are exact-field objects. The browser offers a separate typed invocation form. Whole-program checking still applies; nested function prints are captured. Inputs, aggregate evaluation and result encoding are bounded. One returned value is observed execution, not finite-probe Clear or proof. See the [invocation protocol](Docs/Protocol.md#typed-function-invocation).
+
 ## Honest boundaries
 
 Checked i64/Bool/String, immutable let and nominal records, typed functions/blocks/if, captured print, bounded pure finite probes. Limits produce Unknown, runtime faults Error. Agent View exposes compiler-derived call/type facts, body/signature boundaries, omissions and UTF-8 text-budget overflow—not guaranteed relevance, minimal slices or context completeness. Logical allocation counters are not absolute browser memory bounds. No result cache or solver. Unions, recursive records, collections, structured editing, persistent stable IDs and C backend are deferred.
