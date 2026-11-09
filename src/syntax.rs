@@ -19,12 +19,21 @@ pub fn err(kind: &str, message: impl Into<String>, span: Span) -> Diagnostic {
         span,
     }
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum Ty {
     Int,
     Bool,
     String,
     Unit,
+    Named(String),
+}
+impl std::fmt::Display for Ty {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Named(n) => f.write_str(n),
+            _ => write!(f, "{self:?}"),
+        }
+    }
 }
 #[derive(Clone, Debug)]
 pub enum ExprKind {
@@ -33,6 +42,8 @@ pub enum ExprKind {
     String(String),
     Var(String),
     Call(String, Vec<Expr>),
+    Construct(String, Vec<(String, Span, Expr)>),
+    Project(Box<Expr>, String, Span),
     Unary(String, Box<Expr>),
     Binary(String, Box<Expr>, Box<Expr>),
     Block(Vec<Stmt>, Option<Box<Expr>>),
@@ -66,9 +77,16 @@ pub struct Probe {
     pub span: Span,
 }
 pub struct Program {
+    pub records: Vec<Record>,
     pub functions: Vec<Function>,
     pub statements: Vec<Stmt>,
     pub probes: Vec<Probe>,
+}
+#[derive(Clone, Debug)]
+pub struct Record {
+    pub name: String,
+    pub fields: Vec<(String, Ty, Span)>,
+    pub span: Span,
 }
 #[derive(Clone, Debug)]
 struct Token {
@@ -146,7 +164,7 @@ fn lex(source: &str) -> Result<Vec<Token>> {
             if let Some(op) = op {
                 i += op.len();
                 op.into()
-            } else if "(){}:;,+-*/%!<>=".contains(c) {
+            } else if "(){}:;,.+-*/%!<>=".contains(c) {
                 i += 1;
                 c.to_string()
             } else {
@@ -212,7 +230,7 @@ impl Parser {
                 .is_some_and(|b| b.is_ascii_alphabetic() || *b == b'_')
             && ![
                 "fn", "if", "else", "let", "print", "probe", "in", "true", "false", "Int", "Bool",
-                "String",
+                "String", "record", "new",
             ]
             .contains(&t.text.as_str())
         {
@@ -230,11 +248,7 @@ impl Parser {
         } else if self.take("String") {
             Ok(Ty::String)
         } else {
-            Err(err(
-                "Syntax",
-                "expected Int, Bool or String",
-                self.token().span,
-            ))
+            Ok(Ty::Named(self.name()?))
         }
     }
     fn integer(&mut self) -> Result<i64> {
@@ -295,6 +309,32 @@ impl Parser {
                     end: e.span.end,
                 },
                 kind: ExprKind::Unary(op, Box::new(e)),
+            }
+        } else if self.take("new") {
+            let name = self.name()?;
+            self.expect("{")?;
+            let mut fields = Vec::new();
+            if !self.at("}") {
+                loop {
+                    let span = self.token().span;
+                    let field = self.name()?;
+                    self.expect(":")?;
+                    fields.push((field, span, self.expr(0)?));
+                    if fields.len() > 32 {
+                        return Err(err("Limit", "record field limit exceeded", span));
+                    }
+                    if !self.take(",") {
+                        break;
+                    }
+                }
+            }
+            self.expect("}")?;
+            Expr {
+                kind: ExprKind::Construct(name, fields),
+                span: Span {
+                    start,
+                    end: self.tokens[self.pos - 1].span.end,
+                },
             }
         } else if self.take("if") {
             let c = self.expr(0)?;
@@ -361,6 +401,22 @@ impl Parser {
         };
         let mut chain = 0;
         loop {
+            if self.take(".") {
+                chain += 1;
+                if chain > 64 {
+                    return Err(err("Limit", "projection chain depth exceeded", left.span));
+                }
+                let field_span = self.token().span;
+                let field = self.name()?;
+                left = Expr {
+                    span: Span {
+                        start,
+                        end: field_span.end,
+                    },
+                    kind: ExprKind::Project(Box::new(left), field, field_span),
+                };
+                continue;
+            }
             let op = self.token().text.clone();
             let prec = match op.as_str() {
                 "||" => 1,
@@ -427,13 +483,48 @@ pub fn parse(source: &str) -> Result<Program> {
         depth: 0,
     };
     let mut program = Program {
+        records: Vec::new(),
         functions: Vec::new(),
         statements: Vec::new(),
         probes: Vec::new(),
     };
     while !p.at("<eof>") {
         let start = p.token().span.start;
-        if p.take("fn") {
+        if p.take("record") {
+            let name = p.name()?;
+            p.expect("{")?;
+            let mut fields = Vec::new();
+            if !p.at("}") {
+                loop {
+                    let span = p.token().span;
+                    let field = p.name()?;
+                    p.expect(":")?;
+                    fields.push((
+                        field,
+                        p.ty()?,
+                        Span {
+                            start: span.start,
+                            end: p.tokens[p.pos - 1].span.end,
+                        },
+                    ));
+                    if fields.len() > 32 {
+                        return Err(err("Limit", "record field limit exceeded", span));
+                    }
+                    if !p.take(",") {
+                        break;
+                    }
+                }
+            }
+            p.expect("}")?;
+            program.records.push(Record {
+                name,
+                fields,
+                span: Span {
+                    start,
+                    end: p.tokens[p.pos - 1].span.end,
+                },
+            });
+        } else if p.take("fn") {
             let name = p.name()?;
             p.expect("(")?;
             let mut params = Vec::new();
@@ -516,6 +607,8 @@ pub fn stmt_expr(s: &Stmt) -> &Expr {
 pub fn children(e: &Expr) -> Vec<&Expr> {
     match &e.kind {
         ExprKind::Call(_, a) => a.iter().collect(),
+        ExprKind::Construct(_, fields) => fields.iter().map(|(_, _, e)| e).collect(),
+        ExprKind::Project(e, _, _) => vec![e],
         ExprKind::Unary(_, a) => vec![a],
         ExprKind::Binary(_, a, b) => vec![a, b],
         ExprKind::If(a, b, c) => vec![a, b, c],
