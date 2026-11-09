@@ -27,6 +27,7 @@ or inference about user intent.
 | --- | --- | --- |
 | E_REQUEST_INVALID | Request | Invalid request schema, limits, or operation-specific fields. |
 | E_OPERATION_UNKNOWN | Request | Unsupported dispatch operation. |
+| E_CONTEXT_SELECTOR | Request | Invalid canonical probe selector or selected probe does not exist. |
 | E_TRANSPORT_LIMIT | Request | Raw request exceeds the fixed transport byte ceiling. |
 | E_SYNTAX | Syntax | Invalid language token, literal or grammar. |
 | E_NAME_UNKNOWN | Type | Unknown variable, function, record or declared type. |

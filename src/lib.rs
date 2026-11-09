@@ -1,10 +1,12 @@
 //! One bounded implementation shared by native and WebAssembly clients.
 mod capabilities;
+mod context;
 mod diagnostics;
 mod engine;
 mod invocation;
 mod syntax;
 pub use capabilities::{CAPABILITIES_BYTES, DISCOVERY_CONTRACT_VERSION};
+pub use context::CONTEXT_CONTRACT_VERSION;
 pub use diagnostics::{DiagnosticCode, DIAGNOSTIC_CONTRACT_VERSION};
 use engine::*;
 use serde::{Deserialize, Serialize};
@@ -462,7 +464,7 @@ fn execute_language(
     };
     r.limits.clamp();
     let revision = hash(&r.source);
-    if !["run", "analyze", "replay"].contains(&r.op.as_str()) {
+    if !["run", "analyze", "replay", "context"].contains(&r.op.as_str()) {
         return diagnostic_report(
             err(
                 DiagnosticCode::OperationUnknown,
@@ -497,6 +499,9 @@ fn execute_language(
     };
     let meta = metadata(&p, &facts, &r.source, &r.limits);
     let keys = run_keys(&p, &r.source, &facts, &meta, &r.limits);
+    if r.op == "context" {
+        return context::report(&p, &facts, &r, &meta, &keys);
+    }
     let specs: Vec<_> = p.probes.iter().zip(&keys).map(|(probe, key)| json!({"predicate_key":predicate_key(probe, &r.source),"dependency_key":key})).collect();
     let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":r.limits,"syntax_limits":{"depth":64,"tokens":8192,"record_type_depth":16,"record_value_depth":16,"record_fields":32},"status":"Ready","output":"","diagnostics":[],"probes":[],"probe_metadata":specs,"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref(),r.budget.unwrap_or(4096).min(65536) as usize)});
     if r.op == "analyze" {
