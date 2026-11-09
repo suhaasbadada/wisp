@@ -1,5 +1,13 @@
 # Verification
 
+## Guarded edit verification
+
+Primary verification passed 99 Rust tests, 222 native/WASM comparisons (37 guarded-edit exact serialized-byte cases with independent candidate/source/body hashes and splice audits), 28 Chromium tests, fmt, strict Clippy, TypeScript, npm ci, WASM and static build. Frozen semantics-5 artifact, invocation identities and complete context report remain unchanged. Discovery advertises ten operations, fifty codes and five examples. Tests cover document provenance, exact preservation, stale guards, injection, limits, exclusive exact-byte output, preview without mutation, explicit Apply without execution, historical ghosts, edit-and-revert, target changes, Unicode and cancellation.
+
+Joffrey independently reviewed `00082b1177020a210a6de6973015bee0b18a4c40` against merged PR #6 and found no substantive issues. Independent verification passed 99 Rust tests, 222 native/WASM comparisons, TypeScript and diff checks. Browser tests/build/lint were not independently repeated; primary results above remain separate evidence. Astra challenged the guarded-edit boundaries before implementation. Exact-head CI and published functional acceptance remain pending.
+
+PR #6 published acceptance: merge `a3bd4515a8ae3ab2fb1ed3ba55daa408e97ae4f1` passed Checks `42660381988` and Pages `42660382108`. Live context reconciled 137 UTF-8 bytes, retained scope omissions with all candidates fitting, and returned empty TEXT/explicit overflow at zero budget. Historical badges and independent Stop preserved FAIL/output900/ghost9. Agent-default/Human docs and manifest matched context v1. [Acceptance](https://github.com/suhaasbadada/wisp/pull/6#issuecomment-6746556073).
+
 Run commands in `AGENTS.md`. CI must check Rust fmt/clippy/tests, WASM build, TypeScript, static build, native/WASM agreement and browser smoke. Deployment and functional acceptance are separate from CI.
 
 Adversarial coverage must include arithmetic overflow/division, recursion/fuel, nesting/source size, malformed and unsupported syntax, output/allocation limits, transitive impurity, empty/range limits, exact finite case semantics, stale ghosts, unrelated vs transitive dependency changes, Stop/error UI, fresh default Agent docs and safe text rendering. Never treat a compile-only WASM build as interface verification.

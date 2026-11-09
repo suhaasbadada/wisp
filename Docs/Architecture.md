@@ -1,5 +1,11 @@
 # Architecture
 
+## Guarded body preparation
+
+ADR 0007 adds non-executing preparation over a checked baseline. Exact source/body guards precede real block parsing and bounded prefix/replacement/suffix construction. Candidate checking and preservation audits protect signatures, records, other functions, top-level expressions and indexed probe specifications. Edit v1 is independent of unchanged semantics-5 evidence identities. Typed Ready candidates can still fault or violate intent.
+
+Baseline, replacement and rejected-candidate diagnostics retain separate document ownership; rejected spans are never mapped to the baseline editor. Native output uses exclusive create-new/exact bytes. Browser Preview uses a disposable worker, deadline, exact snapshots and generation counters. Apply rechecks synchronously, consumes once and routes full source through checking-only invalidation. UTF-8 offsets are decoded as bytes, not UTF-16 indexes. Edit-and-revert, cancellation and late replies cannot restore Apply. Execution evidence remains historical; Run stays explicit.
+
 The Rust core owns tokenization, AST, checking, conservative call/effect analysis, interpretation, hashing and serializable reports. Native CLI and wasm-bindgen expose the same operations. TypeScript renders reports as text and runs WASM in a dedicated worker; it does not implement language semantics.
 
 Whole-source SHA-256 revision identity is distinct from conservative per-function/transitive dependency identity. Evidence must include predicate/range, compiler semantics version and execution configuration. No cross-key cache reuse is permitted. Agent View is compiler-derived context selection, not guaranteed task relevance or completeness. Stable symbol identity separate from version hashes is deferred; names are local identities only.

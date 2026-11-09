@@ -57,6 +57,215 @@ fn report(o: &Output, code: i32, status: &str) -> Value {
     assert_eq!(v["status"], status, "{v}");
     v
 }
+
+fn edit_args<'a>(source: &'a str, body: &'a str, out: &'a str) -> Vec<&'a str> {
+    vec![
+        "edit",
+        source,
+        "twice",
+        "--out",
+        out,
+        "--expected-body",
+        "64cd3cbb8f071e01a74d17007ab3df19b7d47332bf133633a0f8171e92b50928",
+        "--replacement-file",
+        body,
+        "--expected-revision",
+        "f59809bffc2adfed70f4dbc000d5bb7223b50359189a05c1fa312a0f017f86c7",
+    ]
+}
+
+#[test]
+fn edit_exclusive_output_exact_bytes_source_immutable_and_semantic_rejections_create_nothing() {
+    let t = Temp::new();
+    let original = "fn twice(n: Int) -> Int { n * 2 }";
+    let source = t.file("base.wisp", original);
+    let replacement = "\u{2003}\r\n{ n / 0 }\r\n";
+    let body = t.file("body.wisp", replacement);
+    let out = t.path("candidate.wisp");
+    let r = report(&cli(&edit_args(&source, &body, &out), None), 0, "Ready");
+    assert_eq!(
+        fs::read(&out).unwrap(),
+        r["edit"]["source"].as_str().unwrap().as_bytes()
+    );
+    assert_eq!(
+        fs::read_to_string(&out).unwrap(),
+        format!("fn twice(n: Int) -> Int {replacement}")
+    );
+    assert_eq!(fs::read_to_string(&source).unwrap(), original);
+    for existing in [&out, &source, &body] {
+        let before = fs::read(existing).unwrap();
+        let o = cli(&edit_args(&source, &body, existing), None);
+        assert_eq!(o.status.code(), Some(2));
+        assert!(o.stdout.is_empty());
+        assert!(!o.stderr.is_empty());
+        assert_eq!(fs::read(existing).unwrap(), before);
+    }
+    let reject_out = t.path("rejected.wisp");
+    for bad in ["{ true }", "{ n } // bad", "{ n } {}"] {
+        fs::write(&body, bad).unwrap();
+        report(
+            &cli(&edit_args(&source, &body, &reject_out), None),
+            1,
+            "Error",
+        );
+        assert!(!std::path::Path::new(&reject_out).exists());
+    }
+    fs::write(&body, format!("{{ {}n }}", "n + ".repeat(70))).unwrap();
+    report(
+        &cli(&edit_args(&source, &body, &reject_out), None),
+        3,
+        "Unknown",
+    );
+    assert!(!std::path::Path::new(&reject_out).exists());
+    fs::write(&body, "{ n }").unwrap();
+    let mut stale = edit_args(&source, &body, &reject_out);
+    *stale.last_mut().unwrap() = "0000000000000000000000000000000000000000000000000000000000000000";
+    report(&cli(&stale, None), 1, "Error");
+    assert!(!std::path::Path::new(&reject_out).exists());
+    assert_eq!(fs::read_to_string(&source).unwrap(), original);
+}
+
+#[test]
+fn edit_usage_bounded_readers_stdin_and_output_open_failures() {
+    let t = Temp::new();
+    let original = "fn twice(n: Int) -> Int { n * 2 }";
+    let source = t.file("base.wisp", original);
+    let body = t.file("body.wisp", "{ n }");
+    let out = t.path("next.wisp");
+    let args = edit_args(&source, &body, &out);
+    for flag in [
+        "--out",
+        "--expected-revision",
+        "--expected-body",
+        "--replacement-file",
+    ] {
+        let index = args.iter().position(|s| *s == flag).unwrap();
+        let mut duplicate = args.clone();
+        duplicate.extend_from_slice(&[flag, args[index + 1]]);
+        let mut missing = args.clone();
+        missing.drain(index..index + 2);
+        let mut no_value = args.clone();
+        no_value.remove(index + 1);
+        for bad in [duplicate, missing, no_value] {
+            let o = cli(&bad, None);
+            assert_eq!(o.status.code(), Some(2), "{bad:?}");
+            assert!(o.stdout.is_empty());
+        }
+    }
+    let mut unknown = args.clone();
+    unknown.extend_from_slice(&["--replacement", "secret body"]);
+    assert_eq!(cli(&unknown, None).status.code(), Some(2));
+    assert_eq!(cli(&["edit"], None).status.code(), Some(2));
+    assert_eq!(
+        cli(&edit_args("-", "-", &out), Some(original))
+            .status
+            .code(),
+        Some(2)
+    );
+    let r = report(
+        &cli(&edit_args("-", &body, &out), Some(original)),
+        0,
+        "Ready",
+    );
+    assert_eq!(
+        fs::read_to_string(&out).unwrap(),
+        r["edit"]["source"].as_str().unwrap()
+    );
+    let out2 = t.path("next2.wisp");
+    report(
+        &cli(&edit_args(&source, "-", &out2), Some("{ n }")),
+        0,
+        "Ready",
+    );
+    let unused = t.path("unused.wisp");
+    for path in [&body, &source] {
+        let before = fs::read(path).unwrap();
+        fs::write(path, " ".repeat(65537)).unwrap();
+        let o = cli(&edit_args(&source, &body, &unused), None);
+        assert_eq!(o.status.code(), Some(2));
+        assert!(o.stdout.is_empty());
+        fs::write(path, [0xff]).unwrap();
+        assert_eq!(
+            cli(&edit_args(&source, &body, &unused), None).status.code(),
+            Some(2)
+        );
+        fs::write(path, before).unwrap();
+    }
+    let missing = t.path("missing");
+    let o = cli(&edit_args(&source, &missing, &unused), None);
+    assert_eq!(o.status.code(), Some(2));
+    assert!(o.stdout.is_empty());
+    let impossible = t.0.join("absent/next.wisp");
+    let o = cli(
+        &edit_args(&source, &body, impossible.to_str().unwrap()),
+        None,
+    );
+    assert_eq!(o.status.code(), Some(2));
+    assert!(o.stdout.is_empty());
+    assert!(!std::path::Path::new(&unused).exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn edit_rejects_existing_and_dangling_output_symlinks() {
+    use std::os::unix::fs::symlink;
+    let t = Temp::new();
+    let source = t.file("base.wisp", "fn twice(n: Int) -> Int { n * 2 }");
+    let body = t.file("body.wisp", "{ n }");
+    for target in [&source, &t.path("absent.wisp")] {
+        let link = t.path(if target == &source {
+            "existing-link"
+        } else {
+            "dangling-link"
+        });
+        symlink(target, &link).unwrap();
+        let o = cli(&edit_args(&source, &body, &link), None);
+        assert_eq!(o.status.code(), Some(2));
+        assert!(o.stdout.is_empty());
+        assert!(fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+    }
+    assert_eq!(
+        fs::read_to_string(&source).unwrap(),
+        "fn twice(n: Int) -> Int { n * 2 }"
+    );
+    assert!(!std::path::Path::new(&t.path("absent.wisp")).exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn edit_real_partial_write_failure_has_exit2_no_success_report_and_immutable_source() {
+    let t = Temp::new();
+    let original = "fn twice(n: Int) -> Int { n * 2 }";
+    let source = t.file("base.wisp", original);
+    let body = t.file("body.wisp", &format!("{{ // {}\n n }}", "x".repeat(10000)));
+    let out = t.path("partial.wisp");
+    // Bound this child process only. Ignoring SIGXFSZ makes write return EFBIG,
+    // exercising the actual native write failure rather than killing the child.
+    let output = Command::new("/bin/sh")
+        .args([
+            "-c",
+            "ulimit -f 1; trap '' XFSZ; exec \"$@\"",
+            "wisp-write-failure",
+        ])
+        .arg(env!("CARGO_BIN_EXE_wisp"))
+        .args(edit_args(&source, &body, &out))
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.is_empty());
+    assert!(!output.stderr.is_empty());
+    let len = fs::metadata(&out).unwrap().len();
+    assert!(len > 0 && len < 10000, "partial size {len}");
+    assert_eq!(fs::read_to_string(&source).unwrap(), original);
+}
 #[test]
 fn compiler_discovery_and_cli_created_diagnostics_use_shared_codes() {
     let expected: Value =

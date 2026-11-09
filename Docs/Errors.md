@@ -27,9 +27,26 @@ same exhaustive enum as construction and serialization. The table below is
 checked against that catalog. It is a taxonomy, not an automatic repair policy
 or inference about user intent.
 
+Guarded edit contract v1 adds five codes without changing existing meanings.
+Baseline parse/check diagnostics retain baseline source spans and precede stale
+guard errors. Replacement/candidate failures use Input at `/change/replacement`
+with sentinel `0..0`; nested `edit.cause` or `edit.rejected_candidate` explicitly
+tags the owning document and relative diagnostics. Never treat candidate spans
+(including shifted unchanged probe spans) as current-editor spans. Resource
+exhaustion retains its original Limit code/reason and Unknown status, including
+replacement/candidate provenance; it is not converted into an edit Input error.
+Rejected source is never prepared source. Ready preparation is not execution,
+passing probes, proof, automatic repair, or evidence of human intent. See the
+[precise response and precedence contract](Protocol.md#guarded-function-body-preparation-edit-contract-v1).
+
 | Code | Legacy kind | Meaning |
 | --- | --- | --- |
 | E_REQUEST_INVALID | Request | Invalid request schema, limits, or operation-specific fields. |
+| E_EDIT_REQUEST | Request | Invalid edit fields, explicit focus, change schema or canonical hash guards. |
+| E_EDIT_CONFLICT | Request | Edit revision or exact body hash guard does not match the checked baseline. |
+| E_EDIT_TARGET | Request | Edit target is not a unique global function in the checked baseline. |
+| E_EDIT_REPLACEMENT | Input | Replacement is not one standalone block with only outer whitespace. |
+| E_EDIT_CANDIDATE | Input | Combined candidate failed checking or preservation audit; not accepted source. |
 | E_OPERATION_UNKNOWN | Request | Unsupported dispatch operation. |
 | E_CONTEXT_SELECTOR | Request | Invalid canonical probe selector or selected probe does not exist. |
 | E_TRANSPORT_LIMIT | Request | Raw request exceeds the fixed transport byte ceiling. |

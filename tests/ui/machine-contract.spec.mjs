@@ -10,7 +10,7 @@ test('published manifest matches native compiler with live docs and runnable exa
   const native = spawnSync('./target/debug/wisp', ['capabilities'], { encoding: 'utf8' });
   expect(native.status, native.stderr).toBe(0);
   expect(manifest).toEqual(JSON.parse(native.stdout));
-  expect(manifest.capabilities.diagnostics.codes).toHaveLength(45);
+  expect(manifest.capabilities.diagnostics.codes).toHaveLength(50);
   for (const path of Object.values(manifest.capabilities.docs)) {
     const doc = await page.request.get(new URL(path, response.url()).href);
     expect(doc.ok()).toBeTruthy(); expect(await doc.text()).toMatch(/^#/);

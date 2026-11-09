@@ -6,6 +6,7 @@ const HELP: &str = "usage: wisp FILE | wisp --json < request.json
        wisp capabilities
        wisp run FILE
        wisp call FILE FUNCTION [--args-file INPUT]
+       wisp edit FILE FUNCTION --replacement-file BODY --expected-revision SHA --expected-body SHA --out NEWFILE
        wisp check FILE
        wisp focus FILE FUNCTION [--budget N]
        wisp context FILE --probe INDEX [--budget N]
@@ -114,6 +115,54 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
             ));
         }
         ["check", path] => dispatch(json!({"op":"analyze","source":source(path)?})),
+        ["edit", path, function, rest @ ..] => {
+            let (mut replacement, mut revision, mut body, mut out) = (None, None, None, None);
+            for pair in rest.chunks(2) {
+                if pair.len() != 2 || pair[1].starts_with("--") || pair[1].is_empty() {
+                    return Err(HELP.into());
+                }
+                match pair {
+                    ["--replacement-file", value] if replacement.is_none() => {
+                        replacement = Some(*value)
+                    }
+                    ["--expected-revision", value] if revision.is_none() => revision = Some(*value),
+                    ["--expected-body", value] if body.is_none() => body = Some(*value),
+                    ["--out", value] if out.is_none() => out = Some(*value),
+                    _ => return Err(HELP.into()),
+                }
+            }
+            let (replacement, revision, body, out) = (
+                replacement.ok_or(HELP)?,
+                revision.ok_or(HELP)?,
+                body.ok_or(HELP)?,
+                out.ok_or(HELP)?,
+            );
+            if *path == "-" && replacement == "-" {
+                return Err("source and replacement cannot both read stdin".into());
+            }
+            let source = source(path)?;
+            let replacement = read(replacement, wisp::REPLACEMENT_BYTES)?;
+            let r = dispatch(
+                json!({"op":"edit","source":source,"focus":function,"change":{
+                    "expected_revision":revision,"expected_body_hash":body,"replacement":replacement
+                }}),
+            );
+            if r["status"] == "Ready" {
+                let bytes = r["edit"]["source"]
+                    .as_str()
+                    .expect("prepared source")
+                    .as_bytes();
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(out)
+                    .map_err(|e| format!("{out}: {e}"))?;
+                file.write_all(bytes)
+                    .and_then(|_| file.flush())
+                    .map_err(|e| format!("{out}: {e}"))?;
+            }
+            r
+        }
         ["context", path, rest @ ..] => {
             let mut probe = None;
             let mut budget = None;
@@ -205,7 +254,8 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
         [path]
             if !path.starts_with('-')
                 && ![
-                    "run", "call", "check", "focus", "context", "archive", "inspect", "replay",
+                    "run", "call", "edit", "check", "focus", "context", "archive", "inspect",
+                    "replay",
                 ]
                 .contains(path) =>
         {

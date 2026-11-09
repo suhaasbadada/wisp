@@ -182,3 +182,37 @@ for (const focus of ['', 'probe:00', 'probe:-1', 'probe:18446744073709551616', '
 compareContext('{"op":"context","source":"probe n in 1..=1 {true}","budget":18446744073709551615}');
 compareContext({ op: 'context', source: 'fn f()->Int{true}', focus: 'invalid' });
 console.log(`Probe context: ${contextComparisons} exact serialized-byte comparisons with independently reconciled source hashes/ranges/ledger (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons} total).`);
+let editComparisons = 0;
+const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+function compareEdit(request) {
+  const raw = typeof request === 'string' ? request : JSON.stringify(request);
+  const native = spawnSync('./target/debug/wisp', ['--json'], { input: raw, encoding: 'utf8' });
+  assert.equal(native.status, 0, native.stderr);
+  const wasm = dispatch(raw); assert.equal(wasm, native.stdout.trimEnd()); editComparisons++;
+  const report = JSON.parse(wasm); const edit = report.edit;
+  if (edit?.state === 'prepared') {
+    const req = typeof request === 'string' ? JSON.parse(request) : request;
+    const base = Buffer.from(req.source); const candidate = Buffer.from(edit.source); const replacement = Buffer.from(req.change.replacement);
+    assert.equal(report.status, 'Ready'); assert.equal(report.new_execution, false); assert.equal(report.usage, undefined); assert.deepEqual(report.probes, []);
+    assert.equal(report.revision, sha(base)); assert.equal(edit.candidate_revision, sha(candidate));
+    assert.equal(edit.base_body_hash, sha(base.subarray(edit.base_body_span.start, edit.base_body_span.end)));
+    assert.equal(edit.candidate_body_hash, sha(candidate.subarray(edit.candidate_body_span.start, edit.candidate_body_span.end)));
+    assert.deepEqual(candidate, Buffer.concat([base.subarray(0, edit.base_body_span.start), replacement, base.subarray(edit.base_body_span.end)]));
+    assert.deepEqual(candidate.subarray(edit.insertion_range.start, edit.insertion_range.end), replacement);
+    for (const field of ['checked', 'prefix', 'suffix', 'signature', 'records', 'other_functions', 'top_level_statements']) assert.equal(edit.preservation[field], true);
+    for (const probe of edit.preservation.probes) { assert.equal(probe.text_preserved, true); assert.equal(probe.domain_preserved, true); }
+  } else if (edit) { assert.equal(edit.source, undefined); assert.notEqual(edit.state, 'prepared'); }
+  return report;
+}
+for (const source of [examples[0], 'fn label()->String{"é😀"} fn f(n:Int)->Int{n} probe n in 1..=1 { f(n)==n }', 'fn f(n:Int)->Int{n}\r\nprobe n in 1..=1 {f(n)==n}']) {
+  const facts = JSON.parse(dispatch(JSON.stringify({ op: 'analyze', source })));
+  const fn = facts.graph.functions.find(fn => fn.name !== 'label');
+  const req = { op: 'edit', source, focus: fn.name, change: { expected_revision: facts.revision, expected_body_hash: fn.body_hash, replacement: '' } };
+  for (const replacement of [fn.name === 'bill' ? '{ snacks * 100 }' : '{ n + 0 }', ' \n{ 1 / 0 }\n ', '{ "wrong type" }', '{ 0 } // swallow', '/* outside */ { 0 }', '{ 0 } fn injected()->Int{1}', '{ /* é😀 */ 0 }']) compareEdit({ ...req, change: { ...req.change, replacement } });
+  compareEdit({ ...req, change: { ...req.change, expected_revision: '0'.repeat(64), replacement: '{0}' } });
+  compareEdit({ ...req, change: { ...req.change, expected_body_hash: '0'.repeat(64), replacement: '{0}' } });
+  compareEdit({ ...req, focus: 'missing', change: { ...req.change, replacement: '{0}' } });
+}
+for (const op of ['run', 'analyze', 'call', 'capabilities', 'context', 'focus', 'edit']) compareEdit({ op, source: '', change: null });
+assert.deepEqual(JSON.parse(dispatch(JSON.stringify({ op: 'context', source: examples[0], focus: 'probe:0', budget: 4096 }))), JSON.parse(readFileSync('tests/fixtures/semantics5-context.json', 'utf8')));
+console.log(`Guarded edits: ${editComparisons} exact serialized-byte comparisons with independent candidate/source/body hash and splice audits.`);

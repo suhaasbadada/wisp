@@ -1,5 +1,11 @@
 # Browser playground
 
+## Guarded body edits
+
+The collapsed panel offers Load, Preview, Stop and one-use Apply. Only checked functions are eligible. Load copies exact compiler body bytes; changing targets never silently rewrites replacement input. Preview uses source/body guards and independent cancellation/deadline, leaving editor/output/ghosts untouched. Review before/after bytes, candidate source and document-tagged JSON before Apply.
+
+Every source/target/replacement edit, including edit-and-revert, invalidates Apply. Apply synchronously rechecks snapshots and preservation boundaries, consumes once and updates full source through checking without executing. UTF-8 decoding handles Unicode boundaries. Old ghosts retain original source/revision; Run/Replay remain explicit executions. Ready is not probe success or intent correctness. Outer comments/extra definitions are rejected. Rejected-candidate diagnostics never become baseline editor offsets. See ADR 0007 and Protocol for limits and schema.
+
 ## Probe context query
 
 “Probe context” is an explicit non-executing query, separate from function Agent View, Run and Invoke. Only currently checked probe options are selectable; indexes are zero-based and revision-local. The independent worker receives source, canonical selector and clamped TEXT budget, with its own Stop query/five-second deadline. Source/selector/budget edits cancel a pending request or mark accepted metadata historical (including when input is reverted); no late response can replace current context. A new query clears the previous display before accepting a result. Execution evidence/output/ghosts are untouched.

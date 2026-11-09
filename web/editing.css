@@ -1,0 +1,16 @@
+.edit-panel { margin-top: 18px; border: 1px solid #bcc7b8; border-radius: 4px; background: #f5f7ee; padding: 16px 18px; }
+.edit-panel > summary { text-decoration: none; font-size: 12px; line-height: 1.8; }
+.edit-panel > summary strong { color: var(--orange); }
+.edit-panel > p { font-size: 11px; line-height: 1.8; overflow-wrap: anywhere; }
+.edit-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0; font-size: 12px; }
+.edit-controls select { max-width: 100%; }
+.edit-controls button { font-size: 12px; }
+.replacement-label { display: block; font-size: 12px; margin-top: 16px; }
+.replacement-label span { display: block; font-size: 10px; color: var(--muted); margin: 5px 0; }
+#edit-replacement { height: 145px; background: white; border: 1px solid var(--line); padding: 12px; font-size: 12px; border-radius: 3px; }
+.edit-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0; }
+.edit-diff > div { min-width: 0; }
+.edit-diff h3 { font-size: 11px; }
+.edit-diff pre { padding: 12px; background: #edf0e5; min-height: 50px; max-height: 250px; overflow: auto; border: 1px solid var(--line); }
+.edit-panel > details { font-size: 11px; margin: 12px 0; }
+@media(max-width: 700px) { .edit-diff { grid-template-columns: 1fr; } .edit-controls label { max-width: 100%; } }

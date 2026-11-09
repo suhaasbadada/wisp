@@ -25,6 +25,11 @@ macro_rules! codes {
 }
 codes! {
     RequestInvalid => ("E_REQUEST_INVALID", "Request", "Invalid request schema, limits, or operation-specific fields."),
+    EditRequest => ("E_EDIT_REQUEST", "Request", "Invalid edit fields, explicit focus, change schema or canonical hash guards."),
+    EditConflict => ("E_EDIT_CONFLICT", "Request", "Edit revision or exact body hash guard does not match the checked baseline."),
+    EditTarget => ("E_EDIT_TARGET", "Request", "Edit target is not a unique global function in the checked baseline."),
+    EditReplacement => ("E_EDIT_REPLACEMENT", "Input", "Replacement is not one standalone block with only outer whitespace."),
+    EditCandidate => ("E_EDIT_CANDIDATE", "Input", "Combined candidate failed checking or preservation audit; not accepted source."),
     OperationUnknown => ("E_OPERATION_UNKNOWN", "Request", "Unsupported dispatch operation."),
     ContextSelector => ("E_CONTEXT_SELECTOR", "Request", "Invalid canonical probe selector or selected probe does not exist."),
     TransportLimit => ("E_TRANSPORT_LIMIT", "Request", "Raw request exceeds the fixed transport byte ceiling."),
