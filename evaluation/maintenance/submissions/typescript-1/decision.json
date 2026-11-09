@@ -1,0 +1,8 @@
+{
+  "historical_input": "0",
+  "historical_failure_reproduced": true,
+  "current_old_input_passed": true,
+  "old_replay_is_full_acceptance": false,
+  "fresh_public_suite_passed": true,
+  "explanation": "The public replay tool actually reproduced the archived rejection (false,2,1) on public-0 and obtained (true,1,0) from both the unchanged current starter and candidate. The starter nevertheless failed fresh public cases 1 and 2: it ignored staged partial pallets and credited holds at the deadline. The candidate changes only added_slots and credit_slots bodies, passes strict compilation, all seven public Decision regressions, and 46,446 self-authored finite cases with full Decision comparisons. Neither replay nor finite tests establish correctness over every valid input."
+}

@@ -1,0 +1,8 @@
+{
+  "historical_input": "0",
+  "historical_failure_reproduced": true,
+  "current_old_input_passed": true,
+  "old_replay_is_full_acceptance": false,
+  "fresh_public_suite_passed": true,
+  "explanation": "Native inspect reproduced the archived first failure; replay against historical.wisp failed at input 0. The unmodified current starter passed that same replay but failed the fresh first probe at input 1. The candidate changes only added_slots and credit_slots bodies. Candidate checking was Ready, replay was Pass, and fresh probes were Clear for all seven examples. Separate native typed calls compared full Decisions on all seven public JSON cases and 100 self-authored valid cases. These finite observations do not establish all-input correctness, authenticated history, or comparative performance."
+}

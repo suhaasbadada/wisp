@@ -1,0 +1,8 @@
+{
+  "historical_input": "0",
+  "historical_failure_reproduced": true,
+  "current_old_input_passed": true,
+  "old_replay_is_full_acceptance": false,
+  "fresh_public_suite_passed": true,
+  "explanation": "The public replay tool actually reproduced historical input 0 as accepted=false, added=2, free_after=1, and the unrepaired current starter already returned the expected accepted=true, added=1, free_after=0. Nevertheless the current starter failed public cases 1 and 2. The candidate changes only added_slots and credit_slots bodies: compute the increase in occupied staged pallets and credit holds only strictly before expiry. Strict compilation passed, all seven fresh public Decision checks passed, historical reproduction and candidate replay passed, and 710184 self-authored finite Decision/helper checks passed. Parsed-body comparison verified all other source bytes identical; the historical source matched its snapshot and archived SHA-256. Replay, metadata and finite checks do not prove correctness over every valid input. No private grading or performance comparison was performed."
+}
