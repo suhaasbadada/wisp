@@ -1,5 +1,14 @@
 # Architecture
 
+## Repeated maintenance validation
+
+The ADR 0009 harness uses existing Rust typed calls and guarded edits; TypeScript
+is an external comparison arm with a real compiler checker for calls/context.
+Frozen task/tool hashes and final submission locks are verified before and after
+grading. Functional acceptance and participant assertions are distinct. No new
+language evaluator, semantics or core permission. The follow-on workbench is a
+planned host workflow, not an implemented architecture or automatic repair claim.
+
 ## Product-validation tooling (outside the language core)
 
 ADR 0008 freezes three paired maintenance tasks and finite mathematical oracles.

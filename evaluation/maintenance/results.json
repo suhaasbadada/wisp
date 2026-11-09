@@ -1,0 +1,374 @@
+{
+  "version": 1,
+  "phase": "LOCKED_FINAL_GRADING",
+  "grading_complete": true,
+  "passed": true,
+  "results": [
+    {
+      "id": "wisp-2",
+      "arm": "wisp",
+      "source": "evaluation/maintenance/submissions/wisp-2/candidate.wisp",
+      "source_sha256": "630c35d44df79c4b6b967ce31a1fddd62e14eb169a200d3f6f52c155a81eb9df",
+      "decision": "evaluation/maintenance/submissions/wisp-2/decision.json",
+      "decision_sha256": "efe651b4e82c9382d1908225fca865e0ecb4800f26af6c26de0d03fe1aa80513",
+      "evidence": "evaluation/maintenance/submissions/wisp-2/evidence.md",
+      "evidence_sha256": "04a39d6548594bd5bebfe91613ad335aacfde5440a3d074ea8e7f2230a8fb9fe",
+      "configured_agent": "bob",
+      "verified_model": null,
+      "token_usage": null,
+      "dispatch_window_ms": 154388.207667,
+      "telemetry_scope": "Recorded lock fields; not independently authenticated.",
+      "missing_submission": false,
+      "functional_passed": true,
+      "reported_history_assertions_match": true,
+      "passed": true,
+      "functional_grade": {
+        "arm": "wisp",
+        "path": "evaluation/maintenance/submissions/wisp-2/candidate.wisp",
+        "structural_check": true,
+        "compile_check": true,
+        "cases_total": 547,
+        "cases_executed": 547,
+        "cases_passed": 547,
+        "failures": [],
+        "source_sha256": "630c35d44df79c4b6b967ce31a1fddd62e14eb169a200d3f6f52c155a81eb9df",
+        "changed_functions": [
+          "added_slots",
+          "credit_slots"
+        ],
+        "native_usage": {
+          "reports": 547,
+          "fuel_sum": 216367,
+          "max_logical_allocation_bytes": 12520
+        },
+        "passed": true,
+        "command_count": 554,
+        "response_bytes": 5805621,
+        "elapsed_ms": 2778.725661
+      },
+      "decision_assessment": {
+        "schema_valid": true,
+        "reported_history_assertions_match": true,
+        "scope": "Participant assertions only; not verified knowledge, behavior or authenticated tool telemetry."
+      }
+    },
+    {
+      "id": "typescript-2",
+      "arm": "typescript",
+      "source": "evaluation/maintenance/submissions/typescript-2/candidate.ts",
+      "source_sha256": "b1ea92788c6f80a5b5ba2a7af86e750d039ba240c77dfc802987543ef449e19a",
+      "decision": "evaluation/maintenance/submissions/typescript-2/decision.json",
+      "decision_sha256": "354a4939afb6060c68b3312914fb0202a3a09aa2f3ef88f71bf6821670b54232",
+      "evidence": "evaluation/maintenance/submissions/typescript-2/evidence.md",
+      "evidence_sha256": "b8f7fd2e487d29234927cf1a8147c136813ca084417ac5d6662381d844ec2c37",
+      "configured_agent": "bob",
+      "verified_model": null,
+      "token_usage": null,
+      "dispatch_window_ms": 131738.510292,
+      "telemetry_scope": "Recorded lock fields; not independently authenticated.",
+      "missing_submission": false,
+      "functional_passed": true,
+      "reported_history_assertions_match": true,
+      "passed": true,
+      "functional_grade": {
+        "arm": "typescript",
+        "path": "evaluation/maintenance/submissions/typescript-2/candidate.ts",
+        "structural_check": true,
+        "compile_check": true,
+        "cases_total": 547,
+        "cases_executed": 547,
+        "cases_passed": 547,
+        "failures": [],
+        "source_sha256": "b1ea92788c6f80a5b5ba2a7af86e750d039ba240c77dfc802987543ef449e19a",
+        "changed_functions": [
+          "added_slots",
+          "credit_slots"
+        ],
+        "passed": true,
+        "command_count": 2,
+        "response_bytes": 58079,
+        "elapsed_ms": 229.39258399999972
+      },
+      "decision_assessment": {
+        "schema_valid": true,
+        "reported_history_assertions_match": true,
+        "scope": "Participant assertions only; not verified knowledge, behavior or authenticated tool telemetry."
+      }
+    },
+    {
+      "id": "typescript-3",
+      "arm": "typescript",
+      "source": "evaluation/maintenance/submissions/typescript-3/candidate.ts",
+      "source_sha256": "b1ea92788c6f80a5b5ba2a7af86e750d039ba240c77dfc802987543ef449e19a",
+      "decision": "evaluation/maintenance/submissions/typescript-3/decision.json",
+      "decision_sha256": "69226e108acf031cd62f19147b31d2bb3349f07c79029d71ace81d87329d8608",
+      "evidence": "evaluation/maintenance/submissions/typescript-3/evidence.md",
+      "evidence_sha256": "96c32d036f957071d82c6853c6ffdd8001c0347868ca58b63cd86ab6f84ed6e6",
+      "configured_agent": "bob",
+      "verified_model": null,
+      "token_usage": null,
+      "dispatch_window_ms": 147860.834708,
+      "telemetry_scope": "Recorded lock fields; not independently authenticated.",
+      "missing_submission": false,
+      "functional_passed": true,
+      "reported_history_assertions_match": true,
+      "passed": true,
+      "functional_grade": {
+        "arm": "typescript",
+        "path": "evaluation/maintenance/submissions/typescript-3/candidate.ts",
+        "structural_check": true,
+        "compile_check": true,
+        "cases_total": 547,
+        "cases_executed": 547,
+        "cases_passed": 547,
+        "failures": [],
+        "source_sha256": "b1ea92788c6f80a5b5ba2a7af86e750d039ba240c77dfc802987543ef449e19a",
+        "changed_functions": [
+          "added_slots",
+          "credit_slots"
+        ],
+        "passed": true,
+        "command_count": 2,
+        "response_bytes": 58079,
+        "elapsed_ms": 251.05870800000002
+      },
+      "decision_assessment": {
+        "schema_valid": true,
+        "reported_history_assertions_match": true,
+        "scope": "Participant assertions only; not verified knowledge, behavior or authenticated tool telemetry."
+      }
+    },
+    {
+      "id": "wisp-3",
+      "arm": "wisp",
+      "source": "evaluation/maintenance/submissions/wisp-3/candidate.wisp",
+      "source_sha256": "630c35d44df79c4b6b967ce31a1fddd62e14eb169a200d3f6f52c155a81eb9df",
+      "decision": "evaluation/maintenance/submissions/wisp-3/decision.json",
+      "decision_sha256": "25769fe0e65f7660bed2afeed6accec4eaf121a87f6500c65aac71b46988e2cf",
+      "evidence": "evaluation/maintenance/submissions/wisp-3/evidence.md",
+      "evidence_sha256": "2234ba77d79f9dbccc4baa48968d4a2deb7a0667b6438ebbed52807385087a1b",
+      "configured_agent": "bob",
+      "verified_model": null,
+      "token_usage": null,
+      "dispatch_window_ms": 146833.293041,
+      "telemetry_scope": "Recorded lock fields; not independently authenticated.",
+      "missing_submission": false,
+      "functional_passed": true,
+      "reported_history_assertions_match": true,
+      "passed": true,
+      "functional_grade": {
+        "arm": "wisp",
+        "path": "evaluation/maintenance/submissions/wisp-3/candidate.wisp",
+        "structural_check": true,
+        "compile_check": true,
+        "cases_total": 547,
+        "cases_executed": 547,
+        "cases_passed": 547,
+        "failures": [],
+        "source_sha256": "630c35d44df79c4b6b967ce31a1fddd62e14eb169a200d3f6f52c155a81eb9df",
+        "changed_functions": [
+          "added_slots",
+          "credit_slots"
+        ],
+        "native_usage": {
+          "reports": 547,
+          "fuel_sum": 216367,
+          "max_logical_allocation_bytes": 12520
+        },
+        "passed": true,
+        "command_count": 554,
+        "response_bytes": 5805621,
+        "elapsed_ms": 2838.6164170000025
+      },
+      "decision_assessment": {
+        "schema_valid": true,
+        "reported_history_assertions_match": true,
+        "scope": "Participant assertions only; not verified knowledge, behavior or authenticated tool telemetry."
+      }
+    },
+    {
+      "id": "wisp-1",
+      "arm": "wisp",
+      "source": "evaluation/maintenance/submissions/wisp-1/candidate.wisp",
+      "source_sha256": "630c35d44df79c4b6b967ce31a1fddd62e14eb169a200d3f6f52c155a81eb9df",
+      "decision": "evaluation/maintenance/submissions/wisp-1/decision.json",
+      "decision_sha256": "7b7388c42bfb7a49c91b96d3ab525e140b0b6541e66361dc98a5f302138a1f5a",
+      "evidence": "evaluation/maintenance/submissions/wisp-1/evidence.md",
+      "evidence_sha256": "1c8eeed846f8c3cdea9c70f150dc8ac638a8d9edfd82b5592e65bcc20f932dbb",
+      "configured_agent": "bob",
+      "verified_model": null,
+      "token_usage": null,
+      "dispatch_window_ms": 167325.117958,
+      "telemetry_scope": "Recorded lock fields; not independently authenticated.",
+      "missing_submission": false,
+      "functional_passed": true,
+      "reported_history_assertions_match": true,
+      "passed": true,
+      "functional_grade": {
+        "arm": "wisp",
+        "path": "evaluation/maintenance/submissions/wisp-1/candidate.wisp",
+        "structural_check": true,
+        "compile_check": true,
+        "cases_total": 547,
+        "cases_executed": 547,
+        "cases_passed": 547,
+        "failures": [],
+        "source_sha256": "630c35d44df79c4b6b967ce31a1fddd62e14eb169a200d3f6f52c155a81eb9df",
+        "changed_functions": [
+          "added_slots",
+          "credit_slots"
+        ],
+        "native_usage": {
+          "reports": 547,
+          "fuel_sum": 216367,
+          "max_logical_allocation_bytes": 12520
+        },
+        "passed": true,
+        "command_count": 554,
+        "response_bytes": 5805621,
+        "elapsed_ms": 2819.405944000013
+      },
+      "decision_assessment": {
+        "schema_valid": true,
+        "reported_history_assertions_match": true,
+        "scope": "Participant assertions only; not verified knowledge, behavior or authenticated tool telemetry."
+      }
+    },
+    {
+      "id": "typescript-1",
+      "arm": "typescript",
+      "source": "evaluation/maintenance/submissions/typescript-1/candidate.ts",
+      "source_sha256": "b1ea92788c6f80a5b5ba2a7af86e750d039ba240c77dfc802987543ef449e19a",
+      "decision": "evaluation/maintenance/submissions/typescript-1/decision.json",
+      "decision_sha256": "a0d04105445f90f151928e53a5334c43561f7eba032e88f15214811a1e887c7d",
+      "evidence": "evaluation/maintenance/submissions/typescript-1/evidence.md",
+      "evidence_sha256": "bf0ba3b4707c993dc3f03ed50241b6a38c5e6507b7e2e44cb811d51866f40cdd",
+      "configured_agent": "bob",
+      "verified_model": null,
+      "token_usage": null,
+      "dispatch_window_ms": 147777.709208,
+      "telemetry_scope": "Recorded lock fields; not independently authenticated.",
+      "missing_submission": false,
+      "functional_passed": true,
+      "reported_history_assertions_match": true,
+      "passed": true,
+      "functional_grade": {
+        "arm": "typescript",
+        "path": "evaluation/maintenance/submissions/typescript-1/candidate.ts",
+        "structural_check": true,
+        "compile_check": true,
+        "cases_total": 547,
+        "cases_executed": 547,
+        "cases_passed": 547,
+        "failures": [],
+        "source_sha256": "b1ea92788c6f80a5b5ba2a7af86e750d039ba240c77dfc802987543ef449e19a",
+        "changed_functions": [
+          "added_slots",
+          "credit_slots"
+        ],
+        "passed": true,
+        "command_count": 2,
+        "response_bytes": 58079,
+        "elapsed_ms": 225.78420800000094
+      },
+      "decision_assessment": {
+        "schema_valid": true,
+        "reported_history_assertions_match": true,
+        "scope": "Participant assertions only; not verified knowledge, behavior or authenticated tool telemetry."
+      }
+    }
+  ],
+  "accepted_counts": {
+    "wisp": {
+      "functional": 3,
+      "reported_assertions": 3,
+      "both": 3,
+      "total": 3
+    },
+    "typescript": {
+      "functional": 3,
+      "reported_assertions": 3,
+      "both": 3,
+      "total": 3
+    }
+  },
+  "scope": "Six repeated attempts on one synthetic scenario. No efficiency, causal superiority or exhaustive correctness claim. Dispatch windows are recorded host windows, not verified model latency; participant assertions are not telemetry.",
+  "git_head": "72eb2559b7beead82e84d57d5d644f04a0d4b9af",
+  "dirty": false,
+  "frozen": {
+    "manifest_sha256": "f0e985cf22b35c119c6887bea08227260eab9b0c2b23a55a54c76c004c6a0429",
+    "files": {
+      "evaluation/maintenance/protocol.json": "cd0758a005e246aa085b8557c3a9bf10a8013faa91e000dd1e9681ef3b419332",
+      "evaluation/maintenance/PROCEDURE.md": "1cadf5b758ac90b17dc97a7b6a7eef4fd1f3c382f0c317b1374301022fd88396",
+      "evaluation/maintenance/public/starter.ts": "03206870ba4865e08560b6329cd76d8b8e33ff72b1c1e5c69e0b4f79a5e59164",
+      "evaluation/maintenance/public/starter.wisp": "021fdfc2e3ad599bc7134c15eac9e6930510534db9aa4c94570a8a62fbf4c7d5",
+      "evaluation/maintenance/public/task.md": "6e7de07f47b109ddeb2889f47bd6e6d2b08ad4bd13f52b981f58b397fe13ab2a",
+      "evaluation/maintenance/public/README.md": "44275764ec8a9b0502e9638b611422a178252dfe359c3be5520992ee8f89539d",
+      "evaluation/maintenance/public/public-regressions.json": "310311a2a2f24bbfa25a88cad36368a5a4f326e107226b80a47120502da89465",
+      "evaluation/maintenance/historical/historical.ts": "16204b7a27b055d0118f068aa9372f71cc52dfad60d26bd1b81aecae25791bb4",
+      "evaluation/maintenance/historical/historical.wisp": "ef743d12307b40ef4833852eca09c5ee1e7dedb89bd7d6bce00296081ca6a945",
+      "evaluation/maintenance/historical/typescript-snapshot.json": "3de4fad32751cdad75819da6e8d84cf2240099b28fe6822e13dd04df6f186df9",
+      "evaluation/maintenance/historical/wisp-artifact.json": "b4d1f0697d745e528863c40ed6b3355c0c86c2bf16fd808e5eab779b77067a47",
+      "evaluation/maintenance/private/cases.mjs": "a7eaf180ac032cef93430bda83936e6f19bef604575a52d728845ed2f9efa528",
+      "evaluation/maintenance/private/cases.json": "3aac096e7e9666bb988d36954dc188ce8a66f04506f9431afa6910fa1c99a0f7",
+      "evaluation/maintenance/private/fixtures.mjs": "1e6a82a2edbb29624682a1b5381e0a407e19a64dd2b9c751c40ba1fb388afcb4",
+      "evaluation/maintenance/private/mutations.mjs": "cc2586559389960dae3bc5f277b060001572ad2f814d1f4591ed2b70dd5fc042",
+      "evaluation/maintenance/private/reference.ts": "b1ea92788c6f80a5b5ba2a7af86e750d039ba240c77dfc802987543ef449e19a",
+      "evaluation/maintenance/private/reference.wisp": "630c35d44df79c4b6b967ce31a1fddd62e14eb169a200d3f6f52c155a81eb9df",
+      "evaluation/maintenance/private/packing.ts": "a6bf02b4855591980d9ba6aa57f9207e13b4a3b813fef35324531dddbbac62df",
+      "evaluation/maintenance/private/packing.wisp": "358085682cc34e0fddc917e0e0a85b69fdfa7efe5293778faf20fffdf31641d3",
+      "evaluation/maintenance/private/expiry.ts": "5f0dd57056d180eca73d48ae113d68219cde007920094f5c16b1a34b2069edba",
+      "evaluation/maintenance/private/expiry.wisp": "094189a865a1149f205a2e09b2fac8aba9e9b2060c05d21d8e5af4238bb91736",
+      "evaluation/maintenance/private/mutation-dashboard.ts": "1dffd3d04072a741d03b833466854e23414817b3aa15b0b96dc23a11d1a2039c",
+      "evaluation/maintenance/private/mutation-dashboard.wisp": "b89b5c902b4e29522eb1cae6b1c3359c3c6519af468dc2c3f2cb1e0edf5ece18",
+      "evaluation/maintenance/private/mutation-threshold.ts": "797a070852d0ccf055c6b076ce0991d3996a7808e5edc27ed74c3f291a35e280",
+      "evaluation/maintenance/private/mutation-threshold.wisp": "2db116d2fb84a6286b6f9c73262ec86af55d6e642811981c6e1116a3d3a7992b",
+      "evaluation/maintenance/private/mutation-public0_specialcase.ts": "8424680b0c02b825687fcba0bdfae680297c86e1cb402292ee35fda7266533ba",
+      "evaluation/maintenance/private/mutation-public0_specialcase.wisp": "a8d51688c9039b0147bd8fa91c7f6b4a278a0438fe9837b3c881682e666a2286",
+      "evaluation/maintenance/private/mutation-wrong_decision_fields.ts": "c8c99fdddbb1f90efb509238aeaa3dd4419f13b9230df56180638ae48a6fa02e",
+      "evaluation/maintenance/private/mutation-wrong_decision_fields.wisp": "ac5ee2507fc2eeb6f884f2bd971f5bdf7d3dcc465c1e05f8d0343adc647adfd4",
+      "scripts/maintenance.mjs": "784cc3310ca2b7f4c52cd89834fcc36963fa7eafebac7a5d4dd405bd0cd8a805",
+      "scripts/maintenance-tools.mjs": "b3dd9c191b1b3db4855a199ca2e116906924514ba24609c6fee74ad258f8035f",
+      "scripts/maintenance-worker.cjs": "4343347a50f19a81be9ce6acdf40950a7d13eb50986c8a124e42a6f3289b640a",
+      "scripts/maintenance-preflight.mjs": "5f9d9ed91d942f14dbe3403336c7526faa6cc1e890c24479059897c03dd08be3",
+      "scripts/maintenance.test.mjs": "84aef632c9aa952944fbfb6f281d7ff418eb2f147f73512342614d9a967171ea",
+      "scripts/maintenance-study.mjs": "0c80ce86ebd8f8bddda110b93176f69205f7a218ce8944a8aa3d3affecd61b52",
+      "scripts/maintenance-study.test.mjs": "14ad1419e6c60c367125bf8afa94076cccc069e293687e139fc2c16020fbff51",
+      "scripts/evaluate.mjs": "e265c54a320f52b110dadb17a1444d18443319f51be8a1d826e1cd41358f569e",
+      "evaluation/maintenance/private/preflight-03.json": "ebe71650552714a0ad3e92bc4a47e7d86e8a2d3d151a05d1f6513243cc5107e3",
+      "evaluation/maintenance/private/README.md": "9f959e8bd4f49d937d4bc0bee8a619a707284c3b24548eb5162e605dcd5e21a1",
+      "Docs/Language.md": "6cb0f25df3556947476070d263cb4b4c8c8d8aa6b60ce85ecab9f993ed9293c8",
+      "Docs/CLI.md": "54ee1f41c8f8746077b6ebd53e14a587d8e69441d512efbb0176d317ace60de5",
+      "Docs/Protocol.md": "f3cf4b4955798d1ced6d5f7013d5786263506fad0bb924529d163fb067bb49bf",
+      "Docs/Errors.md": "8843ecb7300edba51d4c5e9e231896dbba217c1165d81ec36f922bb33d37d6cc"
+    }
+  },
+  "order": [
+    "wisp-2",
+    "typescript-2",
+    "typescript-3",
+    "wisp-3",
+    "wisp-1",
+    "typescript-1"
+  ],
+  "submission_lock_sha256": "9257c48951e6856a8cdca68a7aeee552c7089e010283c9db0f1ae2ba2b054295",
+  "versions": {
+    "node": "v24.10.0",
+    "typescript": "5.9.3",
+    "compiler": "wisp-0.1.0-semantics-5"
+  },
+  "binary_sha256": "f5fdb4afaef554ca99a49a687c3464d366cc1855d0699d5ab94d32e4339263c3",
+  "tooling_sha256": {
+    "scripts/maintenance-study.mjs": "0c80ce86ebd8f8bddda110b93176f69205f7a218ce8944a8aa3d3affecd61b52",
+    "scripts/maintenance.mjs": "784cc3310ca2b7f4c52cd89834fcc36963fa7eafebac7a5d4dd405bd0cd8a805",
+    "scripts/maintenance-tools.mjs": "b3dd9c191b1b3db4855a199ca2e116906924514ba24609c6fee74ad258f8035f",
+    "scripts/maintenance-worker.cjs": "4343347a50f19a81be9ce6acdf40950a7d13eb50986c8a124e42a6f3289b640a",
+    "scripts/evaluate.mjs": "e265c54a320f52b110dadb17a1444d18443319f51be8a1d826e1cd41358f569e"
+  },
+  "parent_runner_metrics": {
+    "command_count": 3,
+    "response_bytes": 14397,
+    "elapsed_ms": 27.756000999999998
+  },
+  "elapsed_ms": 9668.935375000001
+}

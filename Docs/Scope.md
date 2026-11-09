@@ -1,5 +1,10 @@
 # First playable scope
 
+Repeated maintenance study (ADR 0009): completed, with both arms passing three
+repetitions of one synthetic task. No language/core changes or efficiency claim.
+Next product direction is a policy-change workbench; it is planned, not shipped.
+Necessary capability upgrades remain in scope for subsequent bounded increments.
+
 Current priority: product-validation pilot (ADR 0008), not language expansion.
 Guarded edits through PR #7 are shipped and live-verified. Three paired tasks and
 an exact finite acceptance harness expose workflow friction with explicit study
