@@ -1,5 +1,11 @@
 # First playable scope
 
+Current priority: product-validation pilot (ADR 0008), not language expansion.
+Guarded edits through PR #7 are shipped and live-verified. Three paired tasks and
+an exact finite acceptance harness expose workflow friction with explicit study
+limitations; no token-cost, performance or superiority claim. No core behavior or
+permission changes. See [Evaluation](Evaluation.md).
+
 Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger through PR #6 is shipped; guarded edits are under verification.
 
 Status: first playable through explicit probe-context ledger shipped via PRs #1–#6. Guarded body preparation (ADR 0007) locally verified and independently reviewed; remote CI/deployment pending. Experimental; not production-ready. No license selected (owner decision pending).

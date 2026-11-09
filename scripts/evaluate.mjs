@@ -138,7 +138,7 @@ function compileTS(source, temp, run) {
 
 export function evaluateTask({ arm, task, cases, submissions, limits = LIMITS, runner = createRunner(limits) }) {
   const start = performance.now();
-  const result = { arm, task: task.id, source_sha256: null, structural_check: false, compile_check: false, cases_passed: 0, cases_total: cases.length, failures: [], command_count: 0, response_bytes: 0, elapsed_ms: 0 };
+  const result = { arm, task: task.id, source_sha256: null, structural_check: false, compile_check: null, cases_executed: 0, cases_passed: 0, cases_total: cases.length, failures: [], command_count: 0, response_bytes: 0, elapsed_ms: 0 };
   const fail = failure => { if (result.failures.length < 20) result.failures.push(failure); };
   let temp;
   try {
@@ -161,6 +161,7 @@ export function evaluateTask({ arm, task, cases, submissions, limits = LIMITS, r
       structuralTypeScript(baseline, candidate.source, task.protected_functions);
       result.structural_check = true;
       temp = mkdtempSync(join(tmpdir(), 'wisp-acceptance-'));
+      result.compile_check = false;
       const compiled = compileTS(candidate.source, temp, runner.run);
       result.compile_check = true;
       const batch = JSON.parse(runner.run(process.execPath, [join(ROOT, 'scripts/evaluation-ts-worker.cjs'), compiled], JSON.stringify({ cases: cases.map(test => ({ target: test.target ?? task.target, args: test.args })) }), temp));
@@ -168,12 +169,13 @@ export function evaluateTask({ arm, task, cases, submissions, limits = LIMITS, r
       reports = batch;
     }
     for (let i = 0; i < cases.length; i++) {
+      result.cases_executed++;
       const grade = gradeResult(reports[i], cases[i].expected);
       if (grade.ok) result.cases_passed++;
       else fail({ case: cases[i].name, expected: cases[i].expected, actual: grade.actual });
     }
   } catch (error) {
-    fail({ stage: result.compile_check ? 'execution' : result.structural_check ? 'compile' : 'source_or_structure', error: message(error) });
+    fail({ stage: result.compile_check === true ? 'execution' : result.structural_check ? 'compile' : 'source_or_structure', error: message(error) });
   } finally {
     if (temp) rmSync(temp, { recursive: true, force: true });
     Object.assign(result, runner.metrics);
@@ -199,12 +201,15 @@ export async function main(args = process.argv.slice(2)) {
   let fd;
   try {
     const options = parseArgs(args);
+    const start = performance.now();
+    const runner = createRunner();
+    // Snapshot before creating an in-tree result, which would itself dirty Git.
+    const head = runner.run('git', ['rev-parse', 'HEAD']).trim();
+    const dirty = runner.run('git', ['status', '--porcelain', '--untracked-files=normal']).length > 0;
     if (options.out) {
       try { fd = openSync(resolve(options.out), 'wx'); }
       catch { throw new UsageError('Output must be a new writable file (no overwrite)'); }
     }
-    const start = performance.now();
-    const runner = createRunner();
     let report;
     try {
       const frozen = verifyFrozen();
@@ -213,15 +218,13 @@ export async function main(args = process.argv.slice(2)) {
       const { acceptanceCases } = await import('./evaluation-cases.mjs');
       const cases = acceptanceCases();
       validateCases(cases, protocol.tasks);
-      const head = runner.run('git', ['rev-parse', 'HEAD']).trim();
-      const dirty = runner.run('git', ['status', '--porcelain', '--untracked-files=normal']).length > 0;
       const discovery = native(runner.run, { op: 'capabilities', source: '' });
       requireReady(discovery);
       const results = [];
       for (const arm of options.arm ? [options.arm] : ARMS) for (const task of protocol.tasks.filter(task => !options.task || task.id === options.task)) {
         results.push(evaluateTask({ arm, task, cases: cases.filter(test => test.task === task.id), submissions: resolve(ROOT, options.submissions), limits: protocol.limits }));
       }
-      report = { version: 1, git_head: head, dirty, compiler: discovery.compiler, node_version: process.version, typescript_version: ts.version, case_generator_sha256: frozen.files['scripts/evaluation-cases.mjs'], frozen, measurement_scope: 'Backend commands, stdout+stderr bytes, and monotonic elapsed milliseconds; not agent tokens or latency. Finite acceptance only; no superiority claim. Trusted submissions only; not a sandbox.', results, passed: results.every(result => result.passed) };
+      report = { version: 1, git_head: head, dirty, compiler: discovery.compiler, binary_sha256: sha256(readFileSync(join(ROOT, 'target/debug/wisp'))), evaluator_sha256: sha256(readFileSync(fileURLToPath(import.meta.url))), worker_sha256: sha256(readFileSync(join(ROOT, 'scripts/evaluation-ts-worker.cjs'))), platform: process.platform, architecture: process.arch, node_version: process.version, typescript_version: ts.version, case_generator_sha256: frozen.files['scripts/evaluation-cases.mjs'], frozen, measurement_scope: 'Backend commands, stdout+stderr bytes, and monotonic elapsed milliseconds; not agent tokens or latency. cases_executed counts reports graded, including faults/timeouts, not proof of function completion. compile_check:null means that combined checking gate was not completed; it does not diagnose a compile failure. Finite acceptance only; no superiority claim. Trusted submissions only; not a sandbox.', results, passed: results.every(result => result.passed) };
     } catch (error) { report = { version: 1, passed: false, error: message(error) }; }
     report.command_count = runner.metrics.command_count + (report.results ?? []).reduce((n, r) => n + r.command_count, 0);
     report.response_bytes = runner.metrics.response_bytes + (report.results ?? []).reduce((n, r) => n + r.response_bytes, 0);

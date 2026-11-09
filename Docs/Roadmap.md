@@ -1,5 +1,15 @@
 # Roadmap
 
+Product validation (ADR 0008) takes priority over feature expansion: the first
+paired pilot accepted five of six submissions, preserving a Wisp body-boundary
+failure. No comparative advantage is established. Next gates are independent
+tasks, isolated holdouts, verified usage/settings and repeated repository-scale
+trials with strong existing-language tooling. See [Evaluation](Evaluation.md).
+
+Guarded editing shipped via PR #7 at `6f1378bdff3faa5be4606e238415c9e85d6123e0`;
+published acceptance is recorded in Testing. Earlier “in progress” entries below
+are historical implementation notes, not current deployment status.
+
 Guarded edits (ADR 0007) under verification: checked-baseline single-body preparation, exact guards, immutable probe specifications, document-scoped diagnostics and native/browser explicit application. No automatic repair, persistent IDs or invalid-baseline repair. Context ledger PR #6 shipped; see Testing for published acceptance.
 
 1. First playable: shared native/WASM core, honest finite evidence, worker playground and agent-first docs.

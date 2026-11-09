@@ -94,6 +94,8 @@ test('missing and oversized candidates fail tasks without losing case totals', (
   assert.equal(result.passed, false);
   assert.equal(result.cases_total, cases.length);
   assert.equal(result.source_sha256, null);
+  assert.equal(result.compile_check, null);
+  assert.equal(result.cases_executed, 0);
   mkdirSync(join(dir, 'typescript'));
   writeFileSync(join(dir, 'typescript/shipping.ts'), ' '.repeat(65537));
   result = evaluateTask({ arm: 'typescript', task, cases, submissions: dir });
@@ -194,6 +196,7 @@ for (const arm of ['typescript', 'wisp']) test(`all 1237 cases pass through the 
     const result = evaluateTask({ arm, task, cases, submissions: dir });
     assert.equal(result.passed, true, JSON.stringify(result.failures));
     assert.equal(result.cases_passed, cases.length);
+    assert.equal(result.cases_executed, cases.length);
     assert.equal(result.command_count, arm === 'wisp' ? cases.length + 3 : 2);
     assert.ok(result.response_bytes > 0);
     assert.ok(result.elapsed_ms > 0);
@@ -201,4 +204,25 @@ for (const arm of ['typescript', 'wisp']) test(`all 1237 cases pass through the 
     count += result.cases_passed;
   }
   assert.equal(count, 1237);
+}));
+
+test('all faulty starters fail behavioral acceptance after a harmless one-body comment edit', { skip: !nativePresent && 'Build target/debug/wisp first' }, () => temporary(dir => {
+  for (const arm of ['wisp', 'typescript']) {
+    mkdirSync(join(dir, arm));
+    const ext = arm === 'wisp' ? 'wisp' : 'ts';
+    for (const task of protocol.tasks) {
+      const source = starter(task.id, ext);
+      const marker = arm === 'wisp' ? `fn ${task.target}` : `export function ${task.target}`;
+      const start = source.indexOf('{', source.indexOf(marker));
+      const candidate = source.slice(0, start + 1) + '\n// unchanged faulty logic\n' + source.slice(start + 1);
+      writeFileSync(join(dir, arm, `${task.id}.${ext}`), candidate);
+      const cases = acceptanceCases().filter(c => c.task === task.id);
+      const result = evaluateTask({ arm, task, cases, submissions: dir });
+      assert.equal(result.structural_check, true, JSON.stringify(result.failures));
+      assert.equal(result.compile_check, true);
+      assert.equal(result.cases_executed, cases.length);
+      assert.equal(result.passed, false);
+      assert.ok(result.cases_passed < result.cases_total);
+    }
+  }
 }));

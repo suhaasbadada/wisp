@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "git_head": "0cd894d1b62d114a5211801ca32f68a52b56a6ae",
+  "dirty": true,
+  "compiler": "wisp-0.1.0-semantics-5",
+  "node_version": "v24.10.0",
+  "typescript_version": "5.9.3",
+  "case_generator_sha256": "2748d4e7ae93242b5d79dee848b919011c8ba745992df27053a888a053e655ff",
+  "frozen": {
+    "manifest_sha256": "2715db7e1c4311391886af205f38e570b98a0ce6508627bca1db69dc61f5ead7",
+    "files": {
+      "evaluation/protocol.json": "1943cf08973980f9327da6a8ab4b9284b110d969f6fac045e8449a090afea505",
+      "evaluation/README.md": "9350687b4f95f0802a6a6e221e8fa66287b8307f4857f2de31c5e37554f89143",
+      "scripts/evaluation-cases.mjs": "2748d4e7ae93242b5d79dee848b919011c8ba745992df27053a888a053e655ff",
+      "evaluation/tasks/quota/starter.ts": "0d73e1dc2f6a04e3480fdcbaf95be22543da6ba3583cb3e52127d0d5c70b5c7b",
+      "evaluation/tasks/quota/starter.wisp": "7e9c1433d0a4e38d2cc8dbf72105a8dd938a93d505394afc003aeb621714e957",
+      "evaluation/tasks/quota/task.md": "22c0cc24d990295dc0867206213bdc1cadc3febc0d52e675a50ad5f92f2259a5",
+      "evaluation/tasks/refund/starter.ts": "51e006d2f77e0e27f860b7135574351d8c913ef9d8730c45106e5ecb0132cb36",
+      "evaluation/tasks/refund/starter.wisp": "4065fb974aaadaacde926e00e17212f0ca1d45f0d709bc16d57934413e68be50",
+      "evaluation/tasks/refund/task.md": "9487c0eedfb84cdfbd7019927fb8b4eb2a15138ea5fc2a59ab7f384774195173",
+      "evaluation/tasks/shipping/starter.ts": "3ac7f8c9146e5fac8dd284361f4b3ca0889692f1e07c4e1893f1bc6831a1d14e",
+      "evaluation/tasks/shipping/starter.wisp": "d2a15ab93011b6b0abedf57974b26cd1ce1c82d5378ac5881988e2a6fffbf69b",
+      "evaluation/tasks/shipping/task.md": "3aa8038ddfcd9d3a3ecb12fecaa6547d311c1a0e17d8ad383cba62568bf87d4a"
+    }
+  },
+  "measurement_scope": "Backend commands, stdout+stderr bytes, and monotonic elapsed milliseconds; not agent tokens or latency. Finite acceptance only; no superiority claim. Trusted submissions only; not a sandbox.",
+  "results": [
+    {
+      "arm": "wisp",
+      "task": "shipping",
+      "source_sha256": "178f456a9db0ed6c6d0fd848005aabeb02c8405a4924ad7a9b0cfe55df00815b",
+      "structural_check": true,
+      "compile_check": true,
+      "cases_passed": 34,
+      "cases_total": 34,
+      "failures": [],
+      "command_count": 37,
+      "response_bytes": 93571,
+      "elapsed_ms": 107.53979099999998,
+      "compiler": "wisp-0.1.0-semantics-5",
+      "passed": true
+    },
+    {
+      "arm": "wisp",
+      "task": "refund",
+      "source_sha256": "f0aa2ee4a3c1ece931e9656a78e40dd992acac986842564e688dafcc6e93e07c",
+      "structural_check": false,
+      "compile_check": false,
+      "cases_passed": 0,
+      "cases_total": 1050,
+      "failures": [
+        {
+          "stage": "source_or_structure",
+          "error": "Bytes outside the changed body were modified"
+        }
+      ],
+      "command_count": 2,
+      "response_bytes": 5552,
+      "elapsed_ms": 5.759875000000022,
+      "passed": false
+    },
+    {
+      "arm": "wisp",
+      "task": "quota",
+      "source_sha256": "b9756ba7c987c086e7ea1d57fe31e109101ccc7eab590e091b320012f6be83ff",
+      "structural_check": true,
+      "compile_check": true,
+      "cases_passed": 153,
+      "cases_total": 153,
+      "failures": [],
+      "command_count": 156,
+      "response_bytes": 415487,
+      "elapsed_ms": 452.55787499999997,
+      "compiler": "wisp-0.1.0-semantics-5",
+      "passed": true
+    },
+    {
+      "arm": "typescript",
+      "task": "shipping",
+      "source_sha256": "5dcd586a6bd79fa2c0f3b47183bfc68f844ad64855f28507fa9f6a5aa4ec28c2",
+      "structural_check": true,
+      "compile_check": true,
+      "cases_passed": 34,
+      "cases_total": 34,
+      "failures": [],
+      "command_count": 2,
+      "response_bytes": 2048,
+      "elapsed_ms": 556.3734159999999,
+      "passed": true
+    },
+    {
+      "arm": "typescript",
+      "task": "refund",
+      "source_sha256": "34279d5a184ae05135fa30b8610055efaf65eaf8ce93bae71bc47cc82a5c7652",
+      "structural_check": true,
+      "compile_check": true,
+      "cases_passed": 1050,
+      "cases_total": 1050,
+      "failures": [],
+      "command_count": 2,
+      "response_bytes": 62059,
+      "elapsed_ms": 520.9126669999998,
+      "passed": true
+    },
+    {
+      "arm": "typescript",
+      "task": "quota",
+      "source_sha256": "50ec99ad5ac2d6d302d579266edab5a7bdfe8ae7a04faac169b692f15dc37f5e",
+      "structural_check": true,
+      "compile_check": true,
+      "cases_passed": 153,
+      "cases_total": 153,
+      "failures": [],
+      "command_count": 2,
+      "response_bytes": 9313,
+      "elapsed_ms": 502.7130000000002,
+      "passed": true
+    }
+  ],
+  "passed": false,
+  "command_count": 204,
+  "response_bytes": 602460,
+  "elapsed_ms": 2193.1084170000004
+}

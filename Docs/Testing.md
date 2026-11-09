@@ -1,5 +1,23 @@
 # Verification
 
+## Product-validation increment
+
+Three preregistered paired tasks, six locked fresh-session submissions and
+deterministic finite acceptance now complement compiler regressions. The initial
+pilot accepted five submissions; Wisp refund failed an exact-byte boundary before
+behavioral grading and remains unchanged. `npm run test:evaluation` checks harness
+negative controls and replays that expected failure; `npm run evaluate` deliberately
+exits 1 for the pilot. Results do not measure comparative agent tokens or latency.
+See [Evaluation](Evaluation.md), ADR 0008 and evaluation/README.md. Independent
+review, full verification and exact-head CI for this increment remain pending.
+
+PR #7 shipped at `6f1378bdff3faa5be4606e238415c9e85d6123e0`: PR Checks
+`42665597018`, post-merge Checks `42666104788` and Pages `42666103744` passed.
+Published Preview/source/history preservation, edit-and-revert rejection, one-use
+Apply without execution, explicit finite Clear, document-scoped rejection and
+Stop were verified separately. Native exact new-file output/refused overwrite and
+Agent-default/Human docs passed. [Acceptance](https://github.com/suhaasbadada/wisp/pull/7#issuecomment-6747057218).
+
 ## Guarded edit verification
 
 Primary verification passed 99 Rust tests, 222 native/WASM comparisons (37 guarded-edit exact serialized-byte cases with independent candidate/source/body hashes and splice audits), 28 Chromium tests, fmt, strict Clippy, TypeScript, npm ci, WASM and static build. Frozen semantics-5 artifact, invocation identities and complete context report remain unchanged. Discovery advertises ten operations, fifty codes and five examples. Tests cover document provenance, exact preservation, stale guards, injection, limits, exclusive exact-byte output, preview without mutation, explicit Apply without execution, historical ghosts, edit-and-revert, target changes, Unicode and cancellation.
