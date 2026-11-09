@@ -12,6 +12,7 @@ wisp check examples/snacks.wisp                # Ready, exit 0; no execution
 wisp focus examples/snacks.wisp bill --budget 4096
 wisp context examples/snacks.wisp --probe 0 --budget 4096
 wisp call examples/invoice.wisp total --args-file item.json
+wisp edit input.wisp twice --replacement-file body.wisp --expected-revision SHA --expected-body SHA --out candidate.wisp
 wisp archive examples/snacks.wisp --out failure.json --probe 0
 wisp inspect failure.json
 wisp replay examples/snacks-repaired.wisp --artifact failure.json
@@ -35,6 +36,36 @@ optional path. See [Errors.md](Errors.md) for taxonomy and unknown-code fallback
 Native focus/archive-selection diagnostics also carry explicit codes. Host
 usage/IO failures still use stderr/exit 2 without guaranteed JSON, and legacy
 `--json` semantic statuses still exit 0.
+
+## Guarded function-body preparation
+
+`wisp edit FILE FUNCTION --replacement-file BODY --expected-revision SHA
+--expected-body SHA --out NEWFILE` uses shared Rust edit contract v1. All four
+flags are required, once each, in any order. Unknown/duplicate/missing flags or
+values are usage errors (stderr/exit 2). Hash validation is shared semantic
+validation (Error/exit 1), not a host shortcut. There is no inline replacement
+flag: body contents need not appear in command arguments. Source and replacement
+are bounded UTF-8 file inputs (65,536 bytes, reading at most cap+1); either may
+be `-`, never both. Oversize, invalid UTF-8 and reader failures are exit 2.
+
+The core checks an already-valid whole baseline, guards exact source revision
+and exact function body hash, parses one replacement block, checks the combined
+candidate and audits preservation. **Ready/exit 0 means checked preparation,
+not execution or passing probes.** No runtime/probe observations are made, even
+when fuel is zero. Review differences and run acceptance tests separately. See
+[Protocol.md](Protocol.md#guarded-function-body-preparation-edit-contract-v1)
+for exact precedence, whitespace, hashes, spans and rejected-document provenance.
+
+Only after Ready does the native host exclusively create `NEWFILE` using
+`create_new`; existing files, source paths, directories and symlinks are never
+overwritten or followed for output. It writes exactly prepared UTF-8 candidate
+bytes, with **no extra newline**, then flushes. The source is never mutated.
+Semantic rejection creates no output file: Error exits 1; Unknown exits 3.
+Open/write/flush failures exit 2 on stderr without a success JSON report; a
+partially written new file may remain after write/flush failure. Success emits
+the prepared JSON report only after writing succeeds. This is explicit host IO,
+not a language-core filesystem capability or automatic application to the source.
+Legacy `--json` prepares only and retains semantic exit 0; it never writes files.
 
 ## Probe context
 
