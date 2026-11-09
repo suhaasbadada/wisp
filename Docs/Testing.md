@@ -9,7 +9,19 @@ behavioral grading and remains unchanged. `npm run test:evaluation` checks harne
 negative controls and replays that expected failure; `npm run evaluate` deliberately
 exits 1 for the pilot. Results do not measure comparative agent tokens or latency.
 See [Evaluation](Evaluation.md), ADR 0008 and evaluation/README.md. Independent
-review, full verification and exact-head CI for this increment remain pending.
+review and full local verification are complete; exact-head CI remains pending.
+
+Primary verification passed 99 Rust tests, 17 evaluation tests (including both
+1,237-case reference backends, faulty-starter negative controls and replay of the
+locked failure), 222 native/WASM comparisons and 29 Chromium tests, plus fmt,
+strict Clippy, TypeScript, npm ci, WASM and static builds. No language-core change.
+Joffrey independently reviewed `de2f009` plus the audited report and found no
+substantive defects. Independent checks passed 17 evaluation tests without skips,
+99 Rust tests, TypeScript, fmt and strict Clippy. Independent CLI replay returned
+expected exit 1 with identical grades/counts/submission hashes. Frozen inputs and
+locked submissions/logs were unchanged. The reviewer did not repeat npm ci,
+WASM/static builds, parity or Chromium; agent access/settings cannot be verified
+from self-reported logs. Remote CI/deployment remain separate pending gates.
 
 PR #7 shipped at `6f1378bdff3faa5be4606e238415c9e85d6123e0`: PR Checks
 `42665597018`, post-merge Checks `42666104788` and Pages `42666103744` passed.

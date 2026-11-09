@@ -54,4 +54,10 @@ Direct evaluation intentionally exits **1** because the locked Wisp refund faile
 
 ## Next validation gate
 
+Independent Joffrey review of `de2f009` and the audited report found no substantive
+defects. It replayed acceptance with expected exit 1, verified unchanged frozen
+inputs/locked artifacts, and passed 17 evaluation tests, 99 Rust tests,
+TypeScript, fmt and strict Clippy. This reviews the harness/evidence, not a blind
+replication of agent behavior; access/settings remain unverified.
+
 Capture actual usage/settings; use independently authored tasks and technically separate grader material; randomize/repeat matched trials; include strong existing-language graph/full-protocol tooling for repository-scale work; preserve complete interactions. Revisit the body/insertion boundary with external agents before deciding whether Wisp materially improves success or effort. These six observations establish no quantitative advantage.
