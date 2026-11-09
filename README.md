@@ -4,7 +4,7 @@ Guarded function-body editing now offers explicit **Preview → Apply** in the p
 
 **Built for agents. By agents.**
 
-## Product validation, not more features
+## Product validation and direction
 
 Follow-up [maintenance study](Docs/Maintenance-study.md): both Wisp and strict
 TypeScript completed three repetitions of one dependency/stale-evidence task.
