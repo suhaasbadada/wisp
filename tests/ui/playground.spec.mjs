@@ -79,3 +79,17 @@ test('dependency badges preserve unrelated metadata but stale changed pricing', 
   await expect(page.locator('#evidence')).toContainText('STALE — dependencies changed');
   await expect(page.locator('#evidence')).toContainText('Ghost · input 9');
 });
+
+test('duplicate probe occurrences and example focus remain accurate', async ({ page }) => {
+  await page.goto('');
+  await page.locator('#source').fill('probe n in 1..=1 { true } probe n in 1..=1 { true }');
+  await expect(page.locator('#diagnostics')).toContainText('Checked by Rust');
+  await page.locator('#run').click();
+  await expect(page.locator('#run-status')).toHaveText('COMPLETE');
+  await expect(page.locator('.evidence-card')).toHaveCount(2);
+  await expect(page.locator('#evidence')).not.toContainText('STALE');
+  await page.locator('#example').selectOption('inventory');
+  await expect(page.locator('#agent-text')).toContainText('fn remaining');
+  await expect(page.locator('#agent-text')).not.toContainText('No matching');
+  await expect(page.locator('#focus')).toHaveValue('remaining');
+});

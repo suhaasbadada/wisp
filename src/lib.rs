@@ -7,7 +7,7 @@ use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use syntax::*;
-pub const COMPILER: &str = "wisp-0.1.0-semantics-3";
+pub const COMPILER: &str = "wisp-0.1.0-semantics-4";
 fn hash(s: &str) -> String {
     format!("{:x}", Sha256::digest(s.as_bytes()))
 }
@@ -17,7 +17,7 @@ struct Request {
     op: String,
     source: String,
     focus: Option<String>,
-    budget: Option<usize>,
+    budget: Option<u64>,
     ghost: Option<Ghost>,
     #[serde(default)]
     limits: Limits,
@@ -228,7 +228,7 @@ fn execute_request(mut r: Request) -> Json {
     let meta = metadata(&p, &facts, &r.source, &r.limits);
     let keys = run_keys(&p, &r.source, &facts, &meta, &r.limits);
     let specs: Vec<_> = p.probes.iter().zip(&keys).map(|(probe, key)| json!({"predicate_key":predicate_key(probe, &r.source),"dependency_key":key})).collect();
-    let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":r.limits,"syntax_limits":{"depth":64,"tokens":8192},"status":"Ready","output":"","diagnostics":[],"probes":[],"probe_metadata":specs,"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref(),r.budget.unwrap_or(4096).min(65536))});
+    let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":r.limits,"syntax_limits":{"depth":64,"tokens":8192},"status":"Ready","output":"","diagnostics":[],"probes":[],"probe_metadata":specs,"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref(),r.budget.unwrap_or(4096).min(65536) as usize)});
     if r.op == "analyze" {
         return report;
     }

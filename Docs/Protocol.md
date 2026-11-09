@@ -16,7 +16,9 @@ selects Agent View (default first function); `budget` caps only Agent View text
 UTF-8 bytes, default 4096, ceiling 65536. Optional `limits` fields: `source_bytes`,
 `fuel`, `call_depth`, `evaluation_depth`, `output_bytes`, `allocation_bytes`, `cases`; omitted fields
 use defaults from Language.md. Values are unsigned integers. Unknown fields are
-rejected. Limits above ceilings are clamped and reported. Optional `ghost` is a
+rejected. Transport counts accept unsigned 64-bit integers on both native and
+WASM; limits and text budgets are clamped before host-sized use. Limits above
+ceilings are clamped and reported. Optional `ghost` is a
 receipt from a failed probe; required for replay. No persistent server state.
 
 ## Reports

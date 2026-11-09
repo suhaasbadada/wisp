@@ -73,7 +73,7 @@ if (isDocs) {
 interface Diagnostic { kind: string; message: string; span: { start: number; end: number } }
 interface Ghost { revision: string; predicate_key: string; dependency_key: string; input: string; witness_id: string }
 interface Probe { status: string; completed_cases: number; domain: { start: string; end: string }; failing_input: string | null; dependency_key: string; predicate_key: string; ghost: Ghost | null; claim: string; diagnostic: Diagnostic | null }
-interface Report { revision: string; compiler: string; status: string; output: string; diagnostics: Diagnostic[]; probes: Probe[]; probe_metadata?: { predicate_key: string; dependency_key: string }[]; limits: unknown; graph: { functions: { name: string }[] }; agent_view?: { text: string; overflow: boolean; used_bytes: number; required_bytes: number; omitted: string[] }; replay?: { status: string; input: string; new_execution: boolean; diagnostic: Diagnostic | null } }
+interface Report { revision: string; compiler: string; status: string; output: string; diagnostics: Diagnostic[]; probes: Probe[]; probe_metadata?: { predicate_key: string; dependency_key: string }[]; limits: unknown; graph: { functions: { name: string }[] }; agent_view?: { focus: string | null; text: string; overflow: boolean; used_bytes: number; required_bytes: number; omitted: string[] }; replay?: { status: string; input: string; new_execution: boolean; diagnostic: Diagnostic | null } }
 interface Receipt { ghost: Ghost; source: string; replay?: { revision: string; status: string } }
 
 function setupPlayground() {
@@ -102,6 +102,10 @@ function setupPlayground() {
     if (names.includes(selected)) focus.value = selected;
     if (!names.length) focus.add(new Option('No functions', ''));
     const view = report.agent_view;
+    if (names.length && view?.focus !== focus.value) {
+      text('agent-text', 'Focus changed. Requesting compiler facts for the selected function…');
+      analyze(); return;
+    }
     text('agent-text', view?.text ?? 'Agent View unavailable: source did not pass checking.');
     text('agent-budget', view ? `${view.used_bytes} / ${view.required_bytes} required UTF-8 bytes · ${view.overflow ? 'OVERFLOW — facts omitted' : 'within text budget'}` : 'No checked facts');
     el('omissions').replaceChildren(...(view?.omitted ?? ['All compiler context unavailable']).map(value => { const li = document.createElement('li'); li.textContent = value; return li; }));
@@ -109,15 +113,19 @@ function setupPlayground() {
   }
   function renderEvidence() {
     const container = el('evidence'); container.replaceChildren();
+    if (!lastRun && !receipts.length) {
+      const note = document.createElement('p'); note.className = 'empty'; note.textContent = 'A probe checks a declared finite domain. A failure leaves a replayable ghost here.'; container.append(note);
+    }
     if (lastRun) {
       const historical = executedSource !== source.value;
       text('revision', `${historical ? 'Historical' : 'Executed'} · ${lastRun.revision.slice(0, 10)}`);
-      for (const p of lastRun.probes) {
+      for (const [index, p] of lastRun.probes.entries()) {
         const card = document.createElement('article'); card.className = 'evidence-card';
         const head = document.createElement('strong'); head.textContent = `${p.status === 'Fail' ? 'Counterexample (Fail)' : p.status} · ${p.completed_cases} completed cases`; card.append(head);
         const detail = document.createElement('p'); detail.textContent = `Domain ${p.domain.start}..=${p.domain.end}${p.failing_input !== null ? ` · failing input ${p.failing_input}` : ''}. ${p.claim}`; card.append(detail);
         const badge = document.createElement('p'); badge.className = 'mono evidence-key';
-        const current = latestAnalysis?.probe_metadata?.find(q => q.predicate_key === p.predicate_key);
+        const candidate = latestAnalysis?.probe_metadata?.[index];
+        const current = candidate?.predicate_key === p.predicate_key ? candidate : undefined;
         badge.textContent = `${historical ? 'Historical source revision; not current execution.' : 'Observed on this exact source.'} Key ${p.dependency_key.slice(0, 10)}${current ? ` · ${current.dependency_key === p.dependency_key ? 'dependency key unchanged; no re-execution' : 'STALE — dependencies changed'}` : historical ? ' · current dependency status unknown' : ''}`; card.append(badge); container.append(card);
       }
       if (!lastRun.probes.length) { const note = document.createElement('p'); note.className = 'empty'; note.textContent = 'No probe evidence produced by this execution. Source errors or interrupted top-level execution cannot count as passing probes.'; container.append(note); }

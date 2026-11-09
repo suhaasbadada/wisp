@@ -18,6 +18,30 @@ evidence, not a proof, an intent check, or automatic repair.
 
 ## Grammar and typing
 
+Compact grammar (keywords/punctuation literal; binary precedence follows below):
+
+```ebnf
+program = { function | probe | statement } ;
+function = "fn", identifier, "(", [ parameter, { ",", parameter } ], ")", "->", type, block ;
+parameter = identifier, ":", type ;
+type = "Int" | "Bool" | "String" ;
+probe = "probe", identifier, "in", signed_integer, "..=", signed_integer, block ;
+statement = "let", identifier, "=", expression, ";"
+          | "print", "(", expression, ")", ";" | expression, ";" ;
+block = "{", { statement }, [ expression ], "}" ;
+expression = literal | identifier | identifier, "(", [ expression, { ",", expression } ], ")"
+           | "(", expression, ")" | block | "if", expression, block, "else", block
+           | unary_op, expression | expression, binary_op, expression ;
+literal = signed_integer | string | "true" | "false" ;
+unary_op = "!" | "-" ;
+binary_op = "||" | "&&" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/" | "%" ;
+```
+
+`identifier` starts with ASCII letter or underscore, followed by ASCII letters,
+digits or underscores; keywords/types are reserved. Integer magnitudes outside
+i64 are rejected (the unary minimum-i64 spelling is supported). String quoting
+and escapes are specified below. Trailing parameter/argument commas are not supported.
+
 - ASCII identifiers, decimal signed i64 literals (including minimum i64), Bool
   `true`/`false`, UTF-8 strings with `\n`, `\r`, `\t`, `\"`, `\\` escapes,
   whitespace and `//` comments. Non-ASCII identifiers are deferred.

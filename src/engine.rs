@@ -22,13 +22,23 @@ impl Value {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Limits {
+    #[serde(deserialize_with = "portable_usize")]
     pub source_bytes: usize,
     pub fuel: u64,
+    #[serde(deserialize_with = "portable_usize")]
     pub call_depth: usize,
+    #[serde(deserialize_with = "portable_usize")]
     pub evaluation_depth: usize,
+    #[serde(deserialize_with = "portable_usize")]
     pub output_bytes: usize,
+    #[serde(deserialize_with = "portable_usize")]
     pub allocation_bytes: usize,
     pub cases: u64,
+}
+// Transport accepts u64 on every target, then effective ceilings are applied.
+fn portable_usize<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<usize, D::Error> {
+    let value = u64::deserialize(d)?;
+    Ok(value.min(usize::MAX as u64) as usize)
 }
 impl Default for Limits {
     fn default() -> Self {

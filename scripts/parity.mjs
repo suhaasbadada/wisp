@@ -25,3 +25,11 @@ for (const source of examples.slice(0, 2)) {
   assert.deepEqual(JSON.parse(dispatch(request)), JSON.parse(native.stdout));
 }
 console.log(`Native/WASM agreement: ${sources.length * 4 + 2} exact report comparisons passed.`);
+for (const value of ['4294967296', '18446744073709551615']) {
+  const request = `{"op":"run","source":"print(1);","budget":${value},"limits":{"source_bytes":${value},"call_depth":${value},"evaluation_depth":${value},"output_bytes":${value},"allocation_bytes":${value}}}`;
+  const native = spawnSync('./target/debug/wisp', ['--json'], { input: request, encoding: 'utf8' });
+  const wasm = JSON.parse(dispatch(request));
+  assert.equal(wasm.status, 'Complete');
+  assert.deepEqual(wasm, JSON.parse(native.stdout));
+}
+console.log('Native/WASM large transport integer clamping: 2 comparisons passed.');
