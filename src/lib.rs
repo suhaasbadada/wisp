@@ -1,5 +1,6 @@
 //! One bounded implementation shared by native and WebAssembly clients.
 mod engine;
+mod invocation;
 mod syntax;
 use engine::*;
 use serde::{Deserialize, Serialize};
@@ -20,8 +21,17 @@ struct Request {
     budget: Option<u64>,
     ghost: Option<Ghost>,
     artifact: Option<Artifact>,
+    #[serde(default, deserialize_with = "function_name")]
+    function: Option<String>,
+    #[serde(default, deserialize_with = "present_limits")]
+    args: Option<Box<serde_json::value::RawValue>>,
     #[serde(default, deserialize_with = "present_limits")]
     limits: Option<Box<serde_json::value::RawValue>>,
+}
+fn function_name<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> std::result::Result<Option<String>, D::Error> {
+    String::deserialize(d).map(Some)
 }
 fn present_limits<'de, D: serde::Deserializer<'de>>(
     d: D,
@@ -58,6 +68,7 @@ struct Artifact {
 }
 pub const TRANSPORT_BYTES: usize = 1_048_576;
 pub const SOURCE_BYTES: usize = 65_536;
+pub use invocation::ARGUMENT_BYTES;
 
 fn artifact_error(message: &str, source: &str, limits: &Limits) -> Json {
     let mut report = diagnostic_report(
@@ -129,6 +140,20 @@ fn execute_request(r: Request) -> Json {
             )
         }
     };
+    if r.op == "call" {
+        return invocation::execute(r, limits);
+    }
+    if r.function.is_some() || r.args.is_some() {
+        return diagnostic_report(
+            err(
+                "Request",
+                "function and args require call operation",
+                Span::default(),
+            ),
+            &hash(&r.source),
+            &limits,
+        );
+    }
     if ["archive", "inspect-artifact", "replay-artifact"].contains(&r.op.as_str()) {
         let a = if r.op == "archive" {
             let Some(ghost) = r.ghost else {
@@ -621,5 +646,5 @@ pub fn dispatch(request_json: &str) -> String {
             &Limits::default(),
         ),
     };
-    report.to_string()
+    invocation::serialize_report(report)
 }
