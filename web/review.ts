@@ -114,7 +114,9 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   get<HTMLButtonElement>('review-example').onclick = () => {
     invalidate('Reservation walkthrough loaded'); baseline = beforeExample; baselineView.value = baseline; suite.value = casesExample;
     source.value = afterExample; source.dispatchEvent(new Event('input')); controls();
-    put('review-status', 'Walkthrough loaded: baseline captured, candidate in Code, seven explicit expectations. Select Review cases; nothing has executed.');
+    const notice = 'Walkthrough loaded: baseline captured, candidate in Code, seven explicit expectations. Select Review cases; this walkthrough has not been submitted.';
+    if (accepted) { renderStatus(); put('review-status', `${get('review-status').textContent} ${notice}`); }
+    else put('review-status', notice);
   };
   run.onclick = start; stop.onclick = () => cancel('stopped; worker terminated'); controls();
 }

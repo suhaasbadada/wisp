@@ -2,9 +2,10 @@
 
 ## Policy workbench integration
 
-Primary full verification passed 124 Rust tests, 41 Node evaluation tests,
-270 exact native/WASM comparisons (47 review cases with independent revision,
-suite-hash, status and summary reconciliation), and 35 Chromium tests. fmt,
+Post-repair primary full verification passed 125 Rust tests, 41 Node evaluation
+tests, 276 exact native/WASM comparisons (47 review cases with independent
+revision/suite-hash/status/summary reconciliation plus six legacy null-function
+non-execution cases), and 36 Chromium tests. fmt,
 strict Clippy, npm ci, WASM, TypeScript and static builds passed. Cases cover the
 Complete/Error/Unknown matrix, all-or-nothing preflight, exact raw argument keys,
 source/typed-data byte/depth limits, ownership, output-only/Unicode/NUL differences,
@@ -12,7 +13,15 @@ native readers/exits and both historical suites. Browser walkthrough, expectatio
 mismatch, history, ghost/output isolation, edit-and-revert, preflight ownership,
 Stop/deadline/late callback exclusion and untrusted text are verified. Discovery
 advertises review v1, eleven operations, 55 codes and six runnable examples.
-Independent review, exact-head CI and published acceptance remain pending.
+Joffrey reviewed `ea12fd1` and found two substantive issues: the custom function
+decoder had accidentally changed legacy `function:null` rejection, and loading
+the walkthrough hid a Historical warning while keeping old observations. Primary
+repairs restored the original decoder and regression, added cross-operation
+non-execution/parity cases, and retained the historical designation with a new
+custom-review → walkthrough regression. The reviewer independently passed the
+pre-repair Rust/maintenance/parity/review-browser/static checks. The post-repair
+repetition above was primary verification, not a claimed independent re-review.
+Exact-head CI/publication are pending.
 Historical study documentation/lifecycle inputs were copied byte-exactly to
 historical-inputs before live docs changed; original manifests/reports/cases and
 grades remain unchanged, and the new resolver has a no-hidden-grader-change test.

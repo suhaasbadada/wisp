@@ -46,7 +46,7 @@ struct Request {
 fn function_name<'de, D: serde::Deserializer<'de>>(
     d: D,
 ) -> std::result::Result<Option<String>, D::Error> {
-    Option::<String>::deserialize(d)
+    String::deserialize(d).map(Some)
 }
 fn present_limits<'de, D: serde::Deserializer<'de>>(
     d: D,

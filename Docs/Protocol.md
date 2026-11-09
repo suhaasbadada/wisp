@@ -519,7 +519,8 @@ compares explicit caller-owned cases using the shared Rust invocation engine.
 Both sources are required strings. Candidate and suite presence (including null)
 is rejected on every other operation before early call/discovery dispatch.
 Review rejects args/change presence and non-null function/focus/budget/ghost/artifact.
-Legacy nullable fields, including function, treat null as absent.
+Legacy nullable focus/budget/ghost/artifact treat null as absent. Explicit
+`function:null` remains an envelope Error on every operation, as before review.
 
 Suite objects are strict (no unknown, missing, null or duplicate members):
 `{"version":1,"target":"twice","cases":[{"id":"positive","args":["2"],"expect":{"result":{"type":"Int","value":"4"},"output":""}}]}`.

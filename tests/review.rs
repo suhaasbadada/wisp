@@ -115,7 +115,10 @@ fn presence_and_legacy_nulls() {
         let mut q = request(COMPLETE, COMPLETE);
         q[field] = Value::Null;
         let r = send(q);
-        if ["args", "change"].contains(&field) {
+        if field == "function" {
+            assert_eq!(r["diagnostics"][0]["code"], "E_REQUEST_INVALID");
+            assert!(r.get("review").is_none());
+        } else if ["args", "change"].contains(&field) {
             preflight(&r, "Error", "E_REVIEW_REQUEST");
         } else {
             assert_eq!(r["status"], "Pass", "{r}");
@@ -129,6 +132,21 @@ fn presence_and_legacy_nulls() {
         let mut q = request(COMPLETE, COMPLETE);
         q[field] = Value::Null;
         preflight(&send(q), "Error", "E_REVIEW_REQUEST");
+    }
+}
+
+#[test]
+fn explicit_null_function_preserves_legacy_transport_rejection_and_no_execution() {
+    for op in ["run", "call", "capabilities", "edit", "analyze", "review"] {
+        let r = raw(&format!(
+            r#"{{"op":"{op}","source":"print(7);","function":null}}"#
+        ));
+        assert_eq!(r["status"], "Error", "{r}");
+        assert_eq!(r["diagnostics"][0]["code"], "E_REQUEST_INVALID");
+        assert_eq!(r["revision"], "");
+        assert_eq!(r["output"], "");
+        assert!(r.get("usage").is_none());
+        assert!(r.get("review").is_none());
     }
 }
 #[test]

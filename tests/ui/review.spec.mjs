@@ -109,3 +109,19 @@ test('strings stay literal data and raw duplicate members reach Rust', async ({ 
   await page.locator('#review-suite').fill(JSON.stringify(suite).replace('"version":1', '"version":1,"ver\\u0073ion":1'));
   await page.locator('#review-run').click(); await expect(page.locator('#review-json')).toContainText('E_REVIEW_REQUEST');
 });
+
+test('loading walkthrough after a custom review never presents old observations as current', async ({ page }) => {
+  await page.goto('');
+  await page.locator('#source').fill('fn f(x: Int) -> Int { x }');
+  await page.locator('#review-capture').click();
+  await page.locator('#review-suite').fill(JSON.stringify({ version: 1, target: 'f', cases: [{ id: 'custom', args: ['2'], expect: { result: { type: 'Int', value: '2' }, output: '' } }] }));
+  await page.locator('#review-run').click();
+  await expect(page.locator('#review-status')).toContainText('Submitted inputs · Pass');
+  await page.locator('#review-example').click();
+  await expect(page.locator('#review-status')).toContainText('Historical review');
+  await expect(page.locator('#review-status')).toContainText('Walkthrough loaded');
+  await expect(page.locator('#review-cases')).toContainText('custom');
+  await page.locator('#review-run').click();
+  await expect(page.locator('#review-status')).toContainText('Submitted inputs · Pass');
+  await expect(page.locator('#review-cases .review-case')).toHaveCount(7);
+});

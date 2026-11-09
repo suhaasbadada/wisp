@@ -277,3 +277,9 @@ for (const op of ['call', 'capabilities', 'run', 'edit', 'context']) for (const 
   const result = compareReview({ op, source: '', [field]: null }); assert.equal(result.diagnostics[0].code, 'E_REQUEST_INVALID');
 }
 console.log(`Policy review: ${reviewComparisons} exact serialized-byte comparisons with independent revisions/suite hashes/status and summary reconciliation (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons + editComparisons + reviewComparisons} total).`);
+for (const op of ['run', 'call', 'capabilities', 'edit', 'analyze', 'review']) {
+  const result = compareReview({ op, source: 'print(7);', function: null });
+  assert.equal(result.diagnostics[0].code, 'E_REQUEST_INVALID');
+  assert.equal(result.output, ''); assert.equal(result.revision, ''); assert.equal(result.usage, undefined);
+}
+console.log(`Legacy null-function rejection: 6 additional non-executing native/WASM comparisons (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons + editComparisons + reviewComparisons} total).`);

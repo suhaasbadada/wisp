@@ -209,6 +209,7 @@ fn request_decoding_and_error_precedence_remain_strict_for_discovery() {
         "[]",
         r#"{"op":"capabilities","source":"","limits":null}"#,
         r#"{"op":"capabilities","source":"","limits":{"fuel":1,"fuel":2}}"#,
+        r#"{"op":"capabilities","source":"","function":null}"#,
         r#"{"op":"capabilities","source":"","args":null}"#,
     ] {
         top(&raw(text), C::RequestInvalid, "Error");

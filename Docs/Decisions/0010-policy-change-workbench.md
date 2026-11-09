@@ -4,7 +4,7 @@ Accepted 2026-11-09. First useful workbench slice: compare two versions of one t
 
 ## Request and preflight
 
-Add `op:"review"` with existing required string `source` (baseline), new string `candidate`, and new strict `suite` value. Preserve presence of both new fields; reject their presence on every other operation, even null, before early call dispatch. Existing transport, limits and null policies stay compatible. For review, reject `change` or `args` presence, and non-null `function`/`focus`/`budget`/`ghost`/`artifact`; legacy null-as-absent Option fields remain absent.
+Add `op:"review"` with existing required string `source` (baseline), new string `candidate`, and new strict `suite` value. Preserve presence of both new fields; reject their presence on every other operation, even null, before early call dispatch. Existing transport, limits and null policies stay compatible. For review, reject `change`/`args`/`function` and non-null `focus`/`budget`/`ghost`/`artifact`; those four legacy null-as-absent fields remain absent. Explicit `function:null` remains an envelope Error on every operation. Independent review corrected the initial mistaken assumption that function had ordinary Option null semantics; its custom decoder has always rejected null.
 
 Suite v1:
 
