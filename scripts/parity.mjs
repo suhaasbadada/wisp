@@ -80,4 +80,11 @@ assert.equal(recordReplay.replay.status, 'Pass');
 const oldCompiler = compareArtifact({ op: 'inspect-artifact', source: '', artifact: { ...recordsArchive.artifact, compiler: 'wisp-0.1.0-semantics-4' } });
 assert.equal(oldCompiler.status, 'Error');
 assert.equal(oldCompiler.validation.new_execution, false);
-console.log(`Record artifact integration: 4 additional exact comparisons passed (${sources.length * 4 + 4 + artifactComparisons} total).`);
+for (const [source, fuel, used] of [
+  ['record A { first: Int, last: String } new A { first: 0, last: "abcdefghij" } == new A { first: 1, last: "abcdefghij" };', 35, 33],
+  ['record A { first: Int, last: String } record B { head: A, tail: String } new B { head: new A { first: 0, last: "abcdefghij" }, tail: "abcdefghij" } == new B { head: new A { first: 1, last: "abcdefghij" }, tail: "abcdefghij" };', 68, 66],
+]) {
+  const result = compareArtifact({ op: 'run', source, limits: { fuel } });
+  assert.equal(result.status, 'Complete'); assert.equal(result.usage.fuel, used);
+}
+console.log(`Records/artifact integration: 6 additional exact comparisons passed (${sources.length * 4 + 4 + artifactComparisons} total).`);

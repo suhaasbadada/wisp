@@ -470,7 +470,8 @@ impl<'a> Machine<'a> {
                     if a != b || af.len() != bf.len() {
                         false
                     } else {
-                        stack.extend(af.iter().zip(bf).map(|((_, a), (_, b))| (a, b)));
+                        // LIFO stack: reverse pushes to visit declaration order.
+                        stack.extend(af.iter().zip(bf).rev().map(|((_, a), (_, b))| (a, b)));
                         true
                     }
                 }

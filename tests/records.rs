@@ -16,6 +16,18 @@ const ITEM: &str = "record Item { quantity: Int, unit_price: Int }";
 const INVOICE: &str = include_str!("../examples/invoice.wisp");
 
 #[test]
+fn equality_short_circuits_in_declaration_order_with_tight_fuel() {
+    let flat = "record A { first: Int, last: String } new A { first: 0, last: \"abcdefghij\" } == new A { first: 1, last: \"abcdefghij\" };";
+    let nested = "record A { first: Int, last: String } record B { head: A, tail: String } new B { head: new A { first: 0, last: \"abcdefghij\" }, tail: \"abcdefghij\" } == new B { head: new A { first: 1, last: \"abcdefghij\" }, tail: \"abcdefghij\" };";
+    for (source, fuel, used) in [(flat, 35, 33), (nested, 68, 66)] {
+        let r = limited(source, "fuel", fuel);
+        assert_eq!(r["status"], "Complete", "{r}");
+        assert_eq!(r["usage"]["fuel"], used);
+        assert_eq!(limited(source, "fuel", used - 1)["status"], "Unknown");
+    }
+}
+
+#[test]
 fn invoice_shared_core_and_original_examples() {
     let r = run(INVOICE);
     assert_eq!(r["status"], "Complete", "{r}");

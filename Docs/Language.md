@@ -105,7 +105,9 @@ with field-token spans. All constructor initializers and projection receivers
 participate in checking, call dependencies and transitive probe purity, even in
 unreachable branches.
 
-Equality requires the same nominal type and recursively compares field values.
+Equality requires the same nominal type and recursively compares field values
+in declaration order, stopping on the first mismatch. This order affects fuel
+consumption and whether a tight budget completes or yields Unknown.
 Display is `Item { quantity: 9, unit_price: 100 }`; empty records display
 `Empty {}`. Nested strings are quoted with escaped quote, backslash, newline,
 return and tab (other control characters use `\uXXXX`); standalone strings
