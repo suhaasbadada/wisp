@@ -63,6 +63,11 @@ fn nonexecuting_whole_program_check_precedes_selector_validation() {
     assert!(r.get("usage").is_none());
     assert_eq!(r["context"]["selector"], "probe:0");
     for (source, code) in [
+        ("@", "E_SYNTAX"),
+        (
+            "probe n in 0..=0 { true } probe n in 0..=0 { print(n); true }",
+            "E_PROBE_IMPURE",
+        ),
         (
             "fn unused() -> Int { false } probe n in 0..=0 { true }",
             "E_TYPE_MISMATCH",
@@ -316,6 +321,20 @@ fn cli_structured_metadata_strict_options_selectors_bounds_and_exits() {
     assert_eq!(out.status.code(), Some(0));
     let r: Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(r, query(source, json!("probe:0"), 0));
+    let out = cli(
+        &[
+            "context",
+            "-",
+            "--budget",
+            "18446744073709551615",
+            "--probe",
+            "0",
+        ],
+        source,
+    );
+    assert_eq!(out.status.code(), Some(0));
+    let r: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(r, query(source, json!("probe:0"), 65536));
     for selector in ["00", "+0", "-1", "18446744073709551616", "1", "unknown"] {
         let out = cli(&["context", "-", "--probe", selector], source);
         assert_eq!(out.status.code(), Some(1));
@@ -348,4 +367,8 @@ fn cli_structured_metadata_strict_options_selectors_bounds_and_exits() {
     assert_eq!(unknown.status.code(), Some(0)); // legacy --json semantic exits unchanged
     let r: Value = serde_json::from_slice(&unknown.stdout).unwrap();
     assert_eq!(r["status"], "Unknown");
+    let out = cli(&["context", "-", "--probe", "0"], &"print(1);".repeat(1800));
+    assert_eq!(out.status.code(), Some(3));
+    let r: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(r["diagnostics"][0]["code"], "E_LIMIT_TOKENS");
 }

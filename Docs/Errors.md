@@ -3,6 +3,10 @@
 Every diagnostic has stable `code` and legacy `kind`, human `message`, half-open
 UTF-8 source `span:{start,end}`, and optional JSON Pointer `path`. An absent
 path is omitted, not null. Input data uses sentinel source span `0..0`.
+Context selector errors likewise use `0..0` and `/focus`, after whole-program
+checking (including unused/unreachable code and every probe's purity). Explicit
+invalid selectors never fall back to another probe. Context budget overflow is
+Ready metadata with a ledger, not an error or Unknown execution outcome.
 Messages are not machine identifiers; no message parsing is required.
 
 Code meanings and code-to-kind mappings are pinned and never reused. New codes
