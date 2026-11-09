@@ -1,10 +1,11 @@
 # Roadmap
 
-Current next milestone: an agent-facing **policy-change workbench** for structured
-cases, revision-linked before/after decisions and explicit behavioral review.
-Build missing capabilities when the workflow needs them; the feature freeze was
-temporary. The repeated maintenance study passed three repetitions per arm but
-established no Wisp advantage. See [Maintenance study](Maintenance-study.md).
+Current increment: policy-change workbench v1 implements structured cases,
+revision-linked before/after decisions and explicit behavioral review in shared
+Rust/native/browser hosts; validation/publication pending. No automatic approval.
+Next validate the workflow on real policy changes and add the capabilities those
+tasks need. The repeated study established no Wisp advantage. See
+[Workbench](Workbench.md) and [Maintenance study](Maintenance-study.md).
 
 Product validation (ADR 0008) informed this direction: the first
 paired pilot accepted five of six submissions, preserving a Wisp body-boundary

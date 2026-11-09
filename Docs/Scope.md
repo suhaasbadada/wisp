@@ -1,8 +1,14 @@
 # First playable scope
 
+Policy review v1 (ADR 0010) implements an agent-facing workbench with explicit
+typed cases, shared Rust before/after execution, candidate expectations and
+revision-linked evidence. Native review/verify and browser review are under
+integration verification. No approval, automatic application, language semantics
+change or new core permissions. See [Workbench](Workbench.md).
+
 Repeated maintenance study (ADR 0009): completed, with both arms passing three
 repetitions of one synthetic task. No language/core changes or efficiency claim.
-Next product direction is a policy-change workbench; it is planned, not shipped.
+The next product direction led to policy review v1, now under publication review.
 Necessary capability upgrades remain in scope for subsequent bounded increments.
 
 Earlier product-validation pilot (ADR 0008) informed the current direction.

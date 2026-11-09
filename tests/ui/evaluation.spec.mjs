@@ -16,7 +16,7 @@ test('Agent and Human docs expose actual pilot failure and reproducible limitati
   expect(text).toContain('behavior not graded');
   expect(text).toContain('not technical holdout isolation');
   expect(text).toContain('not a security sandbox');
-  await expect(page.locator('#human-docs')).toContainText('planned, not shipped');
+  await expect(page.locator('#human-docs')).toContainText('Pass is not approval or proof');
   const maintenance = page.locator('.doc-links a').filter({ hasText: 'Repeated maintenance study' });
   const study = await request.get(await maintenance.getAttribute('href'));
   expect(study.status()).toBe(200);

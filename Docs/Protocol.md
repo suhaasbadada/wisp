@@ -512,7 +512,7 @@ a runnable fifth example. No existing artifact, invocation or dependency hash
 material includes discovery features. Hosts independently guard application;
 native create-new behavior is in [CLI.md](CLI.md). Treat responses as untrusted
 transport data and review candidate content before explicitly applying it.
-# Policy review contract v1
+## Policy review contract v1
 
 `{"op":"review","source":BEFORE,"candidate":AFTER,"suite":SUITE,"limits":{...}}`
 compares explicit caller-owned cases using the shared Rust invocation engine.
@@ -571,3 +571,9 @@ Preflight `review.diagnostic_document` owns source failures. Candidate roots use
 diagnostic spans. Suite pointers own input failures. Non-limit invalid expectations
 use E_REVIEW_EXPECTATION plus tagged suite cause; resource reasons stay original
 Limit/Unknown. Executed diagnostics remain source-owned inside observations.
+
+Suite argument/expectation failures set `diagnostic_document:"suite"`; argument
+schema origin may be retained separately as `argument_schema_document`. Expected
+depth limits retain their tagged suite cause and original Limit reason. Comparison
+reasons are `incomplete_execution`, `candidate_fault`, `baseline_fault_repaired`
+or `observed_result_and_output`; they describe observations, never approval.

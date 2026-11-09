@@ -1,5 +1,17 @@
 # Architecture
 
+## Policy-change workbench
+
+ADR 0010 adds shared Rust host orchestration over existing checked typed calls,
+not a second evaluator. Both programs/all cases preflight before any Machine;
+raw arguments and old call identities are retained. Slim document-owned
+observations compare typed results/output and separately check explicit expected
+data. Budgets are per invocation; review counts are separate from probe counts.
+The browser module `web/review.ts` is transport/presentation only, with immutable
+baseline capture, raw suite transport, generation-based history/cancellation and
+an independent disposable worker. Native review/verify only read explicit bounded
+files. No source mutation, expected-data repair, core IO or approval is added.
+
 ## Repeated maintenance validation
 
 The ADR 0009 harness uses existing Rust typed calls and guarded edits; TypeScript

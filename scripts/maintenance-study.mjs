@@ -11,6 +11,9 @@ const BASE='evaluation/maintenance';
 const MAX_FILE=5*1024*1024;
 const IDS=['wisp-1','wisp-2','wisp-3','typescript-1','typescript-2','typescript-3'];
 const HASH=/^[a-f0-9]{64}$/;
+// These were trial reading/lifecycle inputs, not mutable grading semantics.
+// Preserve their original bytes while live product documentation evolves.
+const HISTORICAL_INPUTS=new Set(['Docs/Language.md','Docs/CLI.md','Docs/Protocol.md','Docs/Errors.md','scripts/maintenance-study.mjs']);
 export const REQUIRED_FROZEN=[
   `${BASE}/protocol.json`,`${BASE}/PROCEDURE.md`,
   ...['starter.ts','starter.wisp','task.md','README.md','public-regressions.json'].map(p=>`${BASE}/public/${p}`),
@@ -51,9 +54,14 @@ export function verifyStudyFrozen(root=ROOT) {
   for(const [path,hash] of Object.entries(manifest.files)) {
     safePath(path);
     if(!allowedFrozen(path) || typeof hash!=='string' || !HASH.test(hash))fail('Invalid frozen entry');
-    if(sha256(fileBytes(root,path))!==hash)fail(`Frozen byte hash mismatch: ${path}`);
+    const input=HISTORICAL_INPUTS.has(path)?`${BASE}/historical-inputs/${path}`:path;
+    // Older fixture roots have no archive; they still verify the original path.
+    let data;
+    try {data=fileBytes(root,input);}
+    catch(error){if(input===path || error.code!=='ENOENT')throw error;data=fileBytes(root,path);}
+    if(sha256(data)!==hash)fail(`Frozen byte hash mismatch: ${path}`);
   }
-  return {manifest_sha256:sha256(bytes),files:manifest.files};
+  return {manifest_sha256:sha256(bytes),files:manifest.files,historical_input_policy:'Trial documentation and original lifecycle source may use exact historical-inputs snapshots; cases, execution/grading helpers and submissions are always verified at their live paths. Current tooling hashes are recorded separately.'};
 }
 export function trialOrder(protocol) {
   if(!object(protocol) || protocol.version!==1 || protocol.order_version!==2 || protocol.acceptance_invocations!==547 || protocol.repetitions_per_arm!==3 || typeof protocol.seed!=='string' || !protocol.seed || protocol.seed.length>1024 || !Array.isArray(protocol.ids) || protocol.ids.length!==6 || new Set(protocol.ids).size!==6 || IDS.some(id=>!protocol.ids.includes(id)))fail('Invalid study protocol/order');

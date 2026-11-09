@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import init, { dispatch } from '../web/pkg/wisp.js';
 
 const build = spawnSync('cargo', ['build', '--quiet'], { stdio: 'inherit' });
@@ -216,3 +217,63 @@ for (const source of [examples[0], 'fn label()->String{"é😀"} fn f(n:Int)->In
 for (const op of ['run', 'analyze', 'call', 'capabilities', 'context', 'focus', 'edit']) compareEdit({ op, source: '', change: null });
 assert.deepEqual(JSON.parse(dispatch(JSON.stringify({ op: 'context', source: examples[0], focus: 'probe:0', budget: 4096 }))), JSON.parse(readFileSync('tests/fixtures/semantics5-context.json', 'utf8')));
 console.log(`Guarded edits: ${editComparisons} exact serialized-byte comparisons with independent candidate/source/body hash and splice audits.`);
+let reviewComparisons = 0;
+function compareReview(request, retainedSuite) {
+  const raw = typeof request === 'string' ? request : JSON.stringify(request);
+  const native = spawnSync('./target/debug/wisp', ['--json'], { input: raw, encoding: 'utf8' });
+  assert.equal(native.status, 0, native.stderr);
+  const wasm = dispatch(raw); assert.equal(wasm, native.stdout.trimEnd()); reviewComparisons++;
+  const r = JSON.parse(wasm), q = typeof request === 'string' ? JSON.parse(request) : request, review = r.review;
+  if (!review) return r;
+  assert.equal(review.approval, 'not_granted'); assert.equal(review.contract_version, 1);
+  assert.deepEqual(r.probes, []); assert.equal(r.output, ''); assert.equal(r.usage, undefined);
+  if (typeof q.source === 'string') assert.equal(review.baseline_revision, sha(Buffer.from(q.source)));
+  if (typeof q.candidate === 'string') assert.equal(review.candidate_revision, sha(Buffer.from(q.candidate)));
+  if (retainedSuite !== undefined || typeof request !== 'string') assert.equal(review.suite_hash, sha(Buffer.from(retainedSuite ?? JSON.stringify(q.suite))));
+  if (review.phase === 'preflight') { assert.deepEqual(review.cases, []); assert.equal(review.new_execution, false); return r; }
+  const count = { changed: 0, unchanged: 0, faulted: 0, unknown: 0, expectation_pass: 0, expectation_fail: 0, expectation_error: 0, expectation_unknown: 0 };
+  let errors = false, unknown = false, mismatch = false;
+  assert.equal(review.cases.length, q.suite.cases.length);
+  for (const [i, row] of review.cases.entries()) {
+    const b = row.before, a = row.after;
+    assert.equal(row.id, q.suite.cases[i].id); assert.equal(row.index, i);
+    assert.equal(b.document, 'baseline'); assert.equal(a.document, 'candidate');
+    assert.equal(b.new_execution, true); assert.equal(a.new_execution, true);
+    assert.equal(b.graph, undefined); assert.equal(a.graph, undefined);
+    const incomplete = b.status === 'Unknown' || a.status === 'Unknown';
+    const comparison = incomplete ? 'Unknown' : a.status === 'Error' ? 'Faulted' : b.status === 'Error' || !isDeepStrictEqual(b.result, a.result) || b.output !== a.output ? 'Changed' : 'Unchanged';
+    const expectation = a.status === 'Error' ? 'Error' : a.status === 'Unknown' ? 'Unknown' : isDeepStrictEqual(a.result, row.expected.result) && a.output === row.expected.output ? 'Pass' : 'Fail';
+    assert.equal(row.comparison, comparison); assert.equal(row.expectation, expectation);
+    count[comparison.toLowerCase()]++; count[`expectation_${expectation.toLowerCase()}`]++;
+    errors ||= a.status === 'Error'; unknown ||= incomplete; mismatch ||= expectation === 'Fail';
+  }
+  for (const [key, value] of Object.entries(count)) assert.equal(review.summary[key], value);
+  assert.equal(review.summary.attempted_invocations, review.cases.length * 2);
+  assert.equal(r.status, errors ? 'Error' : unknown ? 'Unknown' : mismatch ? 'Fail' : 'Pass');
+  return r;
+}
+const reviewSuite = { version: 1, target: 'f', cases: [{ id: 'one', args: ['2'], expect: { result: { type: 'Int', value: '2' }, output: '' } }] };
+const reviewSources = ['fn f(x:Int)->Int{x}', 'fn f(x:Int)->Int{x/0}', 'fn f(x:Int)->Int{f(x)}'];
+const reviewRequest = (source = reviewSources[0], candidate = source, suite = reviewSuite) => ({ op: 'review', source, candidate, suite });
+for (const source of reviewSources) for (const candidate of reviewSources) compareReview(reviewRequest(source, candidate));
+for (const limits of [{ fuel: 0 }, { fuel: 10, cases: 0 }, { call_depth: 0 }, { output_bytes: 0 }]) compareReview({ ...reviewRequest(), limits });
+for (const n of [0, 1, 16, 17]) compareReview(reviewRequest(undefined, undefined, { ...reviewSuite, cases: Array.from({ length: n }, (_, i) => ({ ...reviewSuite.cases[0], id: `c${i}` })) }));
+const beforePolicy = readFileSync('examples/policies/reservations-before.wisp', 'utf8'), afterPolicy = readFileSync('examples/policies/reservations-after.wisp', 'utf8'), policySuite = JSON.parse(readFileSync('examples/policies/cases.json', 'utf8'));
+for (const [source, candidate] of [[beforePolicy, afterPolicy], [afterPolicy, afterPolicy], [beforePolicy, beforePolicy]]) compareReview(reviewRequest(source, candidate, policySuite));
+for (const value of ['-9223372036854775808', '9223372036854775807', '-0', '01', 2]) compareReview(reviewRequest(undefined, undefined, { ...reviewSuite, cases: [{ ...reviewSuite.cases[0], args: [value], expect: { result: { type: 'Int', value }, output: '' } }] }));
+for (const field of ['args', 'expect']) {
+  const suite = structuredClone(reviewSuite); suite.cases.push({ ...structuredClone(suite.cases[0]), id: 'invalid-last' });
+  if (field === 'args') suite.cases[1].args = [2]; else suite.cases[1].expect.result.value = 2;
+  compareReview(reviewRequest(reviewSources[1], reviewSources[0], suite));
+}
+for (const [source, candidate] of [['fn f(x:Int)->Int{bad}', reviewSources[0]], [reviewSources[0], '\n\nfn f(x:Int)->Int{bad}'], [reviewSources[0], 'fn f(y:Int)->Int{y}']]) compareReview(reviewRequest(source, candidate));
+const suiteRaw = JSON.stringify(reviewSuite), rawRequest = suite => `{"op":"review","source":${JSON.stringify(reviewSources[0])},"candidate":${JSON.stringify(reviewSources[0])},"suite":${suite}}`;
+for (const suite of ['null', '{}', '[]', suiteRaw.replace('"version":1', '"version":1,"ver\\u0073ion":1')]) compareReview(rawRequest(suite), suite);
+for (const bytes of [65536, 65537]) { const suite = '{' + ' '.repeat(bytes - suiteRaw.length) + suiteRaw.slice(1); compareReview(rawRequest(suite), suite); }
+const spacedArgs = '[ "2" ]', spacedSuite = suiteRaw.replace('["2"]', spacedArgs);
+const spacedReview = compareReview(rawRequest(spacedSuite), spacedSuite);
+assert.equal(spacedReview.review.cases[0].after.invocation.execution_key, JSON.parse(dispatch(`{"op":"call","source":${JSON.stringify(reviewSources[0])},"function":"f","args":${spacedArgs}}`)).invocation.execution_key);
+for (const op of ['call', 'capabilities', 'run', 'edit', 'context']) for (const field of ['candidate', 'suite']) {
+  const result = compareReview({ op, source: '', [field]: null }); assert.equal(result.diagnostics[0].code, 'E_REQUEST_INVALID');
+}
+console.log(`Policy review: ${reviewComparisons} exact serialized-byte comparisons with independent revisions/suite hashes/status and summary reconciliation (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons + editComparisons + reviewComparisons} total).`);

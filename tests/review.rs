@@ -75,7 +75,7 @@ fn counts_fresh_limits_and_continue_after_fault() {
         q["suite"]["cases"] = json!((0..n)
             .map(|i| case(&format!("c{i}"), "2"))
             .collect::<Vec<_>>());
-        q["limits"] = json!({"cases":0});
+        q["limits"] = json!({"cases":0,"fuel":10});
         let r = send(q);
         if n == 0 {
             preflight(&r, "Error", "E_REVIEW_REQUEST");
@@ -309,4 +309,74 @@ fn reservation_workflow() {
     let mut verify = q;
     verify["candidate"] = json!(before);
     assert_eq!(send(verify)["status"], "Fail");
+}
+
+#[test]
+fn suite_byte_limits_expectation_depth_and_ownership() {
+    let suite = json!({"version":1,"target":"f","cases":[case("x","2")]}).to_string();
+    for (length, status) in [(65536, "Pass"), (65537, "Unknown")] {
+        let padded = format!("{{{}{}", " ".repeat(length - suite.len()), &suite[1..]);
+        let q = format!(
+            "{{\"op\":\"review\",\"source\":{},\"candidate\":{},\"suite\":{padded}}}",
+            json!(COMPLETE),
+            json!(COMPLETE)
+        );
+        let r = raw(&q);
+        assert_eq!(r["status"], status, "{r}");
+        if status == "Unknown" {
+            preflight(&r, status, "E_LIMIT_REVIEW_BYTES");
+        }
+    }
+    let mut q = request(COMPLETE, COMPLETE);
+    q["suite"]["cases"][0]["expect"]["result"]["value"] = json!("2");
+    q["suite"]["cases"][0]["expect"]["output"] = json!("x".repeat(8193));
+    preflight(&send(q), "Error", "E_REVIEW_EXPECTATION");
+    let mut nested = json!("2");
+    for _ in 0..17 {
+        nested = json!({"n":nested});
+    }
+    let mut q = request(COMPLETE, COMPLETE);
+    q["suite"]["cases"][0]["expect"]["result"]["value"] = nested;
+    let r = send(q);
+    preflight(&r, "Unknown", "E_LIMIT_INPUT_DEPTH");
+    assert_eq!(r["review"]["cause"]["document"], "suite");
+    assert_eq!(r["review"]["diagnostic_document"], "suite");
+    let mut q = request(COMPLETE, COMPLETE);
+    q["suite"]["cases"][0]["args"] = json!([2]);
+    let r = send(q);
+    preflight(&r, "Error", "E_INPUT_TYPE");
+    assert_eq!(r["review"]["diagnostic_document"], "suite");
+}
+
+#[test]
+fn canonical_extrema_expected_duplicate_fields_and_unknown_output_retention() {
+    for value in ["-9223372036854775808", "9223372036854775807"] {
+        let mut q = request(COMPLETE, COMPLETE);
+        q["suite"]["cases"][0]["args"] = json!([value]);
+        q["suite"]["cases"][0]["expect"]["result"]["value"] = json!(value);
+        assert_eq!(send(q)["status"], "Pass");
+    }
+    for value in ["-0", "01", "9223372036854775808"] {
+        let mut q = request(COMPLETE, COMPLETE);
+        q["suite"]["cases"][0]["expect"]["result"]["value"] = json!(value);
+        preflight(&send(q), "Error", "E_REVIEW_EXPECTATION");
+    }
+    let source = "record R { a: Int } fn f(x: R) -> R { x }";
+    let q = format!(
+        r#"{{"op":"review","source":{0},"candidate":{0},"suite":{{"version":1,"target":"f","cases":[{{"id":"x","args":[{{"a":"2"}}],"expect":{{"result":{{"type":"R","value":{{"a":"2","\u0061":"2"}}}},"output":""}}}}]}}}}"#,
+        json!(source)
+    );
+    let r = raw(&q);
+    preflight(&r, "Error", "E_REVIEW_EXPECTATION");
+    assert_eq!(
+        r["review"]["cause"]["diagnostic"]["code"],
+        "E_INPUT_FIELD_DUPLICATE"
+    );
+    let source = "fn f(x: Int) -> Int { print(1); print(2); x }";
+    let mut q = request(source, source);
+    q["limits"] = json!({"output_bytes":2});
+    let r = send(q);
+    assert_eq!(r["status"], "Unknown");
+    assert_eq!(r["review"]["cases"][0]["after"]["output"], "1\n");
+    assert_eq!(r["review"]["cases"][0]["comparison"], "Unknown");
 }

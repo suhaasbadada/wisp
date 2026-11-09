@@ -265,7 +265,8 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
         for (document, p, f) in [("baseline", a, af), ("candidate", b, bf)] {
             if let Err(mut d) = invocation::arguments(c.args.get(), f, p) {
                 d.path = Some(format!("{prefix}{}", d.path.as_deref().unwrap_or("/args")));
-                report["review"]["diagnostic_document"] = json!(document);
+                report["review"]["diagnostic_document"] = json!("suite");
+                report["review"]["argument_schema_document"] = json!(document);
                 fail!(d);
             }
         }
@@ -276,8 +277,10 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
             || c.expect.output.len() > 8192
             || validated.is_err()
         {
+            report["review"]["diagnostic_document"] = json!("suite");
             let original = validated.err();
             if let Some(d) = original.as_ref().filter(|d| d.kind == "Limit") {
+                report["review"]["cause"] = json!({"document":"suite","diagnostic":d});
                 fail!(d.clone());
             }
             let path = if c.expect.result.ty != bf.ret.to_string() {
@@ -357,7 +360,16 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
         };
         candidate_error |= cs == "Error";
         any_unknown |= bs == "Unknown" || cs == "Unknown";
-        cases.push(json!({"id":c.id,"index":i,"comparison":comparison,"comparison_reason":if bs=="Error" && cs=="Complete" {"baseline_fault_repaired"} else {"observed_result_and_output"},"expectation":expectation,"expected":expected,"before":before,"after":after}));
+        let reason = if comparison == "Unknown" {
+            "incomplete_execution"
+        } else if cs == "Error" {
+            "candidate_fault"
+        } else if bs == "Error" {
+            "baseline_fault_repaired"
+        } else {
+            "observed_result_and_output"
+        };
+        cases.push(json!({"id":c.id,"index":i,"comparison":comparison,"comparison_reason":reason,"expectation":expectation,"expected":expected,"before":before,"after":after}));
     }
     report["status"] = json!(if candidate_error {
         "Error"
