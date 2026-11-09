@@ -85,6 +85,20 @@ fn capabilities_are_bounded_source_independent_nonexecuting_and_runnable() {
     assert_eq!(c["discovery_contract_version"], 1);
     assert_eq!(c["diagnostic_contract_version"], 1);
     assert_eq!(c["diagnostics"]["version"], 1);
+    let call = c["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|op| op["op"] == "call")
+        .unwrap();
+    assert!(call["required_fields"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("function")));
+    assert!(!call["optional_fields"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("function")));
     let ops: BTreeSet<_> = c["operations"]
         .as_array()
         .unwrap()

@@ -89,9 +89,11 @@ and `capabilities` only. `capabilities` contains:
 - `discovery_contract_version:1`, `diagnostic_contract_version:1`, independent
   of compiler semantics identity and never part of existing hash material.
 - `operations`: `{op,required_fields,optional_fields,scope}`. Required fields
-  include semantic requirements (e.g. ghost for replay), not just envelope
-  decoding. A call function is schema-optional but omission fails input target
-  validation; omitted args means `[]`. `request` gives common field policy.
+  include prerequisites for a successful operation (e.g. ghost for replay and
+  function for call), not just envelope decoding. A call function is
+  schema-optional but omission fails input target validation; omitted args means
+  `[]`. `request.operation_fields` distinguishes operational prerequisites from
+  decoder acceptance; the remaining request policy is unchanged.
 - `features` (implemented only), `permissions.language_core` with filesystem,
   network, process and arbitrary_host_code all false; native explicit file IO
   is separately described host transport.

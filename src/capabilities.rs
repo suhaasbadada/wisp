@@ -50,6 +50,7 @@ pub(super) fn document() -> Json {
     .into_iter()
     .map(|(op, fields, scope)| {
         let required = match op {
+            "call" => vec!["op", "source", "function"],
             "replay" => vec!["op", "source", "ghost"],
             "archive" => vec!["op", "source", "ghost", "limits"],
             "inspect-artifact" | "replay-artifact" => vec!["op", "source", "artifact"],
@@ -91,6 +92,7 @@ pub(super) fn document() -> Json {
             "operations":operations,
             "request":{
                 "required_fields":["op","source"],
+                "operation_fields":"Per-operation required_fields describe prerequisites for success; omission may decode and then produce an Input/Request diagnostic rather than a schema error.",
                 "optional_fields":["focus","budget","ghost","artifact","function","args","limits"],
                 "policy":"Unknown/duplicate envelope fields rejected; source is always a string. Known unused fields are decoded and ignored, except function/args require call. Limits are always decoded first. Missing args means []; explicit null args is invalid for call. Missing function decodes but fails target validation for call.",
                 "capabilities":"Source is required but never checked, executed, hashed or reflected. Valid known unused fields do not alter discovery."

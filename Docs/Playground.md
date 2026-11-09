@@ -1,5 +1,11 @@
 # Browser playground
 
+## Compiler-owned machine contract
+
+The documentation's default Agent mode links `/wisp/agent.json` and displays `Docs/Errors.md`. Static build creates the manifest from the same WASM dispatcher used by workers; it lists only implemented operations/features, core permissions, exact logical limits, compatibility/uncertainty, code catalog and runnable examples. The JSON is discovery data, not executable agent instructions or a repair/proof policy. It retains the dispatcher's required empty source field for the documented capabilities request. Human mode explains stable code vs human message and enclosing outcome.
+
+Source/input/probe/replay/artifact diagnostics display stable codes as plain text after existing kind/location/message formatting. Unknown future codes remain displayable: the UI falls back to the legacy kind and enclosing report status without interpreting code names or messages. No code can select intended repairs. The discovery document is compact compiler-owned metadata, not a measured token/performance superiority claim. Raw contracts and ADRs 0001–0005 remain linked under capital-D `Docs/`.
+
 ## Typed invocation form
 
 “Invoke a typed function” is separate from whole-program **Run**. It selects a compiler-derived function signature and accepts a JSON argument array (64 KiB host cap), preserving raw bytes through the shared Rust decoder. Syntax-only standalone-value validation prevents outer request-field injection; malformed argument syntax is sent as null so Rust still checks source first. Ints are canonical decimal strings, records exact objects, Bool/String JSON primitives. No input string is evaluated as code. The invoice example preloads a record argument for `total`; explicit example changes select corresponding sample inputs. Switching only the target does not rewrite arguments.
