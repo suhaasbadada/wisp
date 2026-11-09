@@ -50,8 +50,20 @@ Open the printed local URL at `/wisp/`. Documentation defaults to Agent on fresh
 
 Ghosts can now be explicitly exported/imported as local JSON files in the playground and CLI. **Files include the entire historical source and execution limits**: review before sharing. Rust reproduces the exact recorded first failure before accepting a file; reproduction is not authentication of who ran it or when. No upload or automatic persistent storage. The CLI refuses to overwrite existing artifact paths. Explicit command exit states and the shared format are documented in [CLI.md](Docs/CLI.md) and [ADR 0002](Docs/Decisions/0002-portable-failure-artifacts.md).
 
+## Typed data, without an object model
+
+```wisp
+record Item { quantity: Int, unit_price: Int }
+fn total(item: Item) -> Int { item.quantity * item.unit_price }
+print(total(new Item { quantity: 9, unit_price: 100 }));
+```
+
+Records are immutable nominal values, not classes. Initializers run in source order; field display follows declaration order. Nested records, projection and same-type structural equality are bounded/metered. Try `cargo run -- run examples/invoice.wisp` or the “Typed invoice records” playground example. See [ADR 0003](Docs/Decisions/0003-immutable-records.md) and the exact [language limits](Docs/Language.md).
+
+**Compiler compatibility:** semantics-5 adds reserved words and changes resource metering. Older-compiler artifacts are explicitly rejected before execution; artifact envelope v1 does not imply cross-compiler compatibility. No silent migration rewrites historical evidence.
+
 ## Honest boundaries
 
-Checked i64/Bool/String, immutable let, typed functions/blocks/if, captured print, bounded pure finite probes. Limits produce Unknown, runtime faults Error. Agent View exposes compiler-derived call facts, body/signature boundaries, omissions and UTF-8 text-budget overflow—not guaranteed relevance, minimal slices or context completeness. Logical allocation counters are not absolute browser memory bounds. No result cache or solver. Records, unions, structured editing, persistent stable IDs and C backend are deferred.
+Checked i64/Bool/String, immutable let and nominal records, typed functions/blocks/if, captured print, bounded pure finite probes. Limits produce Unknown, runtime faults Error. Agent View exposes compiler-derived call/type facts, body/signature boundaries, omissions and UTF-8 text-budget overflow—not guaranteed relevance, minimal slices or context completeness. Logical allocation counters are not absolute browser memory bounds. No result cache or solver. Unions, recursive records, collections, structured editing, persistent stable IDs and C backend are deferred.
 
 Wisp is **not production-ready**. No speed/token/memory superiority is measured or claimed. Context benefits, novelty and adoption remain hypotheses; graph-oriented prior art includes Sley, Zerolang and Unison. **License pending owner selection**—do not assume an open-source license from public visibility.

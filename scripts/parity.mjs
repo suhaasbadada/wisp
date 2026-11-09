@@ -6,8 +6,16 @@ import init, { dispatch } from '../web/pkg/wisp.js';
 const build = spawnSync('cargo', ['build', '--quiet'], { stdio: 'inherit' });
 assert.equal(build.status, 0);
 await init({ module_or_path: readFileSync(new URL('../web/pkg/wisp_bg.wasm', import.meta.url)) });
-const examples = ['snacks', 'snacks-repaired', 'inventory'].map(name => readFileSync(`examples/${name}.wisp`, 'utf8'));
-const sources = [...examples, 'print(-9223372036854775808); print(-7 / 3);', 'print(9223372036854775807 + 1);', 'print(1 / 0);', 'fn recurse(n: Int) -> Int { recurse(n) } print(recurse(0));', 'print("<script>not HTML</script>");', 'print(true || (1 / 0 == 0));', 'probe n in 2..=1 { true }', 'print(@);'];
+const examples = ['snacks', 'snacks-repaired', 'inventory', 'invoice'].map(name => readFileSync(`examples/${name}.wisp`, 'utf8'));
+const recordSources = [
+  'record A { s: String } print(new A { s: "é\\n\\\"" });',
+  'record A { n: Int } record B { n: Int } print(new A { n: 1 } == new B { n: 1 });',
+  'record A { b: B } record B { a: A } print(1);',
+  'record A { n: Int } print(new A { n: 1 }.missing);',
+  'record A { n: Int } fn loud() -> A { print(1); new A { n: 1 } } probe n in 1..=1 { loud().n == 1 }',
+  'record A { n: Int } let a = new A { n: 1 }; probe n in 1..=1 { new A { n: n } == new A { n: n } }',
+];
+const sources = [...examples, ...recordSources, 'print(-9223372036854775808); print(-7 / 3);', 'print(9223372036854775807 + 1);', 'print(1 / 0);', 'fn recurse(n: Int) -> Int { recurse(n) } print(recurse(0));', 'print("<script>not HTML</script>");', 'print(true || (1 / 0 == 0));', 'probe n in 2..=1 { true }', 'print(@);'];
 for (const source of sources) {
   for (const limits of [{}, { fuel: 0 }, { cases: 0 }, { output_bytes: 0 }]) {
     const request = JSON.stringify({ op: 'run', source, limits });
@@ -62,3 +70,14 @@ const raw = JSON.stringify({ op: 'inspect-artifact', source: '', artifact });
 assert.equal(compareArtifact(raw.replace('"fuel":100000', '"fuel":100000,"fuel":100000')).status, 'Error');
 assert.equal(compareArtifact('{"op":"run","source":"","limits":null}').status, 'Error');
 console.log(`Portable artifacts native/WASM agreement: ${artifactComparisons} exact comparisons passed.`);
+const recordsBroken = 'record Item { quantity: Int } fn bill(item: Item) -> Int { if item.quantity >= 10 { item.quantity * 80 } else { item.quantity * 100 } } probe n in 1..=11 { bill(new Item { quantity: n + 1 }) >= bill(new Item { quantity: n }) }';
+const recordsRun = compareArtifact({ op: 'run', source: recordsBroken });
+assert.equal(recordsRun.probes[0].failing_input, '9');
+const recordsArchive = compareArtifact({ op: 'archive', source: recordsBroken, limits: recordsRun.limits, ghost: recordsRun.probes[0].ghost });
+assert.equal(recordsArchive.status, 'Ready');
+const recordReplay = compareArtifact({ op: 'replay-artifact', source: recordsBroken.replace('item.quantity * 80', '900 + (item.quantity - 9) * 80'), artifact: recordsArchive.artifact });
+assert.equal(recordReplay.replay.status, 'Pass');
+const oldCompiler = compareArtifact({ op: 'inspect-artifact', source: '', artifact: { ...recordsArchive.artifact, compiler: 'wisp-0.1.0-semantics-4' } });
+assert.equal(oldCompiler.status, 'Error');
+assert.equal(oldCompiler.validation.new_execution, false);
+console.log(`Record artifact integration: 4 additional exact comparisons passed (${sources.length * 4 + 4 + artifactComparisons} total).`);

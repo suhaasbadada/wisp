@@ -1,5 +1,7 @@
 # Browser playground
 
+The examples dropdown includes “Typed invoice records” after the original snack and inventory examples. It runs `examples/invoice.wisp` through the same worker/core as the native CLI: nested record output, primitive projection total, 21 declared finite comparisons. Agent View includes compiler-derived record declarations and raw graph metadata. Limits/labels use metered fuel units, not expression counts: aggregate traversal and string/output bytes consume fuel. The import warning explicitly identifies semantics-5 and rejects older-compiler artifacts without migration. Changing the selected example updates the displayed filename; manual edits are labeled scratch.
+
 Probe badges match declaration occurrences, not just predicate hashes (duplicate predicates can have distinct budget prefixes). Agent View reconciles removed/changed focus functions by requesting the newly selected function from Rust; the selector never labels another function's view.
 
 Static site base `/wisp/`. Local WebAssembly from the Rust dispatcher runs in a disposable Web Worker per request. TypeScript never evaluates Wisp. Examples are imported from the CLI's `examples/` files; no API key or backend. Live analysis uses a separate disposable worker, a 250ms debounce, exact submitted-source checks and worker identity checks to discard outdated responses. Run/replay have a five-second host deadline. Stop terminates the execution worker and reports Unknown; it cannot turn interrupted work into passing evidence. Host transport failures are errors.
