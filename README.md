@@ -22,6 +22,12 @@ The first counterexample is `n = 9`: ten snacks cost less than nine. Replace the
 cargo run -- examples/snacks.wisp
 cargo run -- examples/snacks-repaired.wisp
 cargo test
+# Agent-friendly commands (check/focus do not execute):
+cargo run -- check examples/snacks.wisp
+cargo run -- focus examples/snacks.wisp bill --budget 1024
+cargo run -- archive examples/snacks.wisp --out snacks.wisp-ghost.json
+cargo run -- inspect snacks.wisp-ghost.json
+cargo run -- replay examples/snacks-repaired.wisp --artifact snacks.wisp-ghost.json
 # Same JSON dispatcher as WASM:
 printf '%s' '{"op":"run","source":"print(1 + 2);"}' | cargo run -- --json
 ```
@@ -41,6 +47,8 @@ npm run dev
 ```
 
 Open the printed local URL at `/wisp/`. Documentation defaults to Agent on fresh visits; Human is an explicit alternative. See [verification](Docs/Testing.md), [architecture](Docs/Architecture.md), [decisions](Docs/Decisions/0001-first-playable.md), [contributing](Docs/Contributing.md) and [roadmap](Docs/Roadmap.md).
+
+Ghosts can now be explicitly exported/imported as local JSON files in the playground and CLI. **Files include the entire historical source and execution limits**: review before sharing. Rust reproduces the exact recorded first failure before accepting a file; reproduction is not authentication of who ran it or when. No upload or automatic persistent storage. The CLI refuses to overwrite existing artifact paths. Explicit command exit states and the shared format are documented in [CLI.md](Docs/CLI.md) and [ADR 0002](Docs/Decisions/0002-portable-failure-artifacts.md).
 
 ## Honest boundaries
 
