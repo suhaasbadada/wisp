@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "files": {
+    "evaluation/protocol.json": "1943cf08973980f9327da6a8ab4b9284b110d969f6fac045e8449a090afea505",
+    "evaluation/README.md": "9350687b4f95f0802a6a6e221e8fa66287b8307f4857f2de31c5e37554f89143",
+    "scripts/evaluation-cases.mjs": "2748d4e7ae93242b5d79dee848b919011c8ba745992df27053a888a053e655ff",
+    "evaluation/tasks/quota/starter.ts": "0d73e1dc2f6a04e3480fdcbaf95be22543da6ba3583cb3e52127d0d5c70b5c7b",
+    "evaluation/tasks/quota/starter.wisp": "7e9c1433d0a4e38d2cc8dbf72105a8dd938a93d505394afc003aeb621714e957",
+    "evaluation/tasks/quota/task.md": "22c0cc24d990295dc0867206213bdc1cadc3febc0d52e675a50ad5f92f2259a5",
+    "evaluation/tasks/refund/starter.ts": "51e006d2f77e0e27f860b7135574351d8c913ef9d8730c45106e5ecb0132cb36",
+    "evaluation/tasks/refund/starter.wisp": "4065fb974aaadaacde926e00e17212f0ca1d45f0d709bc16d57934413e68be50",
+    "evaluation/tasks/refund/task.md": "9487c0eedfb84cdfbd7019927fb8b4eb2a15138ea5fc2a59ab7f384774195173",
+    "evaluation/tasks/shipping/starter.ts": "3ac7f8c9146e5fac8dd284361f4b3ca0889692f1e07c4e1893f1bc6831a1d14e",
+    "evaluation/tasks/shipping/starter.wisp": "d2a15ab93011b6b0abedf57974b26cd1ce1c82d5378ac5881988e2a6fffbf69b",
+    "evaluation/tasks/shipping/task.md": "3aa8038ddfcd9d3a3ecb12fecaa6547d311c1a0e17d8ad383cba62568bf87d4a"
+  }
+}
