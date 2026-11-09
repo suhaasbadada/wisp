@@ -207,6 +207,33 @@ fn historical_ghost_is_preserved_and_replay_is_new() {
     assert_eq!(same["status"], "Fail");
 }
 #[test]
+fn execution_prefixes_and_analysis_keys_account_for_shared_limits() {
+    let a = "fn label() -> Int { 1 } print(label()); probe n in 1..=2 { true } probe x in 1..=2 { true }";
+    let b = a.replace("{ 1 }", "{ 1 + 2 }");
+    let ar = run(a);
+    let br = run(&b);
+    assert_ne!(
+        ar["probes"][0]["dependency_key"],
+        br["probes"][0]["dependency_key"]
+    );
+    let c = a.replace("probe n in 1..=2", "probe n in 1..=3");
+    assert_ne!(
+        ar["probes"][1]["dependency_key"],
+        run(&c)["probes"][1]["dependency_key"]
+    );
+    let analyzed = request(json!({"op":"analyze","source":a}));
+    assert!(analyzed["probes"].as_array().unwrap().is_empty());
+    assert_eq!(
+        analyzed["probe_metadata"][0]["dependency_key"],
+        ar["probes"][0]["dependency_key"]
+    );
+    let shifted = format!("fn unused() -> String {{ \"label\" }}\n{a}");
+    assert_eq!(
+        run(&shifted)["probes"][0]["dependency_key"],
+        ar["probes"][0]["dependency_key"]
+    );
+}
+#[test]
 fn replay_rejects_changed_spec_domain_or_corrupt_receipt() {
     let ghost = run(BROKEN)["probes"][0]["ghost"].clone();
     for source in [

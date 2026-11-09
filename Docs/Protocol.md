@@ -23,7 +23,8 @@ receipt from a failed probe; required for replay. No persistent server state.
 
 Common: `compiler`, SHA-256 `revision` of exact source bytes, effective `limits`,
 `status`, captured `output`, `diagnostics`, `probes`, `graph`. Successful checking
-also supplies `syntax_limits` and `agent_view`. Diagnostics are
+  also supplies `syntax_limits`, `agent_view` and `probe_metadata` (predicate and
+  run dependency keys without executing probes). Diagnostics are
 `{kind,message,span:{start,end}}`; kinds Request, Syntax, Type, Purity, Runtime,
 Replay, Limit. Compilation errors have empty output/probes/graph. Limit is
 Unknown; other diagnostic kinds are Error. Diagnostic messages are human text,
@@ -61,8 +62,14 @@ or incremental compilation; these are conservative invalidation identities.
 Change `COMPILER` when changing semantics.
 
 Predicate key includes compiler, input name, decimal endpoints, exact predicate
-block text. Dependency key additionally includes effective execution limits and
-the transitive function hashes. Source revision is separate. Domain or predicate
+block text. The run dependency key additionally includes effective execution limits,
+transitive function hashes, top-level statement kinds/bindings/expression text and
+their transitive callees, and every preceding probe's property dependencies.
+These prefixes account conservatively for shared fuel/allocation/case consumption.
+An uncalled unrelated function can change without invalidating pricing evidence;
+a prelude callee cannot. Replay keys include operation, property dependencies and
+the exact replay input; they do not claim equivalence with full-domain run keys.
+Source revision is separate. Domain or predicate
 edits invalidate the specification identity, even if plausibly equivalent.
 
 Fail creates a ghost `{revision,predicate_key,dependency_key,input,witness_id}`;

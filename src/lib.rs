@@ -7,7 +7,7 @@ use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use syntax::*;
-pub const COMPILER: &str = "wisp-0.1.0-semantics-2";
+pub const COMPILER: &str = "wisp-0.1.0-semantics-3";
 fn hash(s: &str) -> String {
     format!("{:x}", Sha256::digest(s.as_bytes()))
 }
@@ -159,6 +159,40 @@ fn agent_view(
     text.truncate(end);
     json!({"focus":selected.map(|f|&f.name),"text":text,"budget_bytes":budget,"used_bytes":end,"required_bytes":required,"overflow":overflow,"omitted":omitted,"uncertainty":["Budget applies only to UTF-8 text field, not JSON metadata","Truncation may omit focus or boundary facts","Selection is not guaranteed task relevant or context complete"]})
 }
+// Earlier statements/probes consume shared budgets. Include their possible
+// transitive callees, but not uncalled functions or incidental source offsets.
+fn run_keys(
+    p: &Program,
+    source: &str,
+    facts: &Facts,
+    meta: &Metadata,
+    limits: &Limits,
+) -> Vec<String> {
+    let prelude: Vec<_> = p
+        .statements
+        .iter()
+        .map(|s| {
+            let e = stmt_expr(s);
+            let kind = match s {
+                Stmt::Let(n, _) => format!("let:{n}"),
+                Stmt::Print(_) => "print".into(),
+                Stmt::Eval(_) => "eval".into(),
+            };
+            let deps = closure(&dependencies(e), &facts.calls);
+            let hashes: Vec<_> = deps.iter().map(|n| (n, &meta.hashes[n])).collect();
+            json!([kind, &source[e.span.start..e.span.end], hashes])
+        })
+        .collect();
+    let mut prefix = hash(&json!([COMPILER, "run", limits, prelude]).to_string());
+    p.probes
+        .iter()
+        .map(|probe| {
+            let property = dependency_key(probe, source, facts, meta, limits);
+            prefix = hash(&json!([prefix, property]).to_string());
+            prefix.clone()
+        })
+        .collect()
+}
 fn execute_request(mut r: Request) -> Json {
     r.limits.clamp();
     let revision = hash(&r.source);
@@ -192,7 +226,9 @@ fn execute_request(mut r: Request) -> Json {
         Err(d) => return diagnostic_report(d, &revision, &r.limits),
     };
     let meta = metadata(&p, &facts, &r.source, &r.limits);
-    let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":r.limits,"syntax_limits":{"depth":64,"tokens":8192},"status":"Ready","output":"","diagnostics":[],"probes":[],"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref(),r.budget.unwrap_or(4096).min(65536))});
+    let keys = run_keys(&p, &r.source, &facts, &meta, &r.limits);
+    let specs: Vec<_> = p.probes.iter().zip(&keys).map(|(probe, key)| json!({"predicate_key":predicate_key(probe, &r.source),"dependency_key":key})).collect();
+    let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":r.limits,"syntax_limits":{"depth":64,"tokens":8192},"status":"Ready","output":"","diagnostics":[],"probes":[],"probe_metadata":specs,"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref(),r.budget.unwrap_or(4096).min(65536))});
     if r.op == "analyze" {
         return report;
     }
@@ -237,7 +273,14 @@ fn execute_request(mut r: Request) -> Json {
                 )
             }
         };
-        let key = dependency_key(probe, &r.source, &facts, &meta, &r.limits);
+        let key = hash(
+            &json!([
+                "replay",
+                dependency_key(probe, &r.source, &facts, &meta, &r.limits),
+                g.input
+            ])
+            .to_string(),
+        );
         let mut env = Env::from([(probe.var.clone(), Value::Int(input))]);
         let execution = if r.limits.cases == 0 {
             Err(err("Limit", "probe case limit exceeded", probe.span))
@@ -279,9 +322,8 @@ fn execute_request(mut r: Request) -> Json {
     }
     let mut probes = Vec::new();
     let mut total_cases = 0u64;
-    for probe in &p.probes {
+    for (probe, key) in p.probes.iter().zip(&keys) {
         let pk = predicate_key(probe, &r.source);
-        let key = dependency_key(probe, &r.source, &facts, &meta, &r.limits);
         let mut status = "Clear";
         let mut completed = 0u64;
         let mut failure = None;
