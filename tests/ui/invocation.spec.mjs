@@ -65,3 +65,27 @@ test('late input diagnostics stay historical after arguments change', async ({ p
   await expect(page.locator('#call-evidence')).toContainText('Not executed · Error');
   await expect(page.locator('#diagnostics')).not.toContainText('Input ·');
 });
+
+test('displayed input diagnostics clear after edits while source diagnostics remain applicable', async ({ page }) => {
+  await page.goto('');
+  await page.locator('#example').selectOption('invoice');
+  await expect(page.locator('#call-target')).toHaveValue('total');
+  await page.locator('#call-args').fill('[9]');
+  await page.locator('#invoke').click();
+  await expect(page.locator('#diagnostics')).toContainText('Input · /args/0');
+  await page.locator('#call-args').fill('[{"quantity":"9","unit_price":"100"}]');
+  await expect(page.locator('#diagnostics')).not.toContainText('Input · /args/0');
+  await expect(page.locator('#diagnostics')).toContainText('current invocation input has not been checked');
+  await expect(page.locator('#call-evidence')).toContainText('Historical');
+  await page.locator('#invoke').click();
+  await expect(page.locator('#run-status')).toHaveText('CALL COMPLETE');
+  await page.locator('#call-args').fill('[9]');
+  await page.locator('#invoke').click();
+  await expect(page.locator('#diagnostics')).toContainText('Input · /args/0');
+  await page.locator('#call-target').selectOption('invoice');
+  await expect(page.locator('#diagnostics')).toContainText('current invocation input has not been checked');
+  await page.locator('#source').fill('fn bad() -> Int { true }');
+  await expect(page.locator('#diagnostics')).toContainText('Type ·');
+  await page.locator('#call-args').fill('[]');
+  await expect(page.locator('#diagnostics')).toContainText('Type ·');
+});

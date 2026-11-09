@@ -107,17 +107,24 @@ function setupPlayground() {
   let fileReader: FileReader | undefined;
   let callActive = false; let lastCall: { report: Report; source: string; args: string; target: string } | undefined;
   let checkedTargets = new Set<string>();
+  let diagnosticInput: { source: string; args: string; target: string; rendered: string; sourceOnly: boolean } | undefined;
   const makeWorker = () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-  function renderDiagnostics(report: Report, submitted: string) {
+  function renderDiagnostics(report: Report, submitted: string, inputContext?: { args: string; target: string }) {
     const messages = report.diagnostics.concat(report.probes.flatMap(p => p.diagnostic ? [p.diagnostic] : []));
-    if (!messages.length) { text('diagnostics', 'Checked by Rust · no source diagnostics'); return; }
-    text('diagnostics', messages.map(d => {
+    const rendered = messages.length ? messages.map(d => {
       if (d.path !== undefined) return `${d.kind} · ${d.path} · ${d.message}`;
       // Spans are byte offsets, not JavaScript UTF-16 offsets.
       const before = new TextDecoder().decode(new TextEncoder().encode(submitted).slice(0, d.span.start));
       const lines = before.split('\n');
       return `${d.kind} · ${lines.length}:${Array.from(lines.at(-1) ?? '').length + 1} · ${d.message}`;
-    }).join('\n'));
+    }).join('\n') : 'Checked by Rust · no source diagnostics';
+    text('diagnostics', rendered);
+    diagnosticInput = inputContext ? { ...inputContext, source: submitted, rendered, sourceOnly: messages.length > 0 && messages.every(d => ['Syntax', 'Type', 'Purity'].includes(d.kind)) } : undefined;
+  }
+  function inputEdited() {
+    renderCall();
+    if (!diagnosticInput || diagnosticInput.source !== source.value || diagnosticInput.sourceOnly) return;
+    text('diagnostics', diagnosticInput.args === args.value && diagnosticInput.target === target.value ? diagnosticInput.rendered : 'Source unchanged; current invocation input has not been checked. Prior input-dependent diagnostics are historical.');
   }
   function renderAgent(report: Report) {
     const names = report.graph.functions.map(f => f.name); const selected = focus.value;
@@ -223,7 +230,7 @@ function setupPlayground() {
       lastCall = { report, source: submitted, args: raw, target: name }; setBusy(false);
       text('run-status', `CALL ${report.status.toUpperCase()}`); text('output', report.output || '(No captured function output; top-level statements skipped)'); text('activity', 'Typed invocation finished');
       if (submitted === source.value) {
-        if (raw === args.value && name === target.value) renderDiagnostics(report, submitted);
+        if (raw === args.value && name === target.value) renderDiagnostics(report, submitted, { args: raw, target: name });
         renderAgent(report);
       }
       renderCall();
@@ -318,8 +325,8 @@ function setupPlayground() {
     worker.postMessage({ id, request: { op: receipt?.artifact ? 'replay-artifact' : receipt ? 'replay' : 'run', source: submitted, ...(receipt?.artifact ? { artifact: receipt.artifact } : receipt ? { ghost: receipt.ghost } : {}), ...(focus.value ? { focus: focus.value } : {}), budget: Math.max(0, Math.min(65536, Number(budget.value) || 0)) } });
   }
   run.onclick = () => execute(); stop.onclick = () => cancel('Stopped: worker terminated');
-  invoke.onclick = invokeFunction; args.oninput = renderCall; target.onchange = renderCall;
-  source.oninput = () => { latestAnalysis = undefined; checkedTargets.clear(); invoke.disabled = true; analysisWorker?.terminate(); renderEvidence(); text('filename', 'scratch.wisp · editable'); text('diagnostics', 'Checking current source…'); text('agent-text', 'Source changed. Previous compiler facts are not current.'); clearTimeout(analysisTimer); analysisTimer = setTimeout(analyze, 250); };
+  invoke.onclick = invokeFunction; args.oninput = inputEdited; target.onchange = inputEdited;
+  source.oninput = () => { latestAnalysis = undefined; diagnosticInput = undefined; checkedTargets.clear(); invoke.disabled = true; analysisWorker?.terminate(); renderEvidence(); text('filename', 'scratch.wisp · editable'); text('diagnostics', 'Checking current source…'); text('agent-text', 'Source changed. Previous compiler facts are not current.'); clearTimeout(analysisTimer); analysisTimer = setTimeout(analyze, 250); };
   source.onkeydown = event => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !busy) { event.preventDefault(); execute(); } };
   focus.onchange = analyze; budget.oninput = analyze;
   el<HTMLSelectElement>('example').onchange = event => { const key = (event.target as HTMLSelectElement).value; source.value = ({ snacks, repaired, inventory, invoice } as Record<string, string>)[key]; args.value = key === 'invoice' ? '[{"quantity":"9","unit_price":"100"}]' : key === 'inventory' ? '["20", "5"]' : '["9"]'; source.dispatchEvent(new Event('input')); text('filename', `${key === 'repaired' ? 'snacks-repaired' : key}.wisp · editable`); };
