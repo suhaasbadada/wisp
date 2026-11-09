@@ -47,6 +47,14 @@ Reproduction is **not authentication**, proof, or evidence of author/time.
 
 ## Limits, IO and exits
 
+The current compiler is `wisp-0.1.0-semantics-5`. Immutable nominal records use
+the same commands: `wisp run examples/invoice.wisp` or
+`wisp focus examples/invoice.wisp total`. `check`/`focus` include record metadata
+without execution. Earlier compiler artifacts (including semantics-4) are
+rejected before historical execution; envelope v1 is not a cross-compiler
+compatibility promise. Keep the original compiler available for old artifacts;
+there is no automatic migration or evidence rehashing.
+
 Input paths may be `-` for stdin (one stream; do not use it for both current
 source and artifact). Readers consume at most cap + 1 bytes before rejecting:
 source 64 KiB (65,536 bytes), artifact/request 1 MiB (1,048,576 bytes). Input

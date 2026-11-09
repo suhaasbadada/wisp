@@ -58,6 +58,44 @@ fn report(o: &Output, code: i32, status: &str) -> Value {
     v
 }
 #[test]
+fn records_use_identical_native_core_for_check_run_focus_and_artifacts() {
+    let t = Temp::new();
+    let invoice = include_str!("../examples/invoice.wisp");
+    let file = t.file("invoice.wisp", invoice);
+    let native = report(&cli(&["run", &file], None), 0, "Complete");
+    let core: Value = serde_json::from_str(&wisp::dispatch(
+        &serde_json::json!({"op":"run","source":invoice}).to_string(),
+    ))
+    .unwrap();
+    assert_eq!(native, core);
+    let checked = report(&cli(&["check", &file], None), 0, "Ready");
+    assert_eq!(checked["graph"]["records"].as_array().unwrap().len(), 2);
+    assert_eq!(checked["output"], "");
+    let focused = report(&cli(&["focus", &file, "total"], None), 0, "Ready");
+    assert!(focused["agent_view"]["text"]
+        .as_str()
+        .unwrap()
+        .contains("record Item"));
+    let broken = t.file(
+        "broken-record.wisp",
+        "record A {x:Int} fn value()->A {new A {x:0}} probe n in 1..=1 {value().x == n}",
+    );
+    let artifact = t.path("record.ghost.json");
+    report(
+        &cli(
+            &["archive", &broken, "--probe", "0", "--out", &artifact],
+            None,
+        ),
+        0,
+        "Ready",
+    );
+    let inspected = report(&cli(&["inspect", &artifact], None), 0, "Ready");
+    assert!(inspected["artifact"]["source"]
+        .as_str()
+        .unwrap()
+        .contains("record A"));
+}
+#[test]
 fn artifact_files_cannot_escape_into_outer_request_fields() {
     let t = Temp::new();
     let source = t.file("broken.wisp", include_str!("../examples/snacks.wisp"));

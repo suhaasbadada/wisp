@@ -7,7 +7,7 @@ use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use syntax::*;
-pub const COMPILER: &str = "wisp-0.1.0-semantics-4";
+pub const COMPILER: &str = "wisp-0.1.0-semantics-5";
 fn hash(s: &str) -> String {
     format!("{:x}", Sha256::digest(s.as_bytes()))
 }
@@ -192,16 +192,25 @@ fn witness_id(g: &Ghost) -> String {
     hash(&json!([g.revision, g.predicate_key, g.dependency_key, g.input]).to_string())
 }
 fn diagnostic_report(d: Diagnostic, revision: &str, limits: &Limits) -> Json {
-    json!({"compiler":COMPILER,"revision":revision,"limits":limits,"status":if d.kind=="Limit"{"Unknown"}else{"Error"},"diagnostics":[d],"output":"","probes":[],"graph":{"functions":[],"edges":[]}})
+    json!({"compiler":COMPILER,"revision":revision,"limits":limits,"status":if d.kind=="Limit"{"Unknown"}else{"Error"},"diagnostics":[d],"output":"","probes":[],"graph":{"records":[],"functions":[],"edges":[]}})
 }
 struct Metadata {
     graph: Json,
     hashes: BTreeMap<String, String>,
+    record_key: String,
 }
 fn metadata(p: &Program, facts: &Facts, source: &str, limits: &Limits) -> Metadata {
     let mut hashes = BTreeMap::new();
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
+    let mut records: Vec<_> = p.records.iter().collect();
+    records.sort_by_key(|r| &r.name);
+    let declarations: Vec<_> = records
+        .iter()
+        .map(|r| (&r.name, &source[r.span.start..r.span.end]))
+        .collect();
+    let record_key = hash(&json!(declarations).to_string());
+    let record_nodes: Vec<_> = records.iter().map(|r| json!({"name":r.name,"span":r.span,"declaration_hash":hash(&source[r.span.start..r.span.end]),"fields":r.fields.iter().map(|(n,t,s)|json!({"name":n,"type":t.to_string(),"span":s})).collect::<Vec<_>>()})).collect();
     for f in &p.functions {
         let deps = closure(&BTreeSet::from([f.name.clone()]), &facts.calls);
         let bodies: Vec<_> = p
@@ -212,7 +221,7 @@ fn metadata(p: &Program, facts: &Facts, source: &str, limits: &Limits) -> Metada
             .collect();
         let mut bodies = bodies;
         bodies.sort_by_key(|(n, _)| *n);
-        let h = hash(&json!([COMPILER, limits, bodies]).to_string());
+        let h = hash(&json!([COMPILER, limits, record_key, bodies]).to_string());
         hashes.insert(f.name.clone(), h.clone());
         nodes.push(json!({"name":f.name,"signature":signature(f),"span":f.span,"body_span":f.body.span,"body_hash":hash(&source[f.body.span.start..f.body.span.end]),"transitive_hash":h,"dependencies":deps,"pure":!deps.iter().any(|n|facts.impure.contains(n))}));
         for to in &facts.calls[&f.name] {
@@ -220,17 +229,18 @@ fn metadata(p: &Program, facts: &Facts, source: &str, limits: &Limits) -> Metada
         }
     }
     Metadata {
-        graph: json!({"functions":nodes,"edges":edges,"omissions":["No data-flow or property-specific relevance analysis","Names are local identities, not persistent symbol IDs"],"uncertainty":"Conservative syntactic call edges include unreachable branches."}),
+        graph: json!({"records":record_nodes,"functions":nodes,"edges":edges,"omissions":["No data-flow or property-specific relevance analysis","Names are local identities, not persistent symbol IDs"],"uncertainty":"Conservative syntactic call edges include unreachable branches; every record declaration contributes to all dependency hashes."}),
         hashes,
+        record_key,
     }
 }
 fn signature(f: &Function) -> String {
     format!(
-        "fn {}({}) -> {:?}",
+        "fn {}({}) -> {}",
         f.name,
         f.params
             .iter()
-            .map(|(n, t)| format!("{n}: {t:?}"))
+            .map(|(n, t)| format!("{n}: {t}"))
             .collect::<Vec<_>>()
             .join(", "),
         f.ret
@@ -257,7 +267,16 @@ fn dependency_key(
 ) -> String {
     let deps = closure(&dependencies(&p.body), &facts.calls);
     let hs: Vec<_> = deps.iter().map(|n| (n, &meta.hashes[n])).collect();
-    hash(&json!([COMPILER, limits, predicate_key(p, source), hs]).to_string())
+    hash(
+        &json!([
+            COMPILER,
+            limits,
+            meta.record_key,
+            predicate_key(p, source),
+            hs
+        ])
+        .to_string(),
+    )
 }
 fn agent_view(
     p: &Program,
@@ -277,6 +296,13 @@ fn agent_view(
         });
     let mut text = String::new();
     let mut omitted = Vec::new();
+    if !p.records.is_empty() {
+        text.push_str("Record declarations (conservative type boundary):\n");
+        for r in &p.records {
+            text.push_str(&source[r.span.start..r.span.end]);
+            text.push('\n');
+        }
+    }
     if let Some(f) = selected {
         text.push_str(&format!(
             "Focus (compiler fact):\n{}\n{}\nDependency boundary signatures:\n",
@@ -313,6 +339,9 @@ fn agent_view(
         end -= 1;
     }
     let overflow = end < required;
+    if overflow && !p.records.is_empty() {
+        omitted.push("record declarations may be truncated by text byte budget".into());
+    }
     text.truncate(end);
     json!({"focus":selected.map(|f|&f.name),"text":text,"budget_bytes":budget,"used_bytes":end,"required_bytes":required,"overflow":overflow,"omitted":omitted,"uncertainty":["Budget applies only to UTF-8 text field, not JSON metadata","Truncation may omit focus or boundary facts","Selection is not guaranteed task relevant or context complete"]})
 }
@@ -340,7 +369,7 @@ fn run_keys(
             json!([kind, &source[e.span.start..e.span.end], hashes])
         })
         .collect();
-    let mut prefix = hash(&json!([COMPILER, "run", limits, prelude]).to_string());
+    let mut prefix = hash(&json!([COMPILER, "run", limits, meta.record_key, prelude]).to_string());
     p.probes
         .iter()
         .map(|probe| {
@@ -401,7 +430,7 @@ fn execute_language(
     let meta = metadata(&p, &facts, &r.source, &r.limits);
     let keys = run_keys(&p, &r.source, &facts, &meta, &r.limits);
     let specs: Vec<_> = p.probes.iter().zip(&keys).map(|(probe, key)| json!({"predicate_key":predicate_key(probe, &r.source),"dependency_key":key})).collect();
-    let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":r.limits,"syntax_limits":{"depth":64,"tokens":8192},"status":"Ready","output":"","diagnostics":[],"probes":[],"probe_metadata":specs,"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref(),r.budget.unwrap_or(4096).min(65536) as usize)});
+    let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":r.limits,"syntax_limits":{"depth":64,"tokens":8192,"record_type_depth":16,"record_value_depth":16,"record_fields":32},"status":"Ready","output":"","diagnostics":[],"probes":[],"probe_metadata":specs,"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref(),r.budget.unwrap_or(4096).min(65536) as usize)});
     if r.op == "analyze" {
         return report;
     }

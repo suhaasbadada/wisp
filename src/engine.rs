@@ -2,21 +2,47 @@ use crate::syntax::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 pub type Env<T> = BTreeMap<String, T>;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
 pub enum Value {
     Int(i64),
     Bool(bool),
     String(String),
     Unit,
+    Record(String, Vec<(String, Value)>),
 }
-impl Value {
-    pub fn text(&self) -> String {
-        match self {
-            Self::Int(n) => n.to_string(),
-            Self::Bool(b) => b.to_string(),
-            Self::String(s) => s.clone(),
-            Self::Unit => "()".into(),
+
+#[cfg(test)]
+mod aggregate_bounds_tests {
+    use super::*;
+    #[test]
+    fn copy_depth_preflight_rejects_before_recursive_duplication() {
+        let p = parse("").unwrap();
+        let limits = Limits::default();
+        let mut machine = Machine::new(&p, &limits);
+        let mut value = Value::Unit;
+        for _ in 0..17 {
+            value = Value::Record("A".into(), vec![("x".into(), value)]);
         }
+        let error = machine.copy(&value, Span::default()).unwrap_err();
+        assert_eq!(error.kind, "Limit");
+        assert!(error.message.contains("value depth"));
+        assert_eq!(machine.allocation, 0);
+    }
+    #[test]
+    fn cumulative_copy_payload_is_reserved_before_duplicate() {
+        let p = parse("").unwrap();
+        let limits = Limits {
+            allocation_bytes: 69,
+            ..Limits::default()
+        };
+        let mut machine = Machine::new(&p, &limits);
+        // Record header+names+field = 66; string payload = 4.
+        let value = Value::Record("A".into(), vec![("s".into(), Value::String("abcd".into()))]);
+        assert_eq!(
+            machine.copy(&value, Span::default()).unwrap_err().kind,
+            "Limit"
+        );
+        assert_eq!(machine.allocation, 70);
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -103,12 +129,73 @@ pub fn closure(
     seen
 }
 pub fn check(p: &Program) -> Result<Facts> {
+    let mut records = Env::new();
+    for r in &p.records {
+        if records.insert(r.name.clone(), r).is_some() {
+            return Err(err("Type", "duplicate record", r.span));
+        }
+        let mut names = BTreeSet::new();
+        for (n, _, span) in &r.fields {
+            if !names.insert(n) {
+                return Err(err("Type", "duplicate record field", *span));
+            }
+        }
+    }
+    // Memoized DAG heights avoid expanding shared record types as trees.
+    fn height(
+        n: &str,
+        rs: &Env<&Record>,
+        active: &mut BTreeSet<String>,
+        done: &mut Env<usize>,
+    ) -> Result<usize> {
+        if let Some(d) = done.get(n) {
+            return Ok(*d);
+        }
+        let r = rs[n];
+        if !active.insert(n.into()) {
+            return Err(err("Type", "recursive record type", r.span));
+        }
+        if active.len() > 16 {
+            return Err(err("Limit", "record type depth exceeds 16", r.span));
+        }
+        let mut depth = 1;
+        for (_, t, span) in &r.fields {
+            if let Ty::Named(child) = t {
+                if !rs.contains_key(child) {
+                    return Err(err("Type", format!("unknown type {child}"), *span));
+                }
+                depth = depth.max(1 + height(child, rs, active, done)?);
+            }
+        }
+        if depth > 16 {
+            return Err(err("Limit", "record type depth exceeds 16", r.span));
+        }
+        active.remove(n);
+        done.insert(n.into(), depth);
+        Ok(depth)
+    }
+    let mut done = Env::new();
+    for r in &p.records {
+        height(&r.name, &records, &mut BTreeSet::new(), &mut done)?;
+    }
     let mut funcs = Env::new();
     let mut facts = Facts {
         calls: BTreeMap::new(),
         impure: BTreeSet::new(),
     };
     for f in &p.functions {
+        for t in f
+            .params
+            .iter()
+            .map(|(_, t)| t)
+            .chain(std::iter::once(&f.ret))
+        {
+            if let Ty::Named(n) = t {
+                if !records.contains_key(n) {
+                    return Err(err("Type", format!("unknown type {n}"), f.span));
+                }
+            }
+        }
         if funcs.insert(f.name.clone(), f).is_some() {
             return Err(err("Type", "duplicate function", f.span));
         }
@@ -123,11 +210,11 @@ pub fn check(p: &Program) -> Result<Facts> {
     for f in &p.functions {
         let mut env = Env::new();
         for (n, t) in &f.params {
-            if env.insert(n.clone(), *t).is_some() {
+            if env.insert(n.clone(), t.clone()).is_some() {
                 return Err(err("Type", "duplicate parameter", f.span));
             }
         }
-        let t = type_expr(&f.body, &mut env, &funcs)?;
+        let t = type_expr(&f.body, &mut env, &funcs, &records)?;
         if t != f.ret {
             return Err(err(
                 "Type",
@@ -138,12 +225,12 @@ pub fn check(p: &Program) -> Result<Facts> {
     }
     let mut env = Env::new();
     for s in &p.statements {
-        type_stmt(s, &mut env, &funcs)?;
+        type_stmt(s, &mut env, &funcs, &records)?;
     }
     for probe in &p.probes {
         let mut env = Env::new();
         env.insert(probe.var.clone(), Ty::Int);
-        if type_expr(&probe.body, &mut env, &funcs)? != Ty::Bool {
+        if type_expr(&probe.body, &mut env, &funcs, &records)? != Ty::Bool {
             return Err(err("Type", "probe must produce Bool", probe.span));
         }
         let mut direct = false;
@@ -159,8 +246,8 @@ pub fn check(p: &Program) -> Result<Facts> {
     }
     Ok(facts)
 }
-fn type_stmt(s: &Stmt, env: &mut Env<Ty>, fs: &Env<&Function>) -> Result<()> {
-    let t = type_expr(stmt_expr(s), env, fs)?;
+fn type_stmt(s: &Stmt, env: &mut Env<Ty>, fs: &Env<&Function>, rs: &Env<&Record>) -> Result<()> {
+    let t = type_expr(stmt_expr(s), env, fs, rs)?;
     if let Stmt::Let(n, e) = s {
         if env.contains_key(n) {
             return Err(err("Type", "duplicate immutable binding", e.span));
@@ -169,15 +256,51 @@ fn type_stmt(s: &Stmt, env: &mut Env<Ty>, fs: &Env<&Function>) -> Result<()> {
     }
     Ok(())
 }
-fn type_expr(e: &Expr, env: &mut Env<Ty>, fs: &Env<&Function>) -> Result<Ty> {
+fn type_expr(e: &Expr, env: &mut Env<Ty>, fs: &Env<&Function>, rs: &Env<&Record>) -> Result<Ty> {
     let bad = || err("Type", "incompatible expression types", e.span);
     Ok(match &e.kind {
         ExprKind::Int(_) => Ty::Int,
         ExprKind::Bool(_) => Ty::Bool,
         ExprKind::String(_) => Ty::String,
-        ExprKind::Var(n) => *env
+        ExprKind::Var(n) => env
             .get(n)
-            .ok_or_else(|| err("Type", format!("unknown variable {n}"), e.span))?,
+            .ok_or_else(|| err("Type", format!("unknown variable {n}"), e.span))?
+            .clone(),
+        ExprKind::Construct(n, fields) => {
+            let r = rs
+                .get(n)
+                .ok_or_else(|| err("Type", format!("unknown record {n}"), e.span))?;
+            let mut seen = BTreeSet::new();
+            for (name, span, value) in fields {
+                if !seen.insert(name) {
+                    return Err(err("Type", "duplicate initializer field", *span));
+                }
+                let (_, ty, _) = r
+                    .fields
+                    .iter()
+                    .find(|(f, _, _)| f == name)
+                    .ok_or_else(|| err("Type", format!("unknown field {name}"), *span))?;
+                if type_expr(value, env, fs, rs)? != *ty {
+                    return Err(err("Type", "field initializer type mismatch", value.span));
+                }
+            }
+            if fields.len() != r.fields.len() {
+                return Err(err("Type", "missing record field", e.span));
+            }
+            Ty::Named(n.clone())
+        }
+        ExprKind::Project(receiver, name, span) => {
+            let Ty::Named(n) = type_expr(receiver, env, fs, rs)? else {
+                return Err(err("Type", "projection requires record", *span));
+            };
+            rs[&n]
+                .fields
+                .iter()
+                .find(|(f, _, _)| f == name)
+                .ok_or_else(|| err("Type", format!("unknown field {name}"), *span))?
+                .1
+                .clone()
+        }
         ExprKind::Call(n, args) => {
             let f = fs
                 .get(n)
@@ -186,14 +309,14 @@ fn type_expr(e: &Expr, env: &mut Env<Ty>, fs: &Env<&Function>) -> Result<Ty> {
                 return Err(err("Type", "argument count mismatch", e.span));
             }
             for (a, (_, t)) in args.iter().zip(&f.params) {
-                if type_expr(a, env, fs)? != *t {
+                if type_expr(a, env, fs, rs)? != *t {
                     return Err(bad());
                 }
             }
-            f.ret
+            f.ret.clone()
         }
         ExprKind::Unary(op, a) => {
-            let t = type_expr(a, env, fs)?;
+            let t = type_expr(a, env, fs, rs)?;
             let want = if op == "!" { Ty::Bool } else { Ty::Int };
             if t != want {
                 return Err(bad());
@@ -201,8 +324,8 @@ fn type_expr(e: &Expr, env: &mut Env<Ty>, fs: &Env<&Function>) -> Result<Ty> {
             want
         }
         ExprKind::Binary(op, a, b) => {
-            let x = type_expr(a, env, fs)?;
-            let y = type_expr(b, env, fs)?;
+            let x = type_expr(a, env, fs, rs)?;
+            let y = type_expr(b, env, fs, rs)?;
             if x != y {
                 return Err(bad());
             }
@@ -229,11 +352,11 @@ fn type_expr(e: &Expr, env: &mut Env<Ty>, fs: &Env<&Function>) -> Result<Ty> {
             }
         }
         ExprKind::If(c, a, b) => {
-            if type_expr(c, env, fs)? != Ty::Bool {
+            if type_expr(c, env, fs, rs)? != Ty::Bool {
                 return Err(bad());
             }
-            let x = type_expr(a, env, fs)?;
-            if x != type_expr(b, env, fs)? {
+            let x = type_expr(a, env, fs, rs)?;
+            if x != type_expr(b, env, fs, rs)? {
                 return Err(bad());
             }
             x
@@ -241,10 +364,10 @@ fn type_expr(e: &Expr, env: &mut Env<Ty>, fs: &Env<&Function>) -> Result<Ty> {
         ExprKind::Block(stmts, tail) => {
             let mut scope = env.clone();
             for s in stmts {
-                type_stmt(s, &mut scope, fs)?;
+                type_stmt(s, &mut scope, fs, rs)?;
             }
             if let Some(t) = tail {
-                type_expr(t, &mut scope, fs)?
+                type_expr(t, &mut scope, fs, rs)?
             } else {
                 Ty::Unit
             }
@@ -253,6 +376,7 @@ fn type_expr(e: &Expr, env: &mut Env<Ty>, fs: &Env<&Function>) -> Result<Ty> {
 }
 pub struct Machine<'a> {
     pub functions: Env<&'a Function>,
+    records: Env<&'a Record>,
     pub limits: &'a Limits,
     pub fuel: u64,
     pub allocation: usize,
@@ -264,6 +388,7 @@ impl<'a> Machine<'a> {
     pub fn new(p: &'a Program, limits: &'a Limits) -> Self {
         Self {
             functions: p.functions.iter().map(|f| (f.name.clone(), f)).collect(),
+            records: p.records.iter().map(|r| (r.name.clone(), r)).collect(),
             limits,
             fuel: 0,
             allocation: 0,
@@ -280,6 +405,127 @@ impl<'a> Machine<'a> {
             Ok(())
         }
     }
+    fn tick(&mut self, n: usize, span: Span) -> Result<()> {
+        self.fuel = self.fuel.saturating_add(n as u64);
+        if self.fuel > self.limits.fuel {
+            return Err(err("Limit", "fuel exhausted", span));
+        }
+        Ok(())
+    }
+    // Preflight the entire copy before any recursive allocation. Logical sizes
+    // are target-independent, not measurements of allocator/process memory.
+    fn copy(&mut self, v: &Value, span: Span) -> Result<Value> {
+        let mut stack = vec![(v, 0)];
+        let mut bytes: usize = 0;
+        let mut work: usize = 0;
+        while let Some((v, depth)) = stack.pop() {
+            work = work.saturating_add(1);
+            match v {
+                Value::String(s) => {
+                    bytes = bytes.saturating_add(s.len());
+                    work = work.saturating_add(s.len());
+                }
+                Value::Record(n, fields) => {
+                    if depth >= 16 {
+                        return Err(err("Limit", "record value depth exceeds 16", span));
+                    }
+                    bytes = bytes.saturating_add(32 + n.len() + fields.len() * 32);
+                    for (name, child) in fields {
+                        bytes = bytes.saturating_add(name.len());
+                        stack.push((child, depth + 1));
+                    }
+                }
+                _ => {}
+            }
+        }
+        self.tick(work, span)?;
+        self.alloc(bytes, span)?;
+        fn duplicate(v: &Value) -> Value {
+            match v {
+                Value::Int(n) => Value::Int(*n),
+                Value::Bool(b) => Value::Bool(*b),
+                Value::Unit => Value::Unit,
+                Value::String(s) => Value::String(s.clone()),
+                Value::Record(n, fs) => Value::Record(
+                    n.clone(),
+                    fs.iter().map(|(n, v)| (n.clone(), duplicate(v))).collect(),
+                ),
+            }
+        }
+        Ok(duplicate(v))
+    }
+    fn equal(&mut self, a: &Value, b: &Value, span: Span) -> Result<bool> {
+        let mut stack = vec![(a, b)];
+        while let Some((a, b)) = stack.pop() {
+            self.tick(1, span)?;
+            let same = match (a, b) {
+                (Value::Int(a), Value::Int(b)) => a == b,
+                (Value::Bool(a), Value::Bool(b)) => a == b,
+                (Value::Unit, Value::Unit) => true,
+                (Value::String(a), Value::String(b)) => {
+                    self.tick(a.len().saturating_add(b.len()), span)?;
+                    a == b
+                }
+                (Value::Record(a, af), Value::Record(b, bf)) => {
+                    if a != b || af.len() != bf.len() {
+                        false
+                    } else {
+                        // LIFO stack: reverse pushes to visit declaration order.
+                        stack.extend(af.iter().zip(bf).rev().map(|((_, a), (_, b))| (a, b)));
+                        true
+                    }
+                }
+                _ => false,
+            };
+            if !same {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+    fn emit(&mut self, text: &str, span: Span) -> Result<()> {
+        self.tick(text.len(), span)?;
+        if self.output.len().saturating_add(text.len()) > self.limits.output_bytes {
+            return Err(err("Limit", "output limit exceeded", span));
+        }
+        self.output.push_str(text);
+        Ok(())
+    }
+    fn display(&mut self, value: &Value, nested: bool, span: Span) -> Result<()> {
+        self.tick(1, span)?;
+        match value {
+            Value::Int(n) => self.emit(&n.to_string(), span),
+            Value::Bool(b) => self.emit(if *b { "true" } else { "false" }, span),
+            Value::Unit => self.emit("()", span),
+            Value::String(s) if !nested => self.emit(s, span),
+            Value::String(s) => {
+                self.emit("\"", span)?;
+                for c in s.chars() {
+                    match c {
+                        '\n' => self.emit("\\n", span)?,
+                        '\r' => self.emit("\\r", span)?,
+                        '\t' => self.emit("\\t", span)?,
+                        '"' => self.emit("\\\"", span)?,
+                        '\\' => self.emit("\\\\", span)?,
+                        c if c.is_control() => self.emit(&format!("\\u{:04x}", c as u32), span)?,
+                        c => self.emit(c.encode_utf8(&mut [0; 4]), span)?,
+                    }
+                }
+                self.emit("\"", span)
+            }
+            Value::Record(n, fs) => {
+                self.emit(n, span)?;
+                self.emit(" {", span)?;
+                for (i, (n, v)) in fs.iter().enumerate() {
+                    self.emit(if i == 0 { " " } else { ", " }, span)?;
+                    self.emit(n, span)?;
+                    self.emit(": ", span)?;
+                    self.display(v, true, span)?;
+                }
+                self.emit(if fs.is_empty() { "}" } else { " }" }, span)
+            }
+        }
+    }
     pub fn stmt(&mut self, s: &Stmt, env: &mut Env<Value>) -> Result<()> {
         let v = self.eval(stmt_expr(s), env)?;
         match s {
@@ -288,12 +534,14 @@ impl<'a> Machine<'a> {
                 env.insert(n.clone(), v);
             }
             Stmt::Print(e) => {
-                let t = v.text();
-                if self.output.len().saturating_add(t.len() + 1) > self.limits.output_bytes {
-                    return Err(err("Limit", "output limit exceeded", e.span));
+                let start = self.output.len();
+                if let Err(d) = self
+                    .display(&v, false, e.span)
+                    .and_then(|()| self.emit("\n", e.span))
+                {
+                    self.output.truncate(start);
+                    return Err(d);
                 }
-                self.output.push_str(&t);
-                self.output.push('\n');
             }
             Stmt::Eval(_) => {}
         }
@@ -309,24 +557,57 @@ impl<'a> Machine<'a> {
         result
     }
     fn eval_inner(&mut self, e: &Expr, env: &mut Env<Value>) -> Result<Value> {
-        self.fuel += 1;
-        if self.fuel > self.limits.fuel {
-            return Err(err("Limit", "fuel exhausted", e.span));
-        }
+        self.tick(1, e.span)?;
         self.alloc(16, e.span)?;
         Ok(match &e.kind {
             ExprKind::Int(n) => Value::Int(*n),
             ExprKind::Bool(b) => Value::Bool(*b),
             ExprKind::String(s) => {
+                self.tick(s.len(), e.span)?;
                 self.alloc(s.len(), e.span)?;
                 Value::String(s.clone())
             }
-            ExprKind::Var(n) => {
-                let v = env[n].clone();
-                if let Value::String(s) = &v {
-                    self.alloc(s.len(), e.span)?;
+            ExprKind::Var(n) => self.copy(&env[n], e.span)?,
+            ExprKind::Construct(n, fields) => {
+                let r = self.records[n];
+                // Height is already checked statically; construction moves children.
+                self.alloc(
+                    32 + n.len()
+                        + r.fields.len() * 32
+                        + r.fields.iter().map(|(n, _, _)| n.len()).sum::<usize>(),
+                    e.span,
+                )?;
+                let mut values: Vec<Option<Value>> = (0..r.fields.len()).map(|_| None).collect();
+                for (name, _, value) in fields {
+                    let index = r.fields.iter().position(|(n, _, _)| n == name).unwrap();
+                    values[index] = Some(self.eval(value, env)?);
                 }
-                v
+                // Runtime value depth is independent of syntax/call depth and
+                // checked before building the enclosing recursive value.
+                let mut stack: Vec<_> = values.iter().map(|v| (v.as_ref().unwrap(), 1)).collect();
+                while let Some((value, depth)) = stack.pop() {
+                    self.tick(1, e.span)?;
+                    if let Value::Record(_, children) = value {
+                        if depth >= 16 {
+                            return Err(err("Limit", "record value depth exceeds 16", e.span));
+                        }
+                        stack.extend(children.iter().map(|(_, v)| (v, depth + 1)));
+                    }
+                }
+                Value::Record(
+                    n.clone(),
+                    r.fields
+                        .iter()
+                        .enumerate()
+                        .map(|(i, (name, _, _))| (name.clone(), values[i].take().unwrap()))
+                        .collect(),
+                )
+            }
+            ExprKind::Project(receiver, name, _) => {
+                let Value::Record(_, fields) = self.eval(receiver, env)? else {
+                    unreachable!()
+                };
+                self.copy(&fields.iter().find(|(n, _)| n == name).unwrap().1, e.span)?
             }
             ExprKind::Call(n, args) => {
                 if self.depth >= self.limits.call_depth {
@@ -336,6 +617,7 @@ impl<'a> Machine<'a> {
                 let mut local = Env::new();
                 for (a, (n, _)) in args.iter().zip(&f.params) {
                     let v = self.eval(a, env)?;
+                    self.alloc(n.len() + 32, a.span)?;
                     local.insert(n.clone(), v);
                 }
                 self.depth += 1;
@@ -353,16 +635,16 @@ impl<'a> Machine<'a> {
             },
             ExprKind::Binary(op, a, b) => {
                 let x = self.eval(a, env)?;
-                if op == "&&" && x == Value::Bool(false) {
+                if op == "&&" && matches!(x, Value::Bool(false)) {
                     return Ok(x);
                 }
-                if op == "||" && x == Value::Bool(true) {
+                if op == "||" && matches!(x, Value::Bool(true)) {
                     return Ok(x);
                 }
                 let y = self.eval(b, env)?;
                 match op.as_str() {
-                    "==" => Value::Bool(x == y),
-                    "!=" => Value::Bool(x != y),
+                    "==" => Value::Bool(self.equal(&x, &y, e.span)?),
+                    "!=" => Value::Bool(!self.equal(&x, &y, e.span)?),
                     "&&" | "||" => y,
                     _ => {
                         let (Value::Int(a), Value::Int(b)) = (x, y) else {
@@ -391,7 +673,7 @@ impl<'a> Machine<'a> {
                 }
             }
             ExprKind::If(c, a, b) => {
-                if self.eval(c, env)? == Value::Bool(true) {
+                if matches!(self.eval(c, env)?, Value::Bool(true)) {
                     self.eval(a, env)?
                 } else {
                     self.eval(b, env)?
@@ -399,14 +681,13 @@ impl<'a> Machine<'a> {
             }
             ExprKind::Block(stmts, tail) => {
                 self.alloc(
-                    env.len().saturating_mul(64)
-                        + env
-                            .values()
-                            .map(|v| if let Value::String(s) = v { s.len() } else { 0 })
-                            .sum::<usize>(),
+                    env.len().saturating_mul(64) + env.keys().map(String::len).sum::<usize>(),
                     e.span,
                 )?;
-                let mut local = env.clone();
+                let mut local = Env::new();
+                for (n, v) in env.iter() {
+                    local.insert(n.clone(), self.copy(v, e.span)?);
+                }
                 for s in stmts {
                     self.stmt(s, &mut local)?;
                 }

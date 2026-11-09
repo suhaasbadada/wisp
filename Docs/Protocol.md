@@ -48,19 +48,28 @@ offsets and limits, **never language i64 values**.
 - Graph: `functions` with name, signature, definition/body byte spans, body and
   transitive hashes, dependency names (including self), conservative `pure`;
   `edges` are `{from,to,kind:"call"}`. `omissions` and `uncertainty` explain scope.
+- Graph `records` is name-sorted: `{name,span,declaration_hash,fields}`; fields
+  retain declaration order as `{name,type,span}` with language type names.
+  Declaration hashes cover exact declaration slices, not offsets. Function
+  signatures likewise use language names, never internal enum/index spellings.
+- `syntax_limits` includes fixed `depth:64`, `tokens:8192`,
+  `record_type_depth:16`, `record_value_depth:16`, `record_fields:32`.
 - Agent View: `focus`, `text`, `budget_bytes`, actual `used_bytes`,
   `required_bytes` before truncation, `overflow`, `omitted`, `uncertainty`.
-  Includes focus body and transitive dependency boundary signatures, not their
+  Includes conservative record declaration text, focus body and transitive
+  dependency boundary signatures, not their
   bodies. Truncates on UTF-8 boundaries; overflow can omit important facts. The
   JSON envelope/metadata is outside the text budget. No task relevance,
   completeness or minimality guarantee. Unknown focus returns an explicit
-  no-match view, not a fabricated function.
+  no-match view, not a fabricated function. Record text shares the byte budget;
+  overflow explicitly warns that record declarations may be truncated.
 
 ## Identity and historical replay
 
 Hashes are SHA-256 over versioned Rust JSON material. Function transitive hashes
 include compiler identity, effective configuration and name-sorted exact source
-slices for the function and every reachable callee. Unreachable branch calls
+slices for the function and every reachable callee, and all name-sorted exact
+record declaration slices (including unused records). Unreachable branch calls
 count. Whitespace edits inside dependencies may invalidate keys. Unrelated
 function edits and source-offset shifts preserve a probe key. There is no cache
 or incremental compilation; these are conservative invalidation identities.
@@ -70,6 +79,11 @@ Predicate key includes compiler, input name, decimal endpoints, exact predicate
 block text. The run dependency key additionally includes effective execution limits,
 transitive function hashes, top-level statement kinds/bindings/expression text and
 their transitive callees, and every preceding probe's property dependencies.
+All record declarations contribute directly to every property dependency and
+the run prefix, even for a probe with no function calls. A record-only edit
+invalidates dependencies without changing predicate identity. Offsets outside
+declarations are not hashed. This is conservative invalidation, not a claim of
+minimal type relevance or persistent/stable symbol IDs.
 These prefixes account conservatively for shared fuel/allocation/case consumption.
 An uncalled unrelated function can change without invalidating pricing evidence;
 a prelude callee cannot. Replay keys include operation, property dependencies and
@@ -108,7 +122,7 @@ decoding; duplicate fields are errors, not last-value-wins normalization. File
 input must be valid UTF-8; a BOM is not silently stripped before JSON decoding.
 
 ```json
-{"format":"wisp-ghost","version":1,"compiler":"wisp-0.1.0-semantics-4",
+{"format":"wisp-ghost","version":1,"compiler":"wisp-0.1.0-semantics-5",
  "source":"<exact historical complete source>",
  "limits":{"source_bytes":65536,"fuel":100000,"call_depth":32,
            "evaluation_depth":128,"output_bytes":8192,
@@ -163,8 +177,12 @@ proofs. A party can construct an artifact that reproduces; it cannot thereby
 prove who ran it or when. Source may contain sensitive logic. Host clients own
 explicit file IO and must not silently upload or persist artifacts. The Rust
 language implementation gains no filesystem/network/host execution capability.
-Compiler semantics identity remains unchanged: this adds transport/workflow,
-not language semantics. Unsupported versions/compilers are errors; no migration.
+Compiler identity is now `wisp-0.1.0-semantics-5`: reserved `record`/`new` and
+aggregate semantics/accounting are a compatibility boundary. Envelope schema
+version remains 1. Earlier compiler artifacts (including semantics-4) are
+explicitly rejected **before historical execution** (`validation.new_execution:
+false`); there is no migration or silent reinterpretation. Unsupported envelope
+versions are also errors.
 
 Native commands, bounded file reading, output safety and exit codes are specified
 in [CLI.md](CLI.md). Artifacts/files are capped at 1 MiB by native readers;
