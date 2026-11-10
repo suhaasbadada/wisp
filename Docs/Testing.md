@@ -1,6 +1,28 @@
 # Verification
 
-## Caller-owned MCP snapshot guards (under publication)
+## Saved-project function context (under publication)
+
+Eight native focus tests, five Python client-focus tests and 29 MCP tests passed
+in focused verification; the Python workflow totals 101 tests. Native context
+parity, nonexecution, guard drift, all-policy pin validation, option/confinement
+errors, text budgets and explicit Error/Unknown are covered. Strict official SDK
+focus/invocation and the read-only historical internal triage driver passed.
+Full prescribed checks passed: 147 Rust, 41 Node, 101 Python, 326 native/WASM
+comparisons and 36 Chromium tests, plus fmt/Clippy/npm ci/WASM/check/build and
+all three official SDK modes. Joffrey found two malformed-report validation gaps;
+primary fixed inconsistent byte-ledger and contradictory execution-field acceptance
+and added regressions. All 101 Python tests, configured SDK modes and the internal
+driver passed after repair; Joffrey re-reviewed with no remaining substantive
+findings and independently passed 43 focused Python tests. Exact-head CI and
+publication remain separate pending gates. This tests bounded
+transport/context behavior, not model reasoning quality or total token savings.
+
+PR #23 shipped at `37b94935f0136379cc5ec512383cce4e7d35210f`: PR Checks
+`42783467420`, merge Checks `42784105506`, Pages `42784105617` and deployment
+`7677378139` passed. Immutable three-mode SDK checks, adverse artifacts and public
+contracts are [accepted](https://github.com/suhaasbadada/wisp/pull/23#issuecomment-6763301673).
+
+## Caller-owned MCP snapshot guards
 
 Primary full verification passed 139 Rust, 41 Node, 93 Python tests (26 MCP/native),
 326 native/WASM comparisons, 36 Chromium tests, fmt/Clippy/npm ci/WASM/TypeScript/

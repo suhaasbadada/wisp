@@ -203,7 +203,7 @@ class MCP(unittest.TestCase):
                             request(3, "tools/call", {"name": "wisp_project_describe", "arguments": {}}),
                             request(4, "tools/call", {"name": "wisp_project_invoke", "arguments": {
                                 "id": "reservation", "policy": "reservations", "function": "decide", "args": args}})], manifest=manifest)
-        self.assertEqual(len(rows[1]["result"]["tools"]), 8)
+        self.assertEqual(len(rows[1]["result"]["tools"]), 9)
         described = rows[2]["result"]["structuredContent"]
         self.assertEqual(described["bridge"]["execution"], "initialization_metadata")
         self.assertFalse(described["report"]["project"]["new_execution"])
@@ -433,6 +433,52 @@ class MCP(unittest.TestCase):
         self.assertEqual(p.stdout, "")
         self.assertIn("requires --project", p.stderr)
         self.assertNotIn("unavailable", p.stderr)
+
+    def test_saved_project_focus_is_guarded_bounded_and_nonexecuting(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples" / "policies" / "project.json", require_project_guard=True)
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        guard = copy.deepcopy(server.project_guards["reservations"])
+        result = server.call({"name": "wisp_project_focus", "arguments": {"policy": "reservations", "function": "decide",
+            "budget": HOST.JsonNumber("64"), "expected": guard}})
+        self.assertFalse(result["isError"])
+        data = result["structuredContent"]
+        self.assertEqual(data["bridge"]["guard_status"], "matched")
+        self.assertEqual(data["report"]["status"], "Ready")
+        self.assertFalse(data["report"]["project"]["new_execution"])
+        self.assertNotIn("usage", data["report"]["report"])
+        view = data["report"]["report"]["agent_view"]
+        self.assertEqual(view["focus"], "decide")
+        self.assertEqual(view["budget_bytes"], 64)
+        self.assertTrue(view["overflow"])
+        self.assertEqual(json.loads(result["content"][0]["text"]), data)
+
+    def test_saved_project_focus_requires_owner_and_caller_binding_when_configured(self):
+        _, rows = exchange([*initialize(), request(2, "tools/call", {"name": "wisp_project_focus", "arguments": {"policy": "reservations", "function": "decide"}})])
+        self.assertEqual(rows[1]["error"]["code"], -32602)
+        server = HOST.Server(BINARY, manifest=ROOT / "examples" / "policies" / "project.json", require_project_guard=True)
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        self.assertIn("expected", server.definitions()["wisp_project_focus"]["inputSchema"]["required"])
+        args = {"policy": "reservations", "function": "decide"}
+        guard = copy.deepcopy(server.project_guards["reservations"])
+        for changes in [{}, {"expected": {**guard, "source_revision": "0" * 64}}, {"expected": guard, "function": "missing"},
+                        {"expected": guard, "path": "/etc/passwd"}, {"expected": guard, "budget": HOST.JsonNumber("65537")}]:
+            with mock.patch.object(server.project, "focus", side_effect=AssertionError("No native focus command")):
+                result = server.call({"name": "wisp_project_focus", "arguments": {**args, **changes}})
+            self.assertTrue(result["isError"])
+            self.assertIsNone(result["structuredContent"]["report"])
+            self.assertEqual(result["structuredContent"]["bridge"]["execution"], "not_submitted")
+
+    def test_saved_project_focus_does_not_expose_changed_snapshot_context(self):
+        example = ROOT / "examples" / "policies"
+        with tempfile.TemporaryDirectory(prefix="wisp-mcp-focus-drift-") as temp:
+            folder = pathlib.Path(temp)
+            for name in ["project.json", "reservations-after.wisp", "cases.json"]: (folder / name).write_bytes((example / name).read_bytes())
+            server = HOST.Server(BINARY, manifest=folder / "project.json")
+            server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+            path = folder / "reservations-after.wisp"; path.write_bytes(path.read_bytes() + b"\n")
+            result = server.call({"name": "wisp_project_focus", "arguments": {"policy": "reservations", "function": "decide", "expected": copy.deepcopy(server.project_guards["reservations"])}})
+            self.assertTrue(result["isError"])
+            self.assertIsNone(result["structuredContent"]["report"])
 
 
 if __name__ == "__main__":

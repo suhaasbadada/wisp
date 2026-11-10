@@ -15,6 +15,8 @@ const HELP: &str = "usage: wisp FILE | wisp --json < request.json
         wisp project serve MANIFEST
         wisp describe FILE
         wisp project describe MANIFEST
+        wisp project focus MANIFEST POLICY FUNCTION [--budget N]
+            [--expected-manifest HASH --expected-revision HASH --expected-suite HASH --expected-compiler ID]
        wisp edit FILE FUNCTION --replacement-file BODY --expected-revision SHA --expected-body SHA --out NEWFILE
        wisp check FILE
        wisp focus FILE FUNCTION [--budget N]
@@ -117,6 +119,9 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
     let report = match a.as_slice() {
         ["describe", path] => dispatch(json!({"op":"describe","source":source(path)?})),
         ["project", "describe", manifest] => project::describe(manifest)?,
+        ["project", "focus", manifest, policy, function, rest @ ..] => {
+            project::focus(manifest, policy, function, rest)?
+        }
         ["project", "verify", manifest] => project::execute(manifest, None)?,
         ["project", "review", before, after] => project::execute(before, Some(after))?,
         ["review", before, after, "--suite", suite] => review_request(before, after, suite, false)?,

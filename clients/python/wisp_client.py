@@ -182,18 +182,71 @@ class ProjectClient:
     def description(self):
         return copy.deepcopy(self._description)
 
-    def _ready(self, ready):
-        validate_json(ready)
-        _require(isinstance(ready, dict) and ready.get("status") == "Ready", "Missing adapter readiness")
-        adapter = ready["adapter"]
-        _require(_version(adapter["contract_version"]) and adapter["phase"] == "ready"
-                 and adapter["new_execution"] is False and adapter["approval"] == "not_granted"
+    def _pins(self, adapter):
+        _require(isinstance(adapter, dict) and _version(adapter["contract_version"])
+                 and adapter["approval"] == "not_granted"
                  and adapter["manifest_hash"] == self._manifest_hash, "Project changed or adapter is incompatible")
         pinned = _index(adapter["policies"], "id")
         _require(set(pinned) == set(self._policies), "Pinned policy IDs differ from discovery")
         for name, policy in self._policies.items():
             _require(pinned[name]["source_revision"] == policy["report"]["revision"]
                      and pinned[name]["suite_file_hash"] == policy["suite_file_hash"], "Project files changed after discovery")
+
+    def _ready(self, ready):
+        validate_json(ready)
+        _require(isinstance(ready, dict) and ready.get("status") == "Ready", "Missing adapter readiness")
+        adapter = ready["adapter"]
+        _require(isinstance(adapter, dict) and adapter["phase"] == "ready" and adapter["new_execution"] is False,
+                 "Project changed or adapter is incompatible")
+        self._pins(adapter)
+
+    def focus(self, policy, function, budget=4096):
+        """Read bounded Agent View text from a guarded native project snapshot.
+
+        This analyzes retained source without evaluation. The text budget does
+        not cover the surrounding graph/identity metadata or guarantee relevance.
+        """
+        try:
+            _require(_id(policy) and policy in self._policies and isinstance(function, str)
+                     and function in self._functions[policy], "Unknown described policy/function")
+            _require(type(budget) is int and 0 <= budget <= 65536, "Focus budget must be 0–65536 bytes")
+            described = self._policies[policy]
+            raw = run_cli(self._binary, ["project", "focus", self._manifest, policy, function, "--budget", str(budget),
+                                        "--expected-manifest", self._manifest_hash,
+                                        "--expected-revision", described["report"]["revision"],
+                                        "--expected-suite", described["suite_file_hash"],
+                                        "--expected-compiler", described["report"]["compiler"]], semantic_exit=True, timeout=self._timeout)
+            _require(len(raw.encode("utf-8")) <= 4194304, "Focus report exceeds 4 MiB")
+            response = decode_json(raw); validate_json(response)
+            _require(isinstance(response, dict), "Expected native project focus report")
+            project = response["project"]; report = response["report"]
+            self._pins(project)
+            _require(project["mode"] == "focus" and project["phase"] == "focused"
+                     and project["new_execution"] is False and project["guard_status"] == "matched"
+                     and project["policy_id"] == policy and project["source_revision"] == described["report"]["revision"]
+                     and project["suite_file_hash"] == described["suite_file_hash"], "Unmatched project focus snapshot")
+            _require(isinstance(report, dict) and response["status"] == report["status"]
+                     and report["status"] in ["Ready", "Error", "Unknown"]
+                     and report["compiler"] == described["report"]["compiler"]
+                     and report["revision"] == described["report"]["revision"]
+                     and isinstance(report["diagnostics"], list)
+                     and report["probes"] == [] and report["output"] == "" and "usage" not in report
+                     and "invocation" not in report and "result" not in report
+                     and response["output"] == "" and response["diagnostics"] == [], "Unexpected non-executing focus report")
+            if report["status"] == "Ready":
+                view = report["agent_view"]
+                _require(view["focus"] == function and type(view["budget_bytes"]) is int and view["budget_bytes"] == budget
+                         and type(view["used_bytes"]) is int and isinstance(view["text"], str)
+                         and type(view["required_bytes"]) is int and view["required_bytes"] >= view["used_bytes"]
+                         and type(view["overflow"]) is bool and view["overflow"] == (view["required_bytes"] > budget)
+                         and view["overflow"] == (view["used_bytes"] < view["required_bytes"])
+                         and len(view["text"].encode("utf-8")) == view["used_bytes"] <= budget,
+                         "Unexpected Agent View text budget")
+            return response
+        except ClientError:
+            raise
+        except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as error:
+            raise ClientError("Invalid focus request or malformed native focus report") from error
 
     def _exchange(self, payload):
         # One worker owns all pipe IO. The caller enforces one deadline including

@@ -1,7 +1,8 @@
 # ADR 0023: Caller-owned project guards across MCP reconnects
 
-Status: implemented; full local checks, three official SDK modes and independent
-review passed; exact-head CI and publication pending.
+Status: accepted; shipped via PR #23 at
+`37b94935f0136379cc5ec512383cce4e7d35210f`. Exact-head CI, immutable SDK checks,
+artifacts and published contract acceptance are recorded there.
 
 A server can correctly pin its loaded project yet still differ from the revision
 an agent reasoned about before reconnecting. Add copyable per-policy call guards

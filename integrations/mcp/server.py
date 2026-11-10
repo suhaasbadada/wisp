@@ -52,7 +52,12 @@ PROJECT_TOOLS = [
                             "policy": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
                             "function": {"type": "string"}, "args": {"type": "array", "items": {}}, "expected": EXPECTED_GUARD},
                            ["id", "policy", "function", "args"])},
+    {"name": "wisp_project_focus", "description": "Read bounded compiler-derived Agent View text for a declared function in the owner-configured project, without source input or policy execution. Copy discovery call_guards into expected for caller revision binding. Inspect omissions/overflow; graph metadata is outside the text budget, and context is not guaranteed relevant or complete.",
+     "inputSchema": schema({"policy": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
+                            "function": {"type": "string"}, "budget": {"type": "integer", "minimum": 0, "maximum": 65536, "default": 4096},
+                            "expected": EXPECTED_GUARD}, ["policy", "function"])},
 ]
+GUARDED_PROJECT_TOOLS = {"wisp_project_invoke", "wisp_project_focus"}
 for tool in TOOLS + PROJECT_TOOLS:
     tool["annotations"] = {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}
     tool["execution"] = {"taskSupport": "forbidden"}
@@ -115,8 +120,9 @@ class Server:
     def definitions(self):
         definitions = {**DEFINITIONS, **PROJECT_DEFINITIONS} if self.project is not None else DEFINITIONS
         if self.require_project_guard and self.project is not None:
-            definitions["wisp_project_invoke"] = copy.deepcopy(definitions["wisp_project_invoke"])
-            definitions["wisp_project_invoke"]["inputSchema"]["required"].append("expected")
+            for name in GUARDED_PROJECT_TOOLS:
+                definitions[name] = copy.deepcopy(definitions[name])
+                definitions[name]["inputSchema"]["required"].append("expected")
         return definitions
 
     def native(self, request):
@@ -145,7 +151,7 @@ class Server:
             require(isinstance(params["_meta"], dict), -32602, "Expected object _meta")
         arguments = params.get("arguments", {})
         definition = definitions[name]["inputSchema"]
-        guard_status = "rejected" if name == "wisp_project_invoke" and self.require_project_guard else None
+        guard_status = "rejected" if name in GUARDED_PROJECT_TOOLS and self.require_project_guard else None
         try:
             if (not isinstance(arguments, dict) or not set(definition["required"]) <= set(arguments)
                     or not set(arguments) <= set(definition["properties"])):
@@ -164,10 +170,10 @@ class Server:
                     raise ClientError("Context budget must be an integer from 0 to 65536")
             if self.calls >= MAX_CALLS:
                 raise ClientError("Session tool-call quota exhausted; start a new session explicitly")
-            if name == "wisp_project_invoke" and (arguments["policy"] not in self.project_targets
+            if name in GUARDED_PROJECT_TOOLS and (arguments["policy"] not in self.project_targets
                     or arguments["function"] not in self.project_targets[arguments["policy"]]):
                 raise ClientError("Unknown described project policy/function")
-            if name == "wisp_project_invoke":
+            if name in GUARDED_PROJECT_TOOLS:
                 guard_status = "not_requested"
                 if "expected" in arguments:
                     guard_status = "rejected"
@@ -188,6 +194,11 @@ class Server:
                 if name == "wisp_project_describe":
                     report = self.project.description
                     execution = "initialization_metadata"
+                elif name == "wisp_project_focus":
+                    budget = arguments.get("budget", 4096)
+                    budget = int(budget.token) if isinstance(budget, JsonNumber) else budget
+                    report = self.project.focus(arguments["policy"], arguments["function"], budget=budget)
+                    execution = "see_native_report"
                 else:
                     report = self.project.call(arguments["policy"], arguments["function"], arguments["args"], arguments["id"])
                     execution = "see_native_report"
@@ -289,7 +300,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wisp", default="target/debug/wisp")
     parser.add_argument("--project", type=pathlib.Path, help="Owner-configured saved project; agents cannot select or change this path")
-    parser.add_argument("--require-project-guard", action="store_true", help="Require caller-supplied expected snapshot on every saved-project invocation")
+    parser.add_argument("--require-project-guard", action="store_true", help="Require caller-supplied expected snapshot on saved-project focus and invocation")
     args = parser.parse_args()
     if args.require_project_guard and args.project is None:
         parser.error("--require-project-guard requires --project")
