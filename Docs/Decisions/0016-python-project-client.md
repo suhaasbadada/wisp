@@ -1,7 +1,8 @@
 # ADR 0016: Reusable source-local Python project client
 
-Status: implemented; independent finding repaired and local checks passed;
-exact-head CI and publication pending.
+Status: accepted; shipped via PR #16 at
+`ae1d71f8cc0d7804570f1982e323259524955c84`. Exact-head CI, merged native release,
+actual CI artifacts and published contract acceptance are recorded on that PR.
 
 Two application examples duplicated discovery, JSON and adapter transport. Move
 that transport into one experimental standard-library client, retaining domain

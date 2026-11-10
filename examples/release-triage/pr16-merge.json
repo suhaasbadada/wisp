@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "repository": "suhaasbadada/wisp",
+  "revision": "ae1d71f8cc0d7804570f1982e323259524955c84",
+  "ref": "refs/heads/main",
+  "checks": {"conclusion":"success","databaseId":42765846556,"event":"push","headBranch":"main","headSha":"ae1d71f8cc0d7804570f1982e323259524955c84","jobs":[{"conclusion":"success","name":"verify","status":"completed"}],"status":"completed","workflowName":"Checks"},
+  "pages": {"conclusion":"success","databaseId":42765846687,"event":"push","headBranch":"main","headSha":"ae1d71f8cc0d7804570f1982e323259524955c84","jobs":[{"conclusion":"success","name":"build","status":"completed"},{"conclusion":"success","name":"deploy","status":"completed"}],"status":"completed","workflowName":"Pages"}
+}

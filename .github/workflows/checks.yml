@@ -42,6 +42,9 @@ jobs:
             test "$exit_code" -eq 1
           fi
           python3 -c 'import json; r=json.load(open("order-gate-proposal.json")); assert r["status"] == "Fail" and r["expectation"]["summary"]["fail"] == 2'
+          target/debug/wisp project verify examples/release-triage/project.json > release-triage-verify.json
+          python3 -B examples/release-triage/run.py --evidence examples/release-triage/pr16-merge.json > release-triage-observed.json
+          python3 -c 'import json; r=json.load(open("release-triage-observed.json")); assert r["status"] == "Complete" and r["decision"] == {"state":"Observed","reason":"workflow_checks_complete"} and r["approval"] == "not_granted"'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -50,6 +53,7 @@ jobs:
             project-*.json
             project-*.jsonl
             order-gate-*.json
+            release-triage-*.json
           if-no-files-found: ignore
       - run: cargo install wasm-pack --locked --version 0.15.1
       - run: npm ci

@@ -41,6 +41,10 @@ cannot silently override unmet end-to-end expectations.
 For another Python application, use the experimental source-local
 [project client](Docs/Python-client.md) instead of copying example transport code.
 
+The read-only [repository workflow triage](Docs/Release-triage.md) applies Wisp to
+saved real Checks/Pages evidence, separating observed workflows from deployment
+and functional acceptance. It never grants merge/deploy approval.
+
 The policy-change workbench compares two checked revisions against explicit typed
 cases and shows before/after decisions, mismatches, faults and limits. Try the
 reservation walkthrough in the playground, or:
