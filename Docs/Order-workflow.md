@@ -8,6 +8,10 @@ payment charged, order persisted or network request made.
 
 Requirements: the native Wisp CLI and Python 3.8+ (standard library only).
 
+Discovery, lossless JSON and pinned-session transport are shared through the
+experimental [Python client](Python-client.md). Domain routing and expectation
+ownership remain in this host; readiness is validated before request submission.
+
 To enforce explicit composed outcomes in CI, add [`--expect FILE`](Workflow-gates.md).
 The matching recorded snapshot passes; the separately named proposed free-shipping
 requirements deliberately fail, without changing policies or recorded history.

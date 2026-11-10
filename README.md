@@ -38,6 +38,9 @@ composed outcomes in CI. [Workflow gates](Docs/Workflow-gates.md) also include a
 deliberately failing proposed requirement, demonstrating that component Pass
 cannot silently override unmet end-to-end expectations.
 
+For another Python application, use the experimental source-local
+[project client](Docs/Python-client.md) instead of copying example transport code.
+
 The policy-change workbench compares two checked revisions against explicit typed
 cases and shows before/after decisions, mismatches, faults and limits. Try the
 reservation walkthrough in the playground, or:

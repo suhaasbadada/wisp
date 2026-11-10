@@ -1,13 +1,17 @@
 """Read-only order decision planner. All arithmetic/rules execute in Wisp."""
 import argparse
 import hashlib
-import json
 import pathlib
 import re
 import subprocess
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[1] / "clients" / "python"))
+import wisp_client as CLIENT
+from wisp_client import (ClientError as HostError, JsonNumber, ProjectClient,
+                         decode_json as decode, encode_json as transport_json,
+                         validate_json as validate_tree)
 FIELDS = {"id", "quantity", "unit_cents", "member", "pack_size", "expires_at", "available", "now", "zone"}
 RECORDS = {
     "eligibility": {"Order": [("quantity", "Int"), ("pack_size", "Int"), ("expires_at", "Int")],
@@ -23,76 +27,9 @@ PARAMETERS = {"eligibility": [("order", "Order"), ("depot", "Depot")],
 RETURNS = {"eligibility": "Decision", "pricing": "Quote", "shipping": "Delivery"}
 
 
-class HostError(Exception):
-    pass
-
-
-class JsonNumber:
-    """An input number token, never a canonical Wisp Int string or Python float."""
-    def __init__(self, token):
-        if re.fullmatch(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?", token) is None:
-            raise HostError("Invalid JSON number token")
-        self.token = token
-
-
-def unique(pairs):
-    value = {}
-    for key, item in pairs:
-        if key in value:
-            raise HostError("Duplicate JSON member")
-        value[key] = item
-    return value
-
-
-def non_json_number(_):
-    raise HostError("Non-JSON number")
-
-
-def decode(text, input_numbers=False):
-    options = {"parse_int": JsonNumber, "parse_float": JsonNumber} if input_numbers else {}
-    return json.loads(text, object_pairs_hook=unique, parse_constant=non_json_number, **options)
-
-
-def validate_tree(value):
-    # Bound report/transport serialization before any policy execution. This is
-    # a host JSON resource/Unicode boundary, not a Wisp business type decoder.
-    stack = [(value, 0)]
-    while stack:
-        item, depth = stack.pop()
-        if isinstance(item, str):
-            try:
-                item.encode("utf-8")
-            except UnicodeError as error:
-                raise HostError("JSON strings must contain valid Unicode scalars") from error
-        elif isinstance(item, (dict, list)):
-            if depth >= 64:
-                raise HostError("Host JSON nesting exceeds 64 containers")
-            if isinstance(item, dict):
-                stack.extend((k, depth + 1) for k in item)
-                stack.extend((v, depth + 1) for v in item.values())
-            else:
-                stack.extend((v, depth + 1) for v in item)
-
-
-def transport_json(value, ascii_strings=False):
-    # JSON transport only: emit validated numeric lexemes as numbers, including
-    # huge exponents/integers and -0. Never coerce them into accepted Int strings.
-    if isinstance(value, JsonNumber):
-        return value.token
-    if isinstance(value, dict):
-        return "{" + ",".join(json.dumps(k, ensure_ascii=ascii_strings) + ":" + transport_json(v, ascii_strings) for k, v in value.items()) + "}"
-    if isinstance(value, list):
-        return "[" + ",".join(transport_json(v, ascii_strings) for v in value) + "]"
-    return json.dumps(value, ensure_ascii=ascii_strings, allow_nan=False)
-
-
 def invoke(binary, args, input_text=None, semantic_exit=False):
     # A bounded example workload, not a network service or a production sandbox.
-    process = subprocess.run([binary, *args], input=input_text, text=True,
-                             capture_output=True, timeout=15, check=False)
-    if process.returncode not in ({0, 1, 3} if semantic_exit else {0}):
-        raise HostError("Wisp command did not complete normally; inspect it separately")
-    return process.stdout
+    return CLIENT.run_cli(binary, args, input_text, semantic_exit)
 
 
 def load_orders(path, with_hash=False):
@@ -211,8 +148,8 @@ def check_expectations(workflow, expected, expected_hash, orders_hash):
     return result
 
 
-def discover(binary, manifest):
-    description = decode(invoke(binary, ["project", "describe", str(manifest)]))
+def discover(client):
+    description = client.description
     if description["status"] != "Ready":
         raise HostError("Project interface is incomplete")
     policies = {p["id"]: p for p in description["project"]["policies"]}
@@ -233,62 +170,19 @@ def discover(binary, manifest):
     return description, policies
 
 
-def call_batch(binary, manifest, description, policies, requests):
-    if not requests:
-        return []
-    raw = invoke(binary, ["project", "serve", str(manifest)],
-                 "".join(transport_json(q) + "\n" for q in requests))
-    frames = [decode(line) for line in raw.splitlines()]
-    if len(frames) != len(requests) + 1:
-        raise HostError("Missing adapter readiness/response")
-    ready = frames[0]
-    if (ready["status"] != "Ready" or ready["adapter"]["contract_version"] != 1
-            or ready["adapter"]["phase"] != "ready"
-            or ready["adapter"]["manifest_hash"] != description["project"]["manifest_hash"]):
-        raise HostError("Project changed after discovery or adapter is incompatible")
-    pinned = {p["id"]: p for p in ready["adapter"]["policies"]}
-    if set(pinned) != set(policies):
-        raise HostError("Pinned policy IDs differ from discovery")
-    for name, policy in policies.items():
-        if (pinned[name]["source_revision"] != policy["report"]["revision"]
-                or pinned[name]["suite_file_hash"] != policy["suite_file_hash"]):
-            raise HostError("Project files changed after discovery")
-    responses = frames[1:]
-    for request, response in zip(requests, responses):
-        adapter = response["adapter"]
-        report = response.get("report")
-        policy = policies[request["policy"]]
-        if (adapter["contract_version"] != 1 or adapter["phase"] != "response"
-                or adapter.get("request_id") != request["id"]
-                or adapter.get("policy_id") != request["policy"]
-                or adapter["manifest_hash"] != description["project"]["manifest_hash"]
-                or adapter.get("source_revision") != policy["report"]["revision"]
-                or adapter.get("suite_file_hash") != policy["suite_file_hash"]
-                or not isinstance(report, dict)
-                or report.get("compiler") != policy["report"]["compiler"]
-                or report.get("revision") != policy["report"]["revision"]
-                or report.get("status") != response["status"]
-                or response["status"] not in {"Complete", "Error", "Unknown"}):
-            raise HostError("Unmatched or incompatible decision evidence")
-        if response["status"] == "Complete" and (
-                report["result"]["type"] != RETURNS[request["policy"]]
-                or report["invocation"]["new_execution"] is not True):
-            raise HostError("Unexpected completed result boundary")
-    return responses
-
-
 def prepare(binary, manifest, expected_snapshot=None):
-    description, policies = discover(binary, manifest)
+    client = ProjectClient(manifest, binary=binary)
+    description, policies = discover(client)
     snapshots = [{"id": name, "revision": policy["report"]["revision"],
                   "suite_file_hash": policy["suite_file_hash"]} for name, policy in sorted(policies.items())]
     if expected_snapshot is not None and (
             description["project"]["manifest_hash"], snapshots) != expected_snapshot:
         raise HostError("Project changed between component review and discovery")
-    return description, policies, snapshots
+    return description, policies, snapshots, client
 
 
 def plan(binary, manifest, orders, prepared=None):
-    description, policies, snapshots = prepared if prepared is not None else prepare(binary, manifest)
+    description, policies, snapshots, client = prepared if prepared is not None else prepare(binary, manifest)
     rows = [{"id": order["id"], "status": "Pending", "stage": "eligibility",
              "decisions": {}, "evidence": []} for order in orders]
     for stage in ["eligibility", "pricing", "shipping"]:
@@ -305,7 +199,7 @@ def plan(binary, manifest, orders, prepared=None):
                 args = [{"total_cents": rows[i]["decisions"]["pricing"]["total_cents"],
                          "zone": order["zone"]}]
             requests.append({"id": f"{stage}-{i}", "policy": stage, "function": "decide", "args": args})
-        responses = call_batch(binary, manifest, description, policies, requests)
+        responses = client.call_batch(requests) if requests else []
         for i, response in zip(pending, responses):
             row = rows[i]
             row["stage"] = stage
