@@ -1,5 +1,6 @@
 """Experimental standard-library client for checked, pinned native Wisp projects."""
 import copy
+import hashlib
 import json
 import math
 import queue
@@ -386,6 +387,71 @@ class ProjectClient:
             raise
         except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as error:
             raise ClientError("Invalid verification request or malformed native verification report") from error
+
+    def prepare_edit(self, policy, function, expected_body_hash, replacement):
+        """Prepare a guarded saved body without applying or executing it.
+
+        The full proposed source is returned; it is not case verification or
+        approval. No path/source override or persistent write is performed.
+        """
+        try:
+            _require(_id(policy) and policy in self._policies and isinstance(function, str)
+                     and function in self._functions[policy], "Unknown described policy/function")
+            _require(_hash(expected_body_hash) and isinstance(replacement, str), "Expected body hash and replacement text")
+            validate_json(replacement)
+            replacement_bytes = replacement.encode("utf-8")
+            _require(len(replacement_bytes) <= 65536, "Replacement exceeds 65536 UTF-8 bytes")
+            described = self._policies[policy]
+            raw = run_cli(self._binary, ["project", "prepare-edit", self._manifest, policy, function,
+                "--expected-body", expected_body_hash, "--replacement-file", "-",
+                "--expected-manifest", self._manifest_hash, "--expected-revision", described["report"]["revision"],
+                "--expected-suite", described["suite_file_hash"], "--expected-compiler", described["report"]["compiler"]],
+                input_text=replacement, semantic_exit=True, timeout=self._timeout)
+            response = decode_json(raw); validate_json(response)
+            project = response["project"]; report = response["report"]
+            self._pins(project)
+            _require(project["mode"] == "prepare-edit" and project["phase"] == "prepared"
+                     and project["guard_status"] == "matched" and project["new_execution"] is False
+                     and project["policy_id"] == policy and project["source_revision"] == described["report"]["revision"]
+                     and project["suite_file_hash"] == described["suite_file_hash"], "Unmatched saved edit snapshot")
+            _require(isinstance(report, dict) and response["status"] == report["status"]
+                     and report["status"] in ["Ready", "Error", "Unknown"]
+                     and report["compiler"] == described["report"]["compiler"] and report["revision"] == described["report"]["revision"]
+                     and report["new_execution"] is False and report["output"] == "" and report["probes"] == []
+                     and all(key not in report for key in ["usage", "review", "invocation", "result"])
+                     and response["output"] == "" and response["diagnostics"] == []
+                     and isinstance(report["diagnostics"], list), "Unexpected non-executing edit report")
+            edit = report.get("edit", {})
+            if report["status"] == "Ready":
+                _require(_version(edit["version"]) and edit["state"] == "prepared" and edit["target"] == function
+                         and edit["base_revision"] == described["report"]["revision"]
+                         and edit["base_body_hash"] == expected_body_hash and isinstance(edit["source"], str), "Unrecognized prepared candidate")
+                candidate = edit["source"].encode("utf-8")
+                _require(len(candidate) <= 65536 and edit["candidate_revision"] == hashlib.sha256(candidate).hexdigest(),
+                         "Prepared candidate identity differs")
+                for key in ["candidate_body_span", "insertion_range"]:
+                    span = edit[key]
+                    _require(type(span["start"]) is int and type(span["end"]) is int
+                             and 0 <= span["start"] <= span["end"] <= len(candidate), "Invalid candidate byte range")
+                body = edit["candidate_body_span"]; insertion = edit["insertion_range"]
+                _require(edit["candidate_body_hash"] == hashlib.sha256(candidate[body["start"]:body["end"]]).hexdigest()
+                         and insertion["start"] <= body["start"] <= body["end"] <= insertion["end"]
+                         and candidate[insertion["start"]:insertion["end"]] == replacement_bytes,
+                         "Prepared body or replacement differs")
+                _require(all(edit["preservation"][key] is True for key in
+                             ["checked", "prefix", "suffix", "signature", "records", "other_functions", "top_level_statements"]),
+                         "Missing native preservation audit")
+                probes = edit["preservation"]["probes"]
+                _require(isinstance(probes, list) and all(isinstance(p, dict) and type(p["index"]) is int and p["index"] == index
+                         and _hash(p["predicate_key"]) and p["text_preserved"] is True and p["domain_preserved"] is True
+                         for index, p in enumerate(probes)), "Invalid native probe preservation audit")
+            else:
+                _require(isinstance(edit, dict) and "source" not in edit, "Rejected edit must not expose an accepted candidate")
+            return response
+        except ClientError:
+            raise
+        except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as error:
+            raise ClientError("Invalid edit request or malformed native preparation report") from error
 
     def _exchange(self, payload):
         # One worker owns all pipe IO. The caller enforces one deadline including

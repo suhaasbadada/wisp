@@ -1,7 +1,10 @@
 # ADR 0029: Pure guarded edit preparation over MCP
 
-Status: implemented; full local checks, exact locked SDK workflow and independent
-review passed. Exact-head Linux CI/publication pending.
+Status: accepted; shipped via PR #30 at
+`73b1f92bfc1fb7fb4150a01f35fd93f948b9ff14`. Exact-head Linux CI, actual SDK
+artifacts, immutable strict release smoke and published contracts are
+[accepted](https://github.com/suhaasbadada/wisp/pull/30#issuecomment-6774795361),
+including the corrected public-contract verification record.
 
 Agents could inspect/check/review inline policies through MCP but not use the
 existing Rust guarded body-preparation operation. Expose it as `wisp_prepare_edit`

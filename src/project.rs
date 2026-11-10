@@ -238,6 +238,62 @@ pub(super) fn focus(
     Ok(outer)
 }
 
+pub(super) fn prepare_edit(
+    manifest: &str,
+    policy_id: &str,
+    function: &str,
+    options: &[&str],
+) -> Result<Value, String> {
+    if manifest.is_empty()
+        || manifest == "-"
+        || manifest.starts_with("--")
+        || !adapter_id(policy_id)
+        || function.is_empty()
+        || function.starts_with("--")
+    {
+        return Err(super::HELP.into());
+    }
+    let (mut body, mut replacement) = (None, None);
+    let mut guards = Vec::new();
+    for pair in options.chunks(2) {
+        if pair.len() != 2 || pair[1].is_empty() || pair[1].starts_with("--") {
+            return Err(super::HELP.into());
+        }
+        match pair[0] {
+            "--expected-body" if body.is_none() => {
+                if pair[1].len() != 64
+                    || !pair[1]
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                {
+                    return Err(super::HELP.into());
+                }
+                body = Some(pair[1]);
+            }
+            "--replacement-file" if replacement.is_none() => replacement = Some(pair[1]),
+            _ => guards.extend_from_slice(pair),
+        }
+    }
+    let body = body.ok_or(super::HELP)?;
+    let replacement = replacement.ok_or(super::HELP)?;
+    let (_, expected) = selection_options(&guards, false)?;
+    let project = load(manifest)?;
+    let (mut outer, policy) = select(&project, policy_id, "prepare-edit", expected);
+    let Some(policy) = policy else {
+        return Ok(outer);
+    };
+    // Stale project pins must refuse before reading even a replacement stdin.
+    // Core edit alone owns baseline checking, body guards and candidate audits.
+    let replacement = super::read(replacement, wisp::REPLACEMENT_BYTES)?;
+    let report = super::dispatch(json!({"op":"edit","source":policy.source,
+        "focus":function,"change":{"expected_revision":hash(&policy.source),
+        "expected_body_hash":body,"replacement":replacement}}));
+    outer["status"] = report["status"].clone();
+    outer["project"]["phase"] = json!("prepared");
+    outer["report"] = report;
+    Ok(outer)
+}
+
 // Share the exact guard grammar and snapshot selection with focus. Verification
 // has no budget/limit override: the saved suite uses shared review defaults.
 fn selection_options<'a>(

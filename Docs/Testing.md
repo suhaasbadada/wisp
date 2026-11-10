@@ -12,7 +12,31 @@ primary check into independent review or erase an earlier failure. Current run
 state must be checked at its exact revision; an old green release is not evidence
 for a new head.
 
-## MCP guarded body preparation (under publication)
+## Saved-project body preparation (under publication)
+
+Bob's native implementation passed 13 new CLI tests and the 170-test Rust suite.
+Five Python client preparation tests and 40 MCP tests passed; Python workflow
+totals 139. Strict SDK discovery/preparation passed with twelve configured tools;
+failure/reconnect coverage now checks all four saved operations. Full prescribed
+checks passed: 170 Rust, 41 Node, 139 Python, 326 native/WASM comparisons,
+36 Chromium, fmt/Clippy/npm ci/WASM/check/build. The exact hash-locked SDK workflow
+passed all five reports with saved preparation Ready in both configured modes.
+Joffrey independently reviewed with no substantive findings and passed 45 focused
+Python/MCP tests; native tests were inspected, not independently executed.
+Exact-head Linux CI/publication remain pending. Original files
+and saved decisions are unchanged by preparation; full candidate output is not a
+measured token-saving claim.
+
+PR #30 shipped at `73b1f92bfc1fb7fb4150a01f35fd93f948b9ff14`: PR Checks
+`42866696413`, merge Checks `42867694944`, Pages `42867695006`, deployment
+`7689655032` passed. Actual PR/merge edit SDK reports, equal package inventories,
+adverse cases, immutable strict release SDK and four published Docs contracts are
+[accepted](https://github.com/suhaasbadada/wisp/pull/30#issuecomment-6774795361).
+The first public verifier incorrectly requested unpublished root README.md and a
+following shell command prematurely posted completion; the claim was promptly
+corrected, actual published Docs were checked and the immutable smoke then passed.
+
+## MCP guarded body preparation
 
 Bob implemented the transport/schema and five additional MCP tests; 37 local
 MCP tests passed, including exact Rust parity, Unicode/trivia and non-body

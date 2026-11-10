@@ -6,8 +6,9 @@ release acceptance recorded on their PRs. Checked callable interfaces shipped vi
 PR #13; composed three-policy application/workflow observations shipped via PR #14,
 retaining the adverse discount/shipping effect. Caller-owned end-to-end gates
 shipped via PR #15, blocking unmet requirements despite component Pass. Current
-increment: expose existing pure Rust guarded body preparation through MCP, with
-separate caller-owned finite review and no file writes or automatic apply.
+increment: prepare guarded bodies from owner-configured saved policy snapshots,
+without whole-source input, writes or automatic Apply. Inline preparation shipped
+via PR #30; separate caller-owned finite review remains distinct.
 Historical-checkpoint documentation clarification shipped via PR #29;
 real-SDK failure/reconnect regressions via
 PR #28. Required hash-locked SDK CI shipped via PR #27;
@@ -60,7 +61,8 @@ published acceptance is recorded in Testing.
 24. Guarded saved-policy finite-suite verification shipped via PR #26 (ADR 0026).
 25. Required pinned MCP SDK CI checks shipped via PR #27 (ADR 0027).
 26. Saved-policy real-SDK failure regressions shipped via PR #28 (ADR 0028).
-27. Pure guarded MCP edit preparation (ADR 0029), under verification/publication.
+27. Pure guarded MCP edit preparation shipped via PR #30 (ADR 0029).
+28. Saved-project guarded body preparation (ADR 0030), under verification/publication.
 
 Continue in tested increments focused on recurring agent/application workflows
 and demonstrated gaps. Benchmark concrete claims before promoting them; neither
