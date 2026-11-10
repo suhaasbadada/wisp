@@ -1,5 +1,33 @@
 # Verification
 
+## Native decision adapter
+
+Adapter v1 adds pinned JSON-lines sessions and a dependency-free Python host
+example. Native tests cover exact standalone core-report bytes/raw argument keys,
+canonical i64/Unicode/NUL, no top-level/probe execution, typed/adapter failures,
+fault/Unknown continuation, duplicate/injection rejection, source/manifest/suite
+changes after readiness, interactive response flushing, exact line/request caps,
+EOF and invalid UTF-8. CI retains the two-order host decisions alongside saved
+project verification/review evidence.
+
+Primary full pre-repair checks passed 140 Rust tests, 41 Node tests, 276 exact
+native/WASM comparisons and 36 Chromium tests, plus fmt, strict Clippy, npm ci,
+WASM, TypeScript, static build and the Python host example. Joffrey independently
+passed the six adapter tests/example and found positional arrays could enter
+Serde's derived object structs. Primary added map-only host decoding, covering
+adapter envelopes and both manifest/policy objects, with no-execution/no-ID-echo
+regressions. Primary then reproduced the same pre-existing positional-array gap
+in core requests/review schemas and shared map-only decoding across host/core
+boundaries, including nested expectations, limits, artifacts/ghosts and changes.
+Existing valid object/duplicate/raw-argument behavior is retained. Native tests
+and parity cases require zero execution on invalid positional encodings.
+Post-repair primary full checks passed 145 Rust tests, 41 Node tests, 288 exact
+native/WASM comparisons and 36 Chromium tests, plus fmt, strict Clippy, rebuilt
+WASM, TypeScript, static build and the Python application host. This is primary
+repair/expanded-core verification, not a claimed independent re-review. The
+original semantics-5 artifact, full context fixture and raw invocation identities
+still pass. Exact-head CI and publication acceptance remain separate gates.
+
 ## Repository policy projects
 
 Native project v1 adds end-to-end tests for shipped reservation manifests,
@@ -18,6 +46,13 @@ the maximum 8-policy/256-invocation workload, exact manifest/suite boundaries,
 standalone-review report parity and the stdin regression. This is primary repair
 verification, not a claimed independent re-review. Exact-head CI remains a
 separate publication gate.
+
+PR #11 shipped at `47366afc25a32bac20052c69769d8c542252f990`; exact PR Checks
+`42745937377`, merge Checks `42746476312`, Pages `42746476414` and deployment
+`7672306618` passed. Merged release/isolated install, separate-directory review,
+spec-drift zero execution, mismatch preservation, actual CI evidence artifacts
+and published document bytes were accepted.
+[Acceptance](https://github.com/suhaasbadada/wisp/pull/11#issuecomment-6757764759).
 
 ## Policy workbench integration
 

@@ -7,6 +7,7 @@ mod engine;
 mod invocation;
 mod review;
 mod syntax;
+mod wire;
 pub use capabilities::{CAPABILITIES_BYTES, DISCOVERY_CONTRACT_VERSION};
 pub use context::CONTEXT_CONTRACT_VERSION;
 pub use diagnostics::{DiagnosticCode, DIAGNOSTIC_CONTRACT_VERSION};
@@ -28,7 +29,9 @@ struct Request {
     source: String,
     focus: Option<String>,
     budget: Option<u64>,
+    #[serde(default, deserialize_with = "wire::optional_object")]
     ghost: Option<Ghost>,
+    #[serde(default, deserialize_with = "wire::optional_object")]
     artifact: Option<Artifact>,
     #[serde(default, deserialize_with = "function_name")]
     function: Option<String>,
@@ -79,6 +82,7 @@ struct Artifact {
     compiler: String,
     source: String,
     limits: Box<serde_json::value::RawValue>,
+    #[serde(deserialize_with = "wire::object")]
     ghost: Ghost,
 }
 pub const TRANSPORT_BYTES: usize = 1_048_576;
@@ -110,8 +114,9 @@ fn validate_artifact(a: &Artifact) -> std::result::Result<Json, Json> {
             &defaults,
         ));
     }
-    let limits: Limits =
-        serde_json::from_str(a.limits.get()).map_err(|_| invalid("invalid archived limits"))?;
+    let limits: Limits = serde_json::from_str::<wire::Object<Limits>>(a.limits.get())
+        .map(|wire::Object(l)| l)
+        .map_err(|_| invalid("invalid archived limits"))?;
     let mut effective = limits.clone();
     effective.clamp();
     // Exact equality also requires every field and rejects values that would
@@ -157,7 +162,7 @@ fn execute_request(r: Request) -> Json {
     let limits: Limits = match r
         .limits
         .as_ref()
-        .map(|raw| serde_json::from_str(raw.get()))
+        .map(|raw| serde_json::from_str::<wire::Object<Limits>>(raw.get()).map(|wire::Object(l)| l))
         .transpose()
     {
         Ok(limits) => limits.unwrap_or_default(),
@@ -748,8 +753,8 @@ pub fn dispatch(request_json: &str) -> String {
         )
         .to_string();
     }
-    let report = match serde_json::from_str::<Request>(request_json) {
-        Ok(r) => execute_request(r),
+    let report = match serde_json::from_str::<wire::Object<Request>>(request_json) {
+        Ok(wire::Object(r)) => execute_request(r),
         Err(e) => diagnostic_report(
             err(
                 DiagnosticCode::RequestInvalid,

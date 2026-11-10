@@ -283,3 +283,32 @@ for (const op of ['run', 'call', 'capabilities', 'edit', 'analyze', 'review']) {
   assert.equal(result.output, ''); assert.equal(result.revision, ''); assert.equal(result.usage, undefined);
 }
 console.log(`Legacy null-function rejection: 6 additional non-executing native/WASM comparisons (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons + editComparisons + reviewComparisons} total).`);
+const objectArtifact = JSON.parse(readFileSync('tests/fixtures/semantics5-ghost.json', 'utf8'));
+const objectGhost = objectArtifact.ghost;
+const ghostArray = ['revision','predicate_key','dependency_key','input','witness_id'].map(key => objectGhost[key]);
+const limitsArray = [65536,100000,32,128,8192,1048576,1000];
+const objectInputs = [
+  [['run','print(7);',null,null,null,null], 'E_REQUEST_INVALID'],
+  [{op:'run',source:'print(7);',limits:limitsArray}, 'E_REQUEST_INVALID'],
+  [{op:'replay',source:objectArtifact.source,ghost:ghostArray}, 'E_REQUEST_INVALID'],
+  [{op:'inspect-artifact',source:'',artifact:['format','version','compiler','source','limits','ghost'].map(key=>objectArtifact[key])}, 'E_REQUEST_INVALID'],
+  [{op:'inspect-artifact',source:'',artifact:{...objectArtifact,ghost:ghostArray}}, 'E_REQUEST_INVALID'],
+  [{op:'inspect-artifact',source:'',artifact:{...objectArtifact,limits:limitsArray}}, 'E_ARTIFACT_INVALID'],
+  [{op:'edit',source:reviewSources[0],focus:'f',change:['0'.repeat(64),'0'.repeat(64),'{x+1}']}, 'E_EDIT_REQUEST'],
+];
+const objectCase = structuredClone(reviewSuite.cases[0]);
+const objectSuites = [[1,'f',[objectCase]], [1,'f',[['one',['2'],[['Int','2'],'']]]]];
+for (const path of ['case','expect','result']) {
+  const suite = structuredClone(reviewSuite);
+  if(path==='case') suite.cases[0]=['one',['2'],objectCase.expect];
+  else if(path==='expect') suite.cases[0].expect=[objectCase.expect.result,''];
+  else suite.cases[0].expect.result=['Int','2'];
+  objectSuites.push(suite);
+}
+for(const suite of objectSuites) objectInputs.push([reviewRequest(undefined,undefined,suite),'E_REVIEW_REQUEST']);
+for(const [request,code] of objectInputs) {
+  const report=compareReview(request);assert.equal(report.status,'Error');assert.equal(report.diagnostics[0].code,code);
+  assert.equal(report.output,'');assert.equal(report.usage,undefined);
+  if(report.review){assert.equal(report.review.new_execution,false);assert.deepEqual(report.review.cases,[]);}
+}
+console.log(`Object-only protocol: ${objectInputs.length} additional non-executing native/WASM comparisons (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons + editComparisons + reviewComparisons} total).`);

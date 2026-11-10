@@ -1,10 +1,12 @@
 # Roadmap
 
-Current increment: policy-change workbench v1 implements structured cases,
-revision-linked before/after decisions and explicit behavioral review in shared
-Rust/native/browser hosts; validation/publication pending. No automatic approval.
-Next validate the workflow on real policy changes and add the capabilities those
-tasks need. The repeated study established no Wisp advantage. See
+Shipped: policy-change workbench v1 (PR #10) and saved repository projects
+(PR #11), with release acceptance recorded on their PRs. Current increment:
+native JSON-lines decision adapter with a runnable Python application host;
+publication pending. No automatic approval or new core host permissions.
+Next exercise a recurring policy-maintenance/application workflow and address
+its demonstrated gaps, rather than treating a merged PR as the product's finish
+line. The repeated study established no Wisp advantage. See [Adapter](Adapter.md),
 [Workbench](Workbench.md) and [Maintenance study](Maintenance-study.md).
 
 Product validation (ADR 0008) informed this direction: the first
@@ -24,8 +26,9 @@ published acceptance is recorded in Testing.
 5. Stable machine diagnostic/discovery contract shipped via PR #5 at `6f3bc4d4531ee7549bcb41dcb52a49be6b730deb`: compiler-generated manifest, exact code/reference agreement, live acceptance verified.
 6. Explicit probe-context ledger shipped via PR #6 (ADR 0006): compiler-derived exact chunks and byte/scope omissions, not a completeness/relevance/minimality or proof claim.
 7. Guarded body preparation shipped via PR #7 (ADR 0007): explicit guards/Preview/Apply/new-file output, no automatic execution or repair.
-8. Frozen validation pilot shipped via PR #8; repeated maintenance follow-up (ADR 0009) locally complete. Neither demonstrates a Wisp advantage.
-9. Build the policy-change workbench; use real workflow needs to prioritize upgrades.
+8. Frozen validation pilot shipped via PR #8; repeated maintenance follow-up shipped via PR #9. Neither demonstrates a Wisp advantage.
+9. Policy-change workbench shipped via PR #10; repository manifests and CI evidence shipped via PR #11.
+10. Application integration: pinned native decision sessions (ADR 0012), under verification/publication.
 
 Longer-term research: deeper property-specific context boundaries with explicit
 unknowns/omissions, and strong repository-scale comparisons with actual task

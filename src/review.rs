@@ -10,6 +10,7 @@ pub const REVIEW_BYTES: usize = 65_536;
 struct Suite {
     version: u64,
     target: String,
+    #[serde(deserialize_with = "wire::objects")]
     cases: Vec<Case>,
 }
 #[derive(Deserialize)]
@@ -17,11 +18,13 @@ struct Suite {
 struct Case {
     id: String,
     args: Box<RawValue>,
+    #[serde(deserialize_with = "wire::object")]
     expect: Expect,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Expect {
+    #[serde(deserialize_with = "wire::object")]
     result: ExpectedResult,
     output: String,
 }
@@ -147,8 +150,8 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
             "/suite"
         ));
     }
-    let suite: Suite = match serde_json::from_str(raw) {
-        Ok(s) => s,
+    let suite: Suite = match serde_json::from_str::<wire::Object<Suite>>(raw) {
+        Ok(wire::Object(s)) => s,
         Err(e) => fail!(data(
             err(
                 DiagnosticCode::ReviewRequest,

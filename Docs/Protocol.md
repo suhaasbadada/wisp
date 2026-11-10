@@ -578,3 +578,13 @@ schema origin may be retained separately as `argument_schema_document`. Expected
 depth limits retain their tagged suite cause and original Limit reason. Comparison
 reasons are `incomplete_execution`, `candidate_fault`, `baseline_fault_repaired`
 or `observed_result_and_output`; they describe observations, never approval.
+# Object-only wire schemas
+
+Request, limits, ghost, artifact, edit change, review suite, case, expectation and
+expected-result schemas require JSON objects. Positional arrays are not alternate
+struct encodings. Map-only decoding preserves duplicate/unknown-field rejection,
+raw args and legacy nullable fields. An implementation gap previously admitted
+Serde's positional form; it is now rejected before execution at the owning schema
+boundary, with existing Request/Artifact/Edit/Review diagnostics. Valid object
+reports and semantics-5 identities are unchanged; this is a wire validation fix,
+not new language behavior.
