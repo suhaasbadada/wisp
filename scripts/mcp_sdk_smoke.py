@@ -20,7 +20,7 @@ async def smoke(binary, project=None, require_guard=False):
         async with ClientSession(read, write) as session:
             initialized = await session.initialize()
             tools = await session.list_tools()
-            assert len(tools.tools) == (10 if project is not None else 6)
+            assert len(tools.tools) == (11 if project is not None else 7)
             source = 'print("must not run"); fn identity(n: Int) -> Int { n } fn loop(n: Int) -> Int { loop(n) }'
             results = []
             for function, args, status in [("identity", ["9223372036854775807"], "Complete"),
@@ -33,6 +33,39 @@ async def smoke(binary, project=None, require_guard=False):
                 assert json.loads(result.content[0].text) == data
                 if status == "Complete": assert data["report"]["result"]["value"] == "9223372036854775807"
                 results.append(status)
+            checked = await session.call_tool("wisp_check", arguments={"source": source})
+            check = checked.structured_content["report"]
+            assert not checked.is_error and check["status"] == "Ready"
+            assert json.loads(checked.content[0].text) == checked.structured_content
+            function = next(f for f in check["graph"]["functions"] if f["name"] == "identity")
+            edit_args = {"source": source, "function": "identity", "expected_revision": check["revision"],
+                         "expected_body_hash": function["body_hash"], "replacement": "{ n + 1 }"}
+            prepared = await session.call_tool("wisp_prepare_edit", arguments=edit_args)
+            preparation = prepared.structured_content["report"]
+            assert json.loads(prepared.content[0].text) == prepared.structured_content
+            assert not prepared.is_error and preparation["status"] == "Ready"
+            assert preparation["new_execution"] is False and preparation["output"] == "" and preparation["probes"] == []
+            assert "usage" not in preparation and "review" not in preparation
+            assert prepared.structured_content["bridge"]["approval"] == "not_granted"
+            candidate = preparation["edit"]["source"]
+            assert candidate != source and "{ n }" in source and "{ n + 1 }" in candidate
+            suite = {"version": 1, "target": "identity", "cases": [{"id": "one", "args": ["1"],
+                     "expect": {"result": {"type": "Int", "value": "2"}, "output": ""}}]}
+            reviewed = await session.call_tool("wisp_review", arguments={"source": source, "candidate": candidate, "suite": suite})
+            review = reviewed.structured_content["report"]
+            assert json.loads(reviewed.content[0].text) == reviewed.structured_content
+            assert not reviewed.is_error and review["status"] == "Pass"
+            assert review["output"] == "" and review["review"]["approval"] == "not_granted"
+            case = review["review"]["cases"][0]
+            assert case["before"]["result"]["value"] == "1" and case["after"]["result"]["value"] == "2"
+            assert case["before"]["output"] == "" and case["after"]["output"] == ""
+            assert case["comparison"] == "Changed" and case["expectation"] == "Pass"
+            stale_edit = await session.call_tool("wisp_prepare_edit", arguments={**edit_args, "expected_body_hash": "0" * 64})
+            refusal = stale_edit.structured_content["report"]
+            assert json.loads(stale_edit.content[0].text) == stale_edit.structured_content
+            assert stale_edit.is_error and refusal["status"] == "Error"
+            assert refusal["diagnostics"][0]["code"] == "E_EDIT_CONFLICT" and refusal["new_execution"] is False
+            assert "edit" not in refusal and stale_edit.structured_content["bridge"]["approval"] == "not_granted"
             project_status = None
             if project is not None:
                 # The optional project smoke targets the shipped reservations demo.
@@ -77,6 +110,8 @@ async def smoke(binary, project=None, require_guard=False):
                     assert missing.structured_content["bridge"]["execution"] == "not_submitted"
             print(json.dumps({"sdk": "official Python mcp==2.3.0", "protocol": initialized.protocol_version,
                               "tools": len(tools.tools), "native_outcomes": results,
+                              "edit_preparation": preparation["status"], "finite_edit_review": review["status"],
+                              "stale_edit": refusal["status"],
                               "saved_project": project_status,
                               "caller_guard_required": require_guard,
                               "i64": "exact decimal string", "top_level_execution": False,

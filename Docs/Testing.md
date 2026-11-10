@@ -12,6 +12,29 @@ primary check into independent review or erase an earlier failure. Current run
 state must be checked at its exact revision; an old green release is not evidence
 for a new head.
 
+## MCP guarded body preparation (under publication)
+
+Bob implemented the transport/schema and five additional MCP tests; 37 local
+MCP tests passed, including exact Rust parity, Unicode/trivia and non-body
+preservation, stale source/body guards, diagnostic ownership, strict boundaries
+and Rust-enforced caps. All three official SDK modes passed discovery (7 default,
+11 configured), real Ready preparation, separate finite review Pass and stale edit
+Error. Primary full prescribed checks passed: 157 Rust, 41 Node, 131 Python,
+326 native/WASM comparisons, 36 Chromium, fmt/Clippy/npm ci/WASM/check/build.
+The exact hash-locked SDK workflow step passed locally with all five reports,
+including Ready preparation/separate review Pass/stale Error in every smoke mode.
+Joffrey independently reviewed with no substantive findings and passed the five
+new focused MCP tests; he did not duplicate builds or SDK runs. Exact-head Linux
+CI/publication remain pending. No Rust language implementation or semantics changed.
+
+PR #29 shipped at `4040e2603e584592c2ee16fcdc1a153474ca4e28`: PR Checks
+`42796920075`, merge Checks `42797374296`, Pages `42797374738`, deployment
+`7679316986` passed. Actual PR/merge five SDK reports, equal package inventories,
+adverse evidence and four published documents are
+[accepted](https://github.com/suhaasbadada/wisp/pull/29#issuecomment-6774317400).
+The earlier in-progress snapshot remains Unknown/missing_required_job, reproduced
+by offline replay and strict MCP; later release success does not relabel it.
+
 ## Historical-status documentation maintenance
 
 The reading note above clarifies archived local checkpoints without replacing

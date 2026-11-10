@@ -70,7 +70,8 @@ provider facts. Keep native Error/Unknown and business Blocked/Pending/Unknown
 explicit. See [replay](Workflow-replay.md) for guards and conservative exits.
 
 An MCP-capable agent client can launch the [local MCP bridge](MCP.md) to discover
-and invoke six source tools directly; an owner-configured `--project MANIFEST`
+and invoke seven source tools directly, including pure guarded body preparation;
+an owner-configured `--project MANIFEST`
 adds four saved-project tools without source/path selection by the agent,
 including bounded non-executing function context and saved finite-case verification.
 Configure the trusted server/binary paths in

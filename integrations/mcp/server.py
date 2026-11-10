@@ -43,6 +43,12 @@ TOOLS = [
     {"name": "wisp_context", "description": "Get bounded compiler-derived context for one probe. No execution or completeness/relevance guarantee; inspect omissions and overflow.",
      "inputSchema": schema({"source": SOURCE, "focus": {"type": "string", "default": "probe:0"},
                             "budget": {"type": "integer", "minimum": 0, "maximum": 65536, "default": 4096}}, ["source"])},
+    {"name": "wisp_prepare_edit", "description": "Prepare one guarded function body through Rust without execution. Copy the compiler-derived revision and selected function graph body_hash from wisp_check. Ready means a typed/source-checked candidate only, not case Pass or approval. No original source or file is changed.",
+     "inputSchema": schema({"source": SOURCE, "function": {"type": "string"},
+                             "expected_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                             "expected_body_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                             "replacement": {"type": "string", "description": "Replacement function body block; maximum 65536 UTF-8 bytes, enforced by Rust."}},
+                            ["source", "function", "expected_revision", "expected_body_hash", "replacement"])},
 ]
 PROJECT_TOOLS = [
     {"name": "wisp_project_describe", "description": "Get checked callable metadata pinned at initialization for the owner-configured project. Not suite verification or a live filesystem rescan.",
@@ -66,7 +72,7 @@ for tool in TOOLS + PROJECT_TOOLS:
 DEFINITIONS = {tool["name"]: tool for tool in TOOLS}
 PROJECT_DEFINITIONS = {tool["name"]: tool for tool in PROJECT_TOOLS}
 OPERATIONS = {"wisp_capabilities": "capabilities", "wisp_check": "analyze", "wisp_describe": "describe",
-              "wisp_invoke": "call", "wisp_review": "review", "wisp_context": "context"}
+              "wisp_invoke": "call", "wisp_review": "review", "wisp_context": "context", "wisp_prepare_edit": "edit"}
 
 
 class ProtocolError(Exception):
@@ -166,6 +172,8 @@ class Server:
                     raise ClientError("Tool argument has the wrong JSON boundary type")
                 pattern = definition["properties"][key].get("pattern")
                 if pattern is not None and re.fullmatch(pattern, value) is None:
+                    if key in {"expected_revision", "expected_body_hash"}:
+                        raise ClientError("Edit guards must be 64 lowercase hexadecimal characters")
                     raise ClientError("Project and request IDs must be bounded ASCII identities")
                 if kind == "integer" and (not isinstance(value, JsonNumber)
                         or re.fullmatch(r"(?:0|[1-9][0-9]{0,4})", value.token) is None or int(value.token) > 65536):
@@ -213,6 +221,9 @@ class Server:
                                    call_guards=self.project_guards if name == "wisp_project_describe" else None,
                                    caller_guard_required=self.require_project_guard if name == "wisp_project_describe" else None)
             request = {"op": OPERATIONS[name], "source": "", **arguments}
+            if name == "wisp_prepare_edit":
+                request = {"op": "edit", "source": arguments["source"], "focus": arguments["function"],
+                           "change": {key: arguments[key] for key in ["expected_revision", "expected_body_hash", "replacement"]}}
             return tool_result(self.native(request))
         except (ClientError, OSError, ValueError, TypeError, KeyError, RecursionError):
             # Never expose process stderr, command environment or credentials.

@@ -63,7 +63,7 @@ avoid Python bytecode cache files.
 ## Tool surface
 
 The tool list is fixed for a session and advertises exact object schemas with no
-agent-selected file/command/path arguments. Six source tools select fixed native
+agent-selected file/command/path arguments. Seven source tools select fixed native
 operations:
 
 | Tool | Rust operation | Meaning |
@@ -74,6 +74,35 @@ operations:
 | `wisp_invoke` | call | One typed function, not top-level code/probes |
 | `wisp_review` | review | Baseline/candidate against caller-owned finite cases |
 | `wisp_context` | context | Bounded probe context, not execution or completeness |
+| `wisp_prepare_edit` | edit | Guarded single-body candidate preparation, no execution or file writes |
+
+### Prepare an edit, then verify it separately
+
+`wisp_prepare_edit` requires exactly `source`, `function`, `expected_revision`,
+`expected_body_hash` and `replacement`, all strings. From `wisp_check`, copy the
+root `revision` and the selected `graph.functions` entry's `body_hash`; do not
+guess hashes or derive body boundaries from prose. Both guards are lowercase
+64-character SHA-256 identities. Replacement is a body block, including braces;
+Rust enforces its 65,536 UTF-8 byte cap and the resulting source cap.
+
+The bridge translates to the existing pure Rust `edit` request, not a new editor
+or interpreter. Rust checks the baseline, exact source/body guards, replacement
+shape and candidate types, then audits preservation of every byte outside the
+selected parsed body, signatures, declarations and probes. Ready returns proposed
+source at `report.edit.source`, with `report.new_execution:false`, empty output
+and no probes/usage. It does not apply the proposal, write a file, execute cases,
+approve it or establish intended behavior. Check stale-guard and rejected-candidate
+diagnostics in the native report; replacement/candidate diagnostic ownership is
+preserved. Error/Unknown remain `isError:true`, never an approved candidate.
+
+Next submit baseline and prepared source to `wisp_review` with caller-owned cases.
+Ready preparation and finite review Pass are separate evidence. The SDK example
+prepares `identity(n)` to return `n+1`, then independently observes old result 1,
+new result 2 and a passing expectation at input 1; neither step grants approval.
+No `path`, `out`, automatic apply, expectation override or custom limit is accepted.
+This inline tool always requires its own source/body guards; the owner-configured
+project guard flag only governs saved-project tools. See
+[edit contract](Protocol.md#guarded-function-body-preparation-edit-contract-v1).
 
 ### Optional owner-configured saved project
 
@@ -177,7 +206,7 @@ python3 -B integrations/mcp/server.py --wisp target/debug/wisp \
 The flag requires a project at startup, advertises `expected` as required in this
 session's tool schema, and refuses unguarded saved-project focus, invocation and verification. Project
 metadata exposes `bridge.caller_guard_required`. It does not alter other server
-instances or the six independent inline-source tools. Default mode stays backward
+instances or the seven independent inline-source tools. Default mode stays backward
 compatible; omission is not silently claimed to be caller-pinned.
 
 Both protections apply: first compare caller guard with initialization pins, then
@@ -264,7 +293,7 @@ execution capability from this transport.
 
 ## Verification
 
-`npm run test:workflow` includes thirty-two authored MCP/native tests covering lifecycle,
+`npm run test:workflow` includes thirty-seven authored MCP/native tests covering lifecycle,
 tool discovery, exact i64 transport, native Error/Unknown/continuation, review
 Pass/Fail, nonexecuting context/interface operations, invalid schemas/IDs/frames,
 quotas/compiler drift, malformed/oversized native reports, real stdio EOF and
@@ -292,13 +321,17 @@ not a runtime requirement or package publication. One local SDK 2.3.0 smoke pass
 initialize/list/call with exact i64 and native Complete/Error/Unknown, with no
 top-level execution. This is measured interoperability with one client, not all
 clients, external adoption, benchmark superiority or production readiness. The
-optional configured-project SDK smoke also passes ten-tool discovery and a
+optional configured-project SDK smoke also passes eleven-tool discovery and a
 pinned reservation decision without source in the tool arguments.
 Guarded/strict modes also exercise rejected stale guards and required-guard
 enforcement without fabricating native outcomes.
 
-Current configured modes discover ten tools and exercise guarded bounded focus,
-nonexecution and stale-context refusal. The six default source tools are unchanged.
+Current configured modes discover eleven tools and exercise guarded bounded focus,
+nonexecution and stale-context refusal. Default discovery has seven tools; the six
+existing source tools retain their request behavior, with edit preparation added.
+All three SDK modes check real guarded preparation, a separate finite review and
+stale-body refusal. Five new local tests cover exact native parity, Unicode/trivia
+preservation, guard conflicts, diagnostic ownership, schema boundaries and caps.
 An optional internal driver uses the official SDK to fetch bounded `decide`
 context, verify its saved finite cases, then invoke the same pinned policy against saved historical repository CI
 evidence:
