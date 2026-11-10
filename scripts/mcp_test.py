@@ -45,7 +45,7 @@ class MCP(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(rows[0]["result"]["protocolVersion"], HOST.PROTOCOL)
         tools = rows[1]["result"]["tools"]
-        self.assertEqual(len(tools), 6)
+        self.assertEqual(len(tools), 7)
         self.assertEqual({t["name"] for t in tools}, set(HOST.OPERATIONS))
         data = rows[2]["result"]["structuredContent"]
         self.assertEqual(data["report"]["status"], "Ready")
@@ -65,6 +65,110 @@ class MCP(unittest.TestCase):
         self.assertEqual([r["isError"] for r in results], [False, True, True, False])
         self.assertEqual(results[0]["structuredContent"]["report"]["result"]["value"], "9223372036854775807")
         self.assertEqual(results[1]["structuredContent"]["report"]["diagnostics"][0]["code"], "E_INPUT_TYPE")
+
+    def edit_fixture(self, server=None):
+        server = server or HOST.Server(BINARY)
+        source = '// café 😀\nprint("never run");\nfn identity(n: Int) -> Int // header trivia\n { n }\n\nfn helper() -> Int { 9 }\nprobe n in 0..=1 { identity(n) == n }\n'
+        checked = server.call({"name": "wisp_check", "arguments": {"source": source}})["structuredContent"]["report"]
+        self.assertEqual(checked["status"], "Ready")
+        function = next(f for f in checked["graph"]["functions"] if f["name"] == "identity")
+        return server, checked, function, {"source": source, "function": "identity", "expected_revision": checked["revision"],
+                                           "expected_body_hash": function["body_hash"], "replacement": "{ n + 1 }"}
+
+    def test_prepare_edit_schema_exact_native_parity_and_byte_preservation(self):
+        server, checked, function, args = self.edit_fixture()
+        definition = server.definitions()["wisp_prepare_edit"]
+        self.assertEqual(list(HOST.DEFINITIONS)[-1], "wisp_prepare_edit")
+        self.assertEqual(set(definition["inputSchema"]["required"]), set(args))
+        self.assertEqual(set(definition["inputSchema"]["properties"]), set(args))
+        self.assertFalse(definition["inputSchema"]["additionalProperties"])
+        self.assertTrue(all(p["type"] == "string" for p in definition["inputSchema"]["properties"].values()))
+        self.assertEqual(definition["annotations"], HOST.DEFINITIONS["wisp_check"]["annotations"])
+        self.assertEqual(definition["execution"], {"taskSupport": "forbidden"})
+        for key in ["expected_revision", "expected_body_hash"]:
+            self.assertEqual(definition["inputSchema"]["properties"][key]["pattern"], "^[0-9a-f]{64}$")
+        native_request = {"op": "edit", "source": args["source"], "focus": "identity",
+                          "change": {key: args[key] for key in ["expected_revision", "expected_body_hash", "replacement"]}}
+        native = server.native(native_request)
+        with mock.patch.object(server, "native", wraps=server.native) as submit:
+            result = server.call({"name": "wisp_prepare_edit", "arguments": args})
+        submit.assert_called_once_with(native_request)
+        data = result["structuredContent"]
+        self.assertEqual(data["report"], native)
+        self.assertEqual(json.loads(result["content"][0]["text"]), data)
+        self.assertFalse(result["isError"])
+        self.assertEqual(native["status"], "Ready")
+        self.assertNotIn("review", native)
+        self.assertEqual(data["bridge"]["approval"], "not_granted")
+        self.assertFalse(native["new_execution"])
+        self.assertEqual(native["output"], "")
+        self.assertEqual(native["probes"], [])
+        self.assertNotIn("usage", native)
+        raw = args["source"].encode()
+        span = function["body_span"]
+        self.assertEqual(native["edit"]["source"].encode(), raw[:span["start"]] + args["replacement"].encode() + raw[span["end"]:])
+        self.assertEqual(args["source"], raw.decode())
+        self.assertEqual(args["expected_revision"], checked["revision"])
+        self.assertTrue(native["edit"]["preservation"]["checked"])
+
+    def test_prepare_edit_stale_guards_and_unknown_function_are_native_refusals(self):
+        server, _, _, good = self.edit_fixture()
+        for change, code in [({"expected_revision": "0" * 64}, "E_EDIT_CONFLICT"),
+                             ({"expected_body_hash": "0" * 64}, "E_EDIT_CONFLICT"),
+                             ({"function": "missing"}, "E_EDIT_TARGET")]:
+            with self.subTest(change=change):
+                result = server.call({"name": "wisp_prepare_edit", "arguments": {**good, **change}})
+                report = result["structuredContent"]["report"]
+                self.assertTrue(result["isError"])
+                self.assertEqual(report["status"], "Error")
+                self.assertEqual(report["diagnostics"][0]["code"], code)
+                self.assertFalse(report["new_execution"])
+                self.assertNotIn("edit", report)
+                self.assertEqual(result["structuredContent"]["bridge"]["approval"], "not_granted")
+
+    def test_prepare_edit_rejection_diagnostics_keep_native_document_ownership(self):
+        server, _, _, good = self.edit_fixture()
+        for replacement, code, detail, document in [("{", "E_EDIT_REPLACEMENT", "cause", "replacement"),
+                ('{ "wrong type" }', "E_EDIT_CANDIDATE", "rejected_candidate", "candidate"),
+                ("{ n } fn injected() -> Int { 0 }", "E_EDIT_REPLACEMENT", "cause", "replacement")]:
+            with self.subTest(replacement=replacement):
+                args = {**good, "replacement": replacement}
+                expected = server.native({"op": "edit", "source": good["source"], "focus": "identity",
+                    "change": {key: args[key] for key in ["expected_revision", "expected_body_hash", "replacement"]}})
+                result = server.call({"name": "wisp_prepare_edit", "arguments": args})
+                report = result["structuredContent"]["report"]
+                self.assertEqual(report, expected)
+                self.assertTrue(result["isError"])
+                self.assertEqual(report["diagnostics"][0]["code"], code)
+                self.assertEqual(report["edit"][detail]["document"], document)
+                self.assertTrue(report["edit"][detail]["diagnostics"])
+                self.assertNotIn("source", report["edit"])
+                self.assertFalse(report["new_execution"])
+
+    def test_prepare_edit_boundary_rejects_missing_extra_types_and_hashes_before_native(self):
+        server, _, _, good = self.edit_fixture()
+        bad = [{k: v for k, v in good.items() if k != missing} for missing in good]
+        bad += [{**good, key: []} for key in good]
+        bad += [{**good, key: "override"} for key in ["path", "out", "candidate", "limits", "extra", "expected"]]
+        bad += [{**good, key: value} for key in ["expected_revision", "expected_body_hash"]
+                for value in ["A" * 64, "g" * 64, "0" * 63, "0" * 65, "0" * 64 + "\n"]]
+        for args in bad:
+            with self.subTest(args=args), mock.patch.object(server, "native", side_effect=AssertionError("No native request")):
+                result = server.call({"name": "wisp_prepare_edit", "arguments": args})
+                self.assertTrue(result["isError"])
+                self.assertIsNone(result["structuredContent"]["report"])
+                self.assertEqual(result["structuredContent"]["bridge"]["execution"], "not_submitted")
+
+    def test_prepare_edit_core_caps_and_unknown_are_not_rewritten(self):
+        server, _, _, good = self.edit_fixture()
+        for change in [{"source": " " * 65537}, {"replacement": " " * 65537}]:
+            result = server.call({"name": "wisp_prepare_edit", "arguments": {**good, **change}})
+            report = result["structuredContent"]["report"]
+            self.assertTrue(result["isError"])
+            self.assertEqual(report["status"], "Unknown")
+            self.assertEqual(report["diagnostics"][0]["code"], "E_LIMIT_SOURCE")
+            self.assertFalse(report["new_execution"])
+            self.assertNotIn("source", report.get("edit", {}))
 
     def test_raw_numeric_tokens_never_coerce_to_wisp_int_strings(self):
         source = 'fn identity(n: Int) -> Int { n }'
@@ -203,7 +307,7 @@ class MCP(unittest.TestCase):
                             request(3, "tools/call", {"name": "wisp_project_describe", "arguments": {}}),
                             request(4, "tools/call", {"name": "wisp_project_invoke", "arguments": {
                                 "id": "reservation", "policy": "reservations", "function": "decide", "args": args}})], manifest=manifest)
-        self.assertEqual(len(rows[1]["result"]["tools"]), 10)
+        self.assertEqual(len(rows[1]["result"]["tools"]), 11)
         described = rows[2]["result"]["structuredContent"]
         self.assertEqual(described["bridge"]["execution"], "initialization_metadata")
         self.assertFalse(described["report"]["project"]["new_execution"])
@@ -217,7 +321,7 @@ class MCP(unittest.TestCase):
         with mock.patch.object(HOST, "ProjectClient", side_effect=AssertionError("No project filesystem read")):
             _, rows = exchange([*initialize(), request(2, "tools/list"), request(3, "tools/call", {
                 "name": "wisp_project_describe", "arguments": {}})])
-        self.assertEqual(len(rows[1]["result"]["tools"]), 6)
+        self.assertEqual(len(rows[1]["result"]["tools"]), 7)
         self.assertEqual(rows[2]["error"]["code"], -32602)
         _, rows = exchange([*initialize(), request(2, "tools/list")], manifest="nonexistent-project.json")
         self.assertEqual(rows[0]["error"]["code"], -32603)
