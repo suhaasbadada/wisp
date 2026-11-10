@@ -1,7 +1,8 @@
 # ADR 0015: Explicit end-to-end workflow expectations
 
-Status: implemented; independent findings repaired and local checks passed;
-exact-head CI and publication pending.
+Status: accepted; shipped via PR #15 at
+`f75f34209f1aa3ac57e66591992d7cdedf883023`. Exact-head CI, merged release,
+actual CI artifacts and published contract acceptance are recorded on that PR.
 
 ## Need
 

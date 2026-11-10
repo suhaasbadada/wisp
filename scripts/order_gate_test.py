@@ -301,7 +301,7 @@ class OrderGate(unittest.TestCase):
 
     def test_numeric_tokens_reach_rust_without_float_loss_or_string_coercion(self):
         path = self.path / "numeric-orders.json"
-        original = HOST.invoke
+        original = HOST.ProjectClient._exchange
         for token in ["100", "1e400", "1e-400", "-0", "0.0", "1.0", "9" * 5000]:
             with self.subTest(token=token[:20]):
                 order = {**self.orders[0], "id": "bad-number", "unit_cents": "NUMBER"}
@@ -309,11 +309,10 @@ class OrderGate(unittest.TestCase):
                 path.write_text(text)
                 orders = HOST.load_orders(path)
                 emitted = []
-                def capture(binary, args, input_text=None, **kw):
-                    if input_text is not None:
-                        emitted.append(input_text)
-                    return original(binary, args, input_text, **kw)
-                with mock.patch.object(HOST, "invoke", side_effect=capture):
+                def capture(client, payload):
+                    emitted.append(payload.decode("utf-8"))
+                    return original(client, payload)
+                with mock.patch.object(HOST.ProjectClient, "_exchange", capture):
                     r = HOST.plan(BINARY, self.manifest, orders)
                 self.assertEqual(r["status"], "Error")
                 self.assertEqual([row["status"] for row in r["orders"]], ["Error", "Accepted"])
@@ -410,7 +409,7 @@ class OrderGate(unittest.TestCase):
         self.assertEqual(path.read_bytes(), saved)
 
     def test_manifest_source_and_suite_changes_after_discovery_are_not_adopted(self):
-        original = HOST.invoke
+        original = HOST.CLIENT.run_cli
         for name in ["project.json", "pricing.wisp", "pricing-cases.json"]:
             with self.subTest(name=name):
                 path = self.path / name; saved = path.read_bytes(); changed = False
@@ -420,24 +419,23 @@ class OrderGate(unittest.TestCase):
                     if args[:2] == ["project", "describe"] and not changed:
                         path.write_bytes(saved + b"\n"); changed = True
                     return value
-                with mock.patch.object(HOST, "invoke", side_effect=race):
+                with mock.patch.object(HOST.CLIENT, "run_cli", side_effect=race):
                     with self.assertRaises(HOST.HostError):
                         HOST.plan(BINARY, self.manifest, self.orders)
                 path.write_bytes(saved)
 
     def test_checked_review_revisions_are_required_before_composed_calls(self):
-        original = HOST.invoke; serves = []
+        original = HOST.invoke
         def race(binary, args, *a, **kw):
             value = original(binary, args, *a, **kw)
             if args[:2] == ["project", "review"]:
                 path = self.path / "pricing.wisp"; path.write_bytes(path.read_bytes() + b"\n")
-            if args[:2] == ["project", "serve"]:
-                serves.append(args)
             return value
-        with mock.patch.object(HOST, "invoke", side_effect=race):
+        with mock.patch.object(HOST, "invoke", side_effect=race), mock.patch.object(
+                HOST.ProjectClient, "_exchange", side_effect=AssertionError("No session before revision checks")) as exchange:
             with self.assertRaises(HOST.HostError):
                 HOST.review(BINARY, self.baseline, self.manifest, self.orders)
-        self.assertEqual(serves, [])
+        exchange.assert_not_called()
 
     def test_order_envelopes_and_bounds_fail_before_wisp(self):
         path = self.path / "bad-orders.json"

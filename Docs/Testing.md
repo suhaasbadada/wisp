@@ -1,5 +1,29 @@
 # Verification
 
+## Python project client (under verification)
+
+Both examples share discovery/session transport and the lossless codec. Client
+regressions cover native Complete/Error/Unknown and continuation, strict request
+preflight, defensive metadata, discovery/readiness/response drift, LF-only Unicode
+framing and deadlines before/after readiness with owned-child/thread cleanup.
+The existing 27 workflow tests retain numeric transport, component/discovery drift,
+exact expectations and Error/Unknown coverage through the shared client. Primary
+full checks passed 149 Rust, 41 Node, 27 workflow and 8 client tests, 326 native/WASM
+comparisons, 36 Chromium tests, fmt/Clippy, npm ci, WASM, TypeScript and build.
+Joffrey found tuples could bypass depth/key preflight while being encoded as
+arrays. Primary rejected unsupported Python values and added no-submission
+regressions. Post-repair primary full verification passed 149 Rust, 41 Node,
+27 workflow and 9 client tests, 326 native/WASM comparisons, 36 Chromium tests,
+fmt/Clippy, TypeScript and build. npm ci/WASM passed before this Python-only repair;
+Rust sources are unchanged. Native old/new plan, composed review and positive-gate
+reports match structurally. This is primary repair verification, not an independent
+re-review. Exact-head CI and publication remain separate gates.
+
+PR #15 shipped at `f75f34209f1aa3ac57e66591992d7cdedf883023`: merged Checks
+`42762847918`, Pages `42762847814` and deployment `7674497567` passed. Actual
+PR/merged artifacts preserve Pass/8 and proposed Fail/2, and public contract bytes
+match the merge. [Release acceptance](https://github.com/suhaasbadada/wisp/pull/15#issuecomment-6760085991).
+
 ## Composed expectation gates
 
 Opt-in caller-owned end-to-end snapshots add strict preflight coverage/schema,

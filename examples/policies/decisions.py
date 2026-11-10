@@ -1,15 +1,15 @@
 """Bounded application integration: runtime decisions, not suite verification."""
 import json
 import pathlib
-import subprocess
 import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "clients" / "python"))
+from wisp_client import ProjectClient
 
 manifest = pathlib.Path(__file__).resolve().with_name("project.json")
 binary = sys.argv[1] if len(sys.argv) == 2 else "target/debug/wisp"
-description = json.loads(subprocess.run(
-    [binary, "project", "describe", str(manifest)],
-    text=True, capture_output=True, timeout=15, check=True,
-).stdout)
+client = ProjectClient(manifest, binary=binary)
+description = client.description
 if description["status"] != "Ready":
     raise RuntimeError("Project interface is incomplete")
 policy = next(p for p in description["project"]["policies"] if p["id"] == "reservations")
@@ -37,25 +37,9 @@ requests = [
      "args": [{"quantity": "10", "pack_size": "5", "expires_at": "100"},
               {"available": "10", "now": "100"}]},
 ]
-process = subprocess.run(
-    [binary, "project", "serve", str(manifest)],
-    input="".join(json.dumps(request) + "\n" for request in requests),
-    text=True, capture_output=True, timeout=15, check=True,
-)
-frames = [json.loads(line) for line in process.stdout.splitlines()]
-if len(frames) != len(requests) + 1 or frames[0]["adapter"]["phase"] != "ready":
-    raise RuntimeError("Missing adapter readiness/response")
-pinned = next(p for p in frames[0]["adapter"]["policies"] if p["id"] == "reservations")
-if (frames[0]["adapter"]["manifest_hash"] != description["project"]["manifest_hash"]
-        or pinned["source_revision"] != policy["report"]["revision"]):
-    raise RuntimeError("Project changed between discovery and session startup")
-for request, response in zip(requests, frames[1:]):
-    if (response["adapter"]["request_id"] != request["id"]
-            or response["adapter"]["policy_id"] != request["policy"]
-            or response["status"] != "Complete"
-            or response["report"]["result"]["type"] != "Decision"
-            or response["adapter"]["manifest_hash"] != frames[0]["adapter"]["manifest_hash"]
-            or response["adapter"]["source_revision"] != pinned["source_revision"]):
+for request, response in zip(requests, client.call_batch(requests)):
+    if (response["status"] != "Complete"
+            or response["report"]["result"]["type"] != "Decision"):
         raise RuntimeError("Incomplete or mismatched decision; do not act on it")
     print(json.dumps({"id": request["id"],
                       "revision": response["adapter"]["source_revision"],
