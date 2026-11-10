@@ -1,0 +1,5 @@
+{"version":1,"policies":[
+  {"id":"eligibility","source":"eligibility.wisp","suite":"eligibility-cases.json"},
+  {"id":"pricing","source":"pricing-before.wisp","suite":"pricing-cases.json"},
+  {"id":"shipping","source":"shipping.wisp","suite":"shipping-cases.json"}
+]}

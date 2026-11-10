@@ -1,5 +1,35 @@
 # Verification
 
+## Composed order workflow
+
+The read-only reference host and three saved policies add 16 Python regression
+tests to `npm test`: authored before/after traces, retained discount/shipping
+cliff, stage stopping, typed/runtime/final-stage overflow, continued unaffected
+orders, runtime Unknown despite passing component examples, output-only changes,
+component mismatches, zero-execution spec drift, discovery/session/review pinning,
+strict input/count bounds and CLI outcomes. No business-rule arithmetic is
+reimplemented in the host; expected traces are not an independent policy oracle.
+CI retains real three-policy verify, plan and composed-review JSON separately.
+Primary full pre-repair checks passed 149 Rust tests, 41 Node tests, 15 Python
+workflow tests, 326 native/WASM comparisons and 36 Chromium tests, plus fmt,
+strict Clippy, npm ci, WASM, TypeScript and static build. Joffrey passed the focused
+tests and found Python's numeric conversion could abort a whole batch on `1e400`
+instead of letting Rust reject one order. Primary retains validated raw JSON
+number tokens through transport (never stringifies them into accepted Ints) and
+adds mixed invalid/valid-order regressions for exponent overflow/underflow, signed
+zero, decimals, ordinary numbers and 5,000-digit integers, including the real CLI.
+Post-repair primary verification passed 149 Rust, 41 Node, 16 Python workflow,
+326 native/WASM and 36 Chromium tests, plus fmt, strict Clippy, TypeScript and
+static build. npm ci and WASM build passed in the full pre-repair run; no Rust
+source changed in this increment. This is primary repair verification, not a
+claimed independent re-review. Exact-head CI/publication remain separate gates.
+
+PR #13 shipped at `8b28f49fad338a776ac80f266a4cd5c38c97289f`; PR Checks
+`42755701880`, merge Checks `42756238266`, Pages `42756238280` and deployment
+`7673633877` passed. Merged native discovery/host, actual CI interface/decision
+artifacts, published structured WASM types, docs, old artifact/context acceptance
+are [recorded on the PR](https://github.com/suhaasbadada/wisp/pull/13#issuecomment-6759135888).
+
 ## Checked callable interfaces
 
 Interface v1 adds compiler-owned tagged parameter/return/record types and native

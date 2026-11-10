@@ -1,0 +1,8 @@
+{"version":1,"target":"decide","cases":[
+  {"id":"exact-pack","args":[{"quantity":"10","pack_size":"5","expires_at":"101"},{"available":"10","now":"100"}],"expect":{"result":{"type":"Decision","value":{"accepted":true,"packs":"2","reason":"reserved"}},"output":""}},
+  {"id":"partial-pack","args":[{"quantity":"11","pack_size":"5","expires_at":"101"},{"available":"11","now":"100"}],"expect":{"result":{"type":"Decision","value":{"accepted":true,"packs":"3","reason":"reserved"}},"output":""}},
+  {"id":"expiry-equality","args":[{"quantity":"10","pack_size":"5","expires_at":"100"},{"available":"10","now":"100"}],"expect":{"result":{"type":"Decision","value":{"accepted":false,"packs":"0","reason":"expired"}},"output":""}},
+  {"id":"insufficient","args":[{"quantity":"11","pack_size":"5","expires_at":"101"},{"available":"10","now":"100"}],"expect":{"result":{"type":"Decision","value":{"accepted":false,"packs":"0","reason":"insufficient"}},"output":""}},
+  {"id":"invalid-quantity","args":[{"quantity":"0","pack_size":"5","expires_at":"101"},{"available":"10","now":"100"}],"expect":{"result":{"type":"Decision","value":{"accepted":false,"packs":"0","reason":"invalid_quantity"}},"output":""}},
+  {"id":"invalid-pack","args":[{"quantity":"1","pack_size":"0","expires_at":"101"},{"available":"10","now":"100"}],"expect":{"result":{"type":"Decision","value":{"accepted":false,"packs":"0","reason":"invalid_pack"}},"output":""}}
+]}

@@ -26,6 +26,13 @@ Discover callable JSON boundaries first with `wisp project describe MANIFEST`
 or `wisp describe FILE`. [Checked interface metadata](Docs/Interface.md) comes
 from Rust types, not signature-string parsing, and never executes a policy.
 
+For a composed application rather than one function, run
+`python3 -B examples/order-gate/run.py --baseline examples/order-gate/project-before.json`.
+It reviews unchanged component suites and compares eligibility/pricing/shipping
+decisions end to end—including a discount/free-shipping interaction that makes
+one final total **higher**. See [Order workflow](Docs/Order-workflow.md); it is a
+read-only reference application, not a checkout service or automatic approval.
+
 The policy-change workbench compares two checked revisions against explicit typed
 cases and shows before/after decisions, mismatches, faults and limits. Try the
 reservation walkthrough in the playground, or:
