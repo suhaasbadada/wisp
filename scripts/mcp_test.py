@@ -203,7 +203,7 @@ class MCP(unittest.TestCase):
                             request(3, "tools/call", {"name": "wisp_project_describe", "arguments": {}}),
                             request(4, "tools/call", {"name": "wisp_project_invoke", "arguments": {
                                 "id": "reservation", "policy": "reservations", "function": "decide", "args": args}})], manifest=manifest)
-        self.assertEqual(len(rows[1]["result"]["tools"]), 9)
+        self.assertEqual(len(rows[1]["result"]["tools"]), 10)
         described = rows[2]["result"]["structuredContent"]
         self.assertEqual(described["bridge"]["execution"], "initialization_metadata")
         self.assertFalse(described["report"]["project"]["new_execution"])
@@ -479,6 +479,50 @@ class MCP(unittest.TestCase):
             result = server.call({"name": "wisp_project_focus", "arguments": {"policy": "reservations", "function": "decide", "expected": copy.deepcopy(server.project_guards["reservations"])}})
             self.assertTrue(result["isError"])
             self.assertIsNone(result["structuredContent"]["report"])
+
+    def test_saved_project_verify_returns_guarded_finite_evidence_not_approval(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples" / "policies" / "project.json", require_project_guard=True)
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        result = server.call({"name": "wisp_project_verify", "arguments": {"policy": "reservations",
+            "expected": copy.deepcopy(server.project_guards["reservations"])}})
+        self.assertFalse(result["isError"])
+        data = result["structuredContent"]
+        self.assertEqual(data["bridge"]["guard_status"], "matched")
+        self.assertEqual(data["report"]["status"], "Pass")
+        self.assertTrue(data["report"]["project"]["new_execution"])
+        self.assertEqual(data["report"]["report"]["review"]["summary"]["expectation_pass"], 7)
+        self.assertEqual(data["bridge"]["approval"], "not_granted")
+        self.assertEqual(json.loads(result["content"][0]["text"]), data)
+
+    def test_saved_verification_bad_guards_and_overrides_do_not_dispatch(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples" / "policies" / "project.json", require_project_guard=True)
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        guard = copy.deepcopy(server.project_guards["reservations"])
+        self.assertIn("expected", server.definitions()["wisp_project_verify"]["inputSchema"]["required"])
+        for args in [{}, {"expected": {**guard, "suite_file_hash": "0" * 64}}, {"expected": guard, "source": "override"},
+                     {"expected": guard, "suite": {}}, {"expected": guard, "policy": "missing"}]:
+            with mock.patch.object(server.project, "verify", side_effect=AssertionError("No command")):
+                result = server.call({"name": "wisp_project_verify", "arguments": {"policy": "reservations", **args}})
+            self.assertTrue(result["isError"])
+            self.assertEqual(result["structuredContent"]["bridge"]["execution"], "not_submitted")
+
+    def test_saved_verification_failure_and_drift_do_not_become_mcp_success(self):
+        with tempfile.TemporaryDirectory(prefix="wisp-mcp-verify-") as temp:
+            folder = pathlib.Path(temp)
+            (folder / "s.wisp").write_text('fn f(n:Int)->Int{n}')
+            (folder / "c.json").write_text('{"version":1,"target":"f","cases":[{"id":"one","args":["1"],"expect":{"result":{"type":"Int","value":"2"},"output":""}}]}')
+            manifest = folder / "m.json"; manifest.write_text('{"version":1,"policies":[{"id":"p","source":"s.wisp","suite":"c.json"}]}')
+            server = HOST.Server(BINARY, manifest=manifest)
+            server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+            result = server.call({"name": "wisp_project_verify", "arguments": {"policy": "p"}})
+            self.assertTrue(result["isError"])
+            self.assertEqual(result["structuredContent"]["report"]["status"], "Fail")
+            self.assertEqual(result["structuredContent"]["bridge"]["guard_status"], "not_requested")
+            (folder / "c.json").write_text('null')
+            drift = server.call({"name": "wisp_project_verify", "arguments": {"policy": "p"}})
+            self.assertTrue(drift["isError"])
+            self.assertIsNone(drift["structuredContent"]["report"])
+            self.assertEqual(drift["structuredContent"]["bridge"]["execution"], "unresolved")
 
 
 if __name__ == "__main__":

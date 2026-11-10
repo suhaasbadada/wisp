@@ -17,6 +17,8 @@ const HELP: &str = "usage: wisp FILE | wisp --json < request.json
         wisp project describe MANIFEST
         wisp project focus MANIFEST POLICY FUNCTION [--budget N]
             [--expected-manifest HASH --expected-revision HASH --expected-suite HASH --expected-compiler ID]
+        wisp project verify-policy MANIFEST POLICY
+            [--expected-manifest HASH --expected-revision HASH --expected-suite HASH --expected-compiler ID]
        wisp edit FILE FUNCTION --replacement-file BODY --expected-revision SHA --expected-body SHA --out NEWFILE
        wisp check FILE
        wisp focus FILE FUNCTION [--budget N]
@@ -121,6 +123,9 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
         ["project", "describe", manifest] => project::describe(manifest)?,
         ["project", "focus", manifest, policy, function, rest @ ..] => {
             project::focus(manifest, policy, function, rest)?
+        }
+        ["project", "verify-policy", manifest, policy, rest @ ..] => {
+            project::verify_policy(manifest, policy, rest)?
         }
         ["project", "verify", manifest] => project::execute(manifest, None)?,
         ["project", "review", before, after] => project::execute(before, Some(after))?,

@@ -27,6 +27,19 @@ implementation and argument/type validator.
 
 ## Discovery and batches
 
+`client.verify(policy)` executes that described policy's saved finite suite with
+all four native guards supplied from discovery. It returns unchanged core review
+evidence inside the native project wrapper, including Pass/Fail/Error/Unknown and
+preflight versus attempted execution. The client validates every policy pin,
+selected compiler/source identity, no-approval markers and the finite execution
+ledger; this is transport validation, not a second case evaluator. It cannot
+change the suite or accept source overrides. All-policy pins are validated on the
+returned snapshot; **other-policy drift may be detected after selected cases
+execute**, so `ClientError` is not evidence of zero execution. Only selected
+manifest/source/suite/compiler guards precede execution. This is not whole-project
+or composed-workflow verification. Cases are caller-owned finite requirements,
+not proof that requirements are sufficient or approved.
+
 `client.focus(policy, function, budget=4096)` returns guarded saved-function
 context without executing policy code or resending source. Targets must be
 described; budgets are integers (not booleans) from 0 through 65536. Each call

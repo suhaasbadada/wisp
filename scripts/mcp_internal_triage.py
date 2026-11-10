@@ -29,6 +29,9 @@ async def triage(binary, evidence, budget):
             focus = focused.structured_content["report"]
             host.require(focus["project"]["new_execution"] is False and "usage" not in focus["report"], "Focus must not execute policy code")
             view = focus["report"]["agent_view"]
+            verified = await session.call_tool("wisp_project_verify", arguments={"policy": "release", "expected": guard})
+            verification = verified.structured_content["report"]
+            host.require(not verified.is_error and verification["status"] == "Pass", "Saved finite-suite verification did not pass")
             called = await session.call_tool("wisp_project_invoke", arguments={"id": "internal-release-triage", "policy": "release",
                 "function": "decide", "args": [host.facts(data)], "expected": guard})
             frame = called.structured_content["report"]
@@ -41,6 +44,8 @@ async def triage(binary, evidence, budget):
                     "context": {"focus": view["focus"], "budget_bytes": view["budget_bytes"], "used_bytes": view["used_bytes"],
                                 "overflow": view["overflow"], "omitted": view["omitted"], "uncertainty": view["uncertainty"]},
                     "context_new_execution": focus["project"]["new_execution"],
+                    "verification": {"status": verification["status"], "new_execution": verification["project"]["new_execution"],
+                                     "summary": verification["report"]["review"]["summary"], "approval": "not_granted"},
                     "status": frame["status"], "decision": decision,
                     "invocation_new_execution": frame["report"]["invocation"]["new_execution"],
                     "approval": "not_granted", "side_effects": "none"}, code

@@ -20,7 +20,7 @@ async def smoke(binary, project=None, require_guard=False):
         async with ClientSession(read, write) as session:
             initialized = await session.initialize()
             tools = await session.list_tools()
-            assert len(tools.tools) == (9 if project is not None else 6)
+            assert len(tools.tools) == (10 if project is not None else 6)
             source = 'print("must not run"); fn identity(n: Int) -> Int { n } fn loop(n: Int) -> Int { loop(n) }'
             results = []
             for function, args, status in [("identity", ["9223372036854775807"], "Complete"),
@@ -46,6 +46,12 @@ async def smoke(binary, project=None, require_guard=False):
                 assert focused.structured_content["bridge"]["guard_status"] == "matched"
                 assert context["report"]["agent_view"]["focus"] == "decide" and "usage" not in context["report"]
                 assert len(context["report"]["agent_view"]["text"].encode()) <= 2048
+                verified = await session.call_tool("wisp_project_verify", arguments={"policy": "reservations", "expected": guard})
+                verification = verified.structured_content["report"]
+                assert not verified.is_error and verification["status"] == "Pass"
+                assert verification["project"]["new_execution"] is True
+                assert verification["report"]["review"]["summary"]["expectation_pass"] == 7
+                assert verification["project"]["approval"] == "not_granted"
                 call = await session.call_tool("wisp_project_invoke", arguments={"id": "sdk-reservation", "policy": "reservations", "function": "decide",
                     "args": [{"quantity": "11", "pack_size": "5", "expires_at": "101"}, {"available": "11", "now": "100"}], "expected": guard})
                 frame = call.structured_content["report"]
@@ -61,6 +67,9 @@ async def smoke(binary, project=None, require_guard=False):
                 stale_context = await session.call_tool("wisp_project_focus", arguments={"policy": "reservations", "function": "decide", "expected": {**guard, "source_revision": "0" * 64}})
                 assert stale_context.is_error and stale_context.structured_content["report"] is None
                 assert stale_context.structured_content["bridge"]["execution"] == "not_submitted"
+                stale_suite = await session.call_tool("wisp_project_verify", arguments={"policy": "reservations", "expected": {**guard, "suite_file_hash": "0" * 64}})
+                assert stale_suite.is_error and stale_suite.structured_content["report"] is None
+                assert stale_suite.structured_content["bridge"]["execution"] == "not_submitted"
                 if require_guard:
                     missing = await session.call_tool("wisp_project_invoke", arguments={"id": "missing", "policy": "reservations", "function": "decide", "args": []})
                     assert missing.is_error and missing.structured_content["report"] is None

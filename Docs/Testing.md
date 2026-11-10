@@ -1,6 +1,26 @@
 # Verification
 
-## Bounded native collection (under publication)
+## Saved-policy finite-suite verification (under publication)
+
+Ten native tests passed in Bob's 157-test Rust suite, including exact core report
+parity, all four guards, Pass/Fail/Error/Unknown, raw JSON, confinement and selected
+scope. Five Python client verification tests and 32 MCP tests passed; Python
+workflow totals 126 tests. Strict ten-tool SDK discovery/verification and internal
+historical CI triage passed: eight finite expectations Pass/16 fresh attempts,
+then a separate Observed decision, never approval. Full prescribed checks passed:
+157 Rust, 41 Node, 126 Python, 326 native/WASM comparisons, 36 Chromium,
+fmt/Clippy/npm ci/WASM/check/build and all three official SDK modes plus internal
+triage. Joffrey independently reviewed with no substantive findings and passed
+42 Python verification/MCP/focus tests. Exact-head CI and publication remain
+separate pending gates. Finite tests do not establish requirements sufficiency.
+
+PR #25 shipped at `18e30b58f5328a4cb8bb83fcb092e5a05b52fdb4`: PR Checks
+`42790205664`, merge Checks `42790868990`, Pages `42790868985`, deployment
+`7678335099` passed. Immutable 17 transport regressions, three SDK modes, internal
+triage, adverse artifacts and three public contracts are
+[accepted](https://github.com/suhaasbadada/wisp/pull/25#issuecomment-6763902922).
+
+## Bounded native collection
 
 Seventeen actual-subprocess transport regressions passed, including exact/default
 stdout and stderr caps, one-byte overflow, UTF-8 byte counting/decoding, concurrent

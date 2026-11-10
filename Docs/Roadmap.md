@@ -6,8 +6,9 @@ release acceptance recorded on their PRs. Checked callable interfaces shipped vi
 PR #13; composed three-policy application/workflow observations shipped via PR #14,
 retaining the adverse discount/shipping effect. Caller-owned end-to-end gates
 shipped via PR #15, blocking unmet requirements despite component Pass. Current
-increment: enforce native output collection limits before decoding, rather than
-after full capture. Guarded saved-function context shipped via PR #24;
+increment: verify selected saved finite suites through guarded native/Python/MCP
+operations, rather than confusing invocation completion with requirements Pass.
+Bounded native collection shipped via PR #25; saved-function context via PR #24;
 caller-owned reconnect guards via PR #23. Saved-project
 MCP tools shipped via PR #22; base MCP tools via PR #21.
 Offline replay/handoff shipped via PR #20; observation receipts via PR #19; capture via PR #18;
@@ -51,7 +52,8 @@ published acceptance is recorded in Testing.
 20. Owner-configured MCP project tools shipped via PR #22 (ADR 0022).
 21. Caller-owned MCP snapshot guards shipped via PR #23 (ADR 0023).
 22. Guarded saved-project function context shipped via PR #24 (ADR 0024).
-23. Bounded native-command output collection (ADR 0025), under verification/publication.
+23. Bounded native-command output collection shipped via PR #25 (ADR 0025).
+24. Guarded saved-policy finite-suite verification (ADR 0026), under verification/publication.
 
 Continue in tested increments focused on recurring agent/application workflows
 and demonstrated gaps. Benchmark concrete claims before promoting them; neither

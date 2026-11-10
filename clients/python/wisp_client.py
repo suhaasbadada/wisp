@@ -329,6 +329,64 @@ class ProjectClient:
         except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as error:
             raise ClientError("Invalid focus request or malformed native focus report") from error
 
+    def verify(self, policy):
+        """Execute one saved policy's finite caller-owned suite under pinned guards.
+
+        This is not whole-project verification or approval. A lost/malformed
+        response can follow execution; callers must not infer zero execution.
+        """
+        try:
+            _require(_id(policy) and policy in self._policies, "Unknown described policy")
+            described = self._policies[policy]
+            raw = run_cli(self._binary, ["project", "verify-policy", self._manifest, policy,
+                                        "--expected-manifest", self._manifest_hash,
+                                        "--expected-revision", described["report"]["revision"],
+                                        "--expected-suite", described["suite_file_hash"],
+                                        "--expected-compiler", described["report"]["compiler"]], semantic_exit=True, timeout=self._timeout)
+            response = decode_json(raw); validate_json(response)
+            _require(isinstance(response, dict), "Expected native saved-policy verification report")
+            project = response["project"]; report = response["report"]
+            self._pins(project)
+            _require(project["mode"] == "verify-policy" and project["phase"] == "verified"
+                     and project["guard_status"] == "matched" and project["policy_id"] == policy
+                     and project["source_revision"] == described["report"]["revision"]
+                     and project["suite_file_hash"] == described["suite_file_hash"], "Unmatched saved-policy snapshot")
+            _require(isinstance(report, dict) and response["status"] == report["status"]
+                     and report["status"] in ["Pass", "Fail", "Error", "Unknown"]
+                     and report["compiler"] == described["report"]["compiler"]
+                     and report["revision"] == described["report"]["revision"]
+                     and report["probes"] == [] and report["output"] == "" and "usage" not in report
+                     and "invocation" not in report and "result" not in report
+                     and response["output"] == "" and response["diagnostics"] == []
+                     and isinstance(report["diagnostics"], list), "Unexpected saved-policy verification report")
+            review = report["review"]
+            _require(_version(review["contract_version"]) and review["approval"] == "not_granted"
+                     and review["baseline_revision"] == described["report"]["revision"]
+                     and review["candidate_revision"] == described["report"]["revision"]
+                     and _hash(review["suite_hash"]) and _hash(review["query_key"])
+                     and type(review["new_execution"]) is bool and type(project["new_execution"]) is bool
+                     and project["new_execution"] == review["new_execution"]
+                     and isinstance(review["cases"], list), "Unrecognized saved-suite evidence")
+            if review["phase"] == "preflight":
+                _require(report["status"] in ["Error", "Unknown"] and not review["new_execution"]
+                         and review["cases"] == [] and "summary" not in review, "Invalid verification preflight")
+            else:
+                summary = review["summary"]
+                _require(review["phase"] == "executed" and review["new_execution"]
+                         and type(summary["total"]) is int and 1 <= summary["total"] <= 16
+                         and summary["total"] == len(review["cases"])
+                         and type(summary["attempted_invocations"]) is int
+                         and summary["attempted_invocations"] == 2 * summary["total"], "Invalid finite-suite execution ledger")
+                if report["status"] == "Pass":
+                    _require(type(summary["expectation_pass"]) is int and summary["expectation_pass"] == summary["total"]
+                             and all(isinstance(case, dict) and case["expectation"] == "Pass" for case in review["cases"]),
+                             "Pass requires passing finite expectations")
+            return response
+        except ClientError:
+            raise
+        except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as error:
+            raise ClientError("Invalid verification request or malformed native verification report") from error
+
     def _exchange(self, payload):
         # One worker owns all pipe IO. The caller enforces one deadline including
         # readiness and kills/waits its own child on any failure. Readiness is
