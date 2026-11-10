@@ -6,6 +6,16 @@ Guarded function-body editing now offers explicit **Preview → Apply** in the p
 
 ## Review a real policy change
 
+For an agent or CI job working with saved repository policies:
+
+```sh
+cargo run -- project verify examples/policies/project.json
+cargo run -- project review examples/policies/project-before.json examples/policies/project.json
+```
+
+Projects are read-only and reject specification drift during review. See
+[repository project workflow](Docs/Projects.md) for the manifest and CI contract.
+
 The policy-change workbench compares two checked revisions against explicit typed
 cases and shows before/after decisions, mismatches, faults and limits. Try the
 reservation walkthrough in the playground, or:

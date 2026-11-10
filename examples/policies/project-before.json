@@ -1,0 +1,1 @@
+{"version":1,"policies":[{"id":"reservations","source":"reservations-before.wisp","suite":"cases.json"}]}

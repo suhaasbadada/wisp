@@ -1,13 +1,16 @@
 use serde_json::{json, Value};
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
+mod project;
 
 const HELP: &str = "usage: wisp FILE | wisp --json < request.json
        wisp capabilities
        wisp run FILE
        wisp call FILE FUNCTION [--args-file INPUT]
        wisp review BEFORE AFTER --suite CASES
-       wisp verify SOURCE --suite CASES
+        wisp verify SOURCE --suite CASES
+        wisp project verify MANIFEST
+        wisp project review BASE_MANIFEST CANDIDATE_MANIFEST
        wisp edit FILE FUNCTION --replacement-file BODY --expected-revision SHA --expected-body SHA --out NEWFILE
        wisp check FILE
        wisp focus FILE FUNCTION [--budget N]
@@ -108,6 +111,8 @@ fn semantic_error(mut report: Value, code: wisp::DiagnosticCode, message: &str) 
 fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
     let a: Vec<&str> = args.iter().map(String::as_str).collect();
     let report = match a.as_slice() {
+        ["project", "verify", manifest] => project::execute(manifest, None)?,
+        ["project", "review", before, after] => project::execute(before, Some(after))?,
         ["review", before, after, "--suite", suite] => review_request(before, after, suite, false)?,
         ["verify", path, "--suite", suite] => review_request(path, path, suite, true)?,
         ["capabilities"] => dispatch(json!({"op":"capabilities","source":""})),
@@ -295,7 +300,7 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
             if !path.starts_with('-')
                 && ![
                     "run", "call", "edit", "check", "focus", "context", "archive", "inspect",
-                    "replay", "review", "verify",
+                    "replay", "review", "verify", "project",
                 ]
                 .contains(path) =>
         {
