@@ -16,7 +16,7 @@ depth/byte contract so maximum valid saved input remains replayable.
 Add an operator quickstart for component review, positive/negative composed gates,
 actual historical observation and offline replay. No core/policy/fixture semantics,
 GitHub mutation, retry, cache, permissions or external-adoption/proof/efficiency
-claims. This closes the owner's sequence through PR #20; further implementation
-requires a new task. Wisp remains experimental; no license is selected.
+claims. The owner superseded the earlier PR #20 pause and authorized continued
+development in tested increments. Wisp remains experimental; no license is selected.
 
 See [replay](../Workflow-replay.md) and [quickstart](../Operator-quickstart.md).

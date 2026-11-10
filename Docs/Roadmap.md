@@ -6,8 +6,8 @@ release acceptance recorded on their PRs. Checked callable interfaces shipped vi
 PR #13; composed three-policy application/workflow observations shipped via PR #14,
 retaining the adverse discount/shipping effect. Caller-owned end-to-end gates
 shipped via PR #15, blocking unmet requirements despite component Pass. Current
-increment: offline receipt replay and operator handoff, the final bounded increment
-in this sequence. Observation receipts shipped via PR #19; capture via PR #18;
+increment: offline receipt replay and operator handoff. Observation receipts
+shipped via PR #19; capture via PR #18;
 CI triage via PR #17; Python client via
 PR #16. No automatic
 approval or new core host permissions.
@@ -45,8 +45,9 @@ published acceptance is recorded in Testing.
 17. One-command workflow observation receipts shipped via PR #19 (ADR 0019).
 18. Offline receipt replay and operator handoff implemented (ADR 0020); see PR #20 for release acceptance.
 
-After this increment's acceptance, implementation pauses at the owner's requested
-PR #20 boundary. Further work requires a new task, not automatic expansion.
+Continue in tested increments focused on recurring agent/application workflows
+and demonstrated gaps. Benchmark concrete claims before promoting them; neither
+more features nor authored examples establish comparative advantage or adoption.
 
 Longer-term research: deeper property-specific context boundaries with explicit
 unknowns/omissions, and strong repository-scale comparisons with actual task
