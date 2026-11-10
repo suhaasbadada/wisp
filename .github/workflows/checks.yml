@@ -45,6 +45,8 @@ jobs:
           target/debug/wisp project verify examples/release-triage/project.json > release-triage-verify.json
           python3 -B examples/release-triage/run.py --evidence examples/release-triage/pr16-merge.json > release-triage-observed.json
           python3 -c 'import json; r=json.load(open("release-triage-observed.json")); assert r["status"] == "Complete" and r["decision"] == {"state":"Observed","reason":"workflow_checks_complete"} and r["approval"] == "not_granted"'
+          python3 -B examples/release-triage/observe.py --evidence examples/release-triage/pr16-merge.json > release-triage-receipt.json
+          python3 -c 'import json,hashlib; r=json.load(open("release-triage-receipt.json")); c=r["collection"]; assert c["snapshot_hash"] == hashlib.sha256(c["snapshot_json"].encode("utf-8")).hexdigest() == r["triage"]["evidence_hash"]; assert r["triage"]["decision"]["state"] == "Observed" and c["api_get_invocations"] == 0'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,7 +1,9 @@
 # ADR 0018: Explicit-attempt read-only GitHub capture
 
-Status: implemented; full local checks and independent review passed;
-exact-head CI and publication pending.
+Status: accepted; shipped via PR #18 at
+`e5e96bcfd68477ac759c75fcd7c69194c7c97b82`. Exact-head CI, actual read-only
+capture/native release, CI artifacts and published contract acceptance are recorded
+on that PR.
 
 Manual transcription is a practical gap in repository workflow triage. Add a
 separate read-only capture host that requires exact revision, run IDs and attempts,
