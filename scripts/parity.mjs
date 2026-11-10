@@ -312,3 +312,33 @@ for(const [request,code] of objectInputs) {
   if(report.review){assert.equal(report.review.new_execution,false);assert.deepEqual(report.review.cases,[]);}
 }
 console.log(`Object-only protocol: ${objectInputs.length} additional non-executing native/WASM comparisons (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons + editComparisons + reviewComparisons} total).`);
+let interfaceComparisons=0;
+function compareInterface(request){
+  const raw=typeof request==='string'?request:JSON.stringify(request);
+  const native=spawnSync('./target/debug/wisp',['--json'],{input:raw,encoding:'utf8'});
+  assert.equal(native.status,0,native.stderr);const wasm=dispatch(raw);assert.equal(wasm,native.stdout.trimEnd());interfaceComparisons++;
+  const r=JSON.parse(wasm),q=typeof request==='string'?JSON.parse(request):request;
+  assert.equal(r.output,'');assert.deepEqual(r.probes,[]);assert.equal(r.usage,undefined);assert.equal(r.invocation,undefined);
+  if(r.interface){
+    assert.equal(r.interface.contract_version,1);assert.equal(r.interface.new_execution,false);assert.equal(r.revision,sha(Buffer.from(q.source)));
+    if(r.status==='Ready'){
+      assert.equal(r.interface.phase,'described');
+      const checked=JSON.parse(dispatch(JSON.stringify({op:'analyze',source:q.source,limits:q.limits})));
+      assert.equal(checked.status,'Ready');
+      const name=t=>t.kind==='Record'?t.name:t.kind;
+      const byName=(a,b)=>a.name<b.name?-1:a.name>b.name?1:0;
+      assert.deepEqual(r.interface.functions.map(f=>({name:f.name,signature:`fn ${f.name}(${f.parameters.map(p=>`${p.name}: ${name(p.type)}`).join(', ')}) -> ${name(f.return_type)}`})),checked.graph.functions.map(f=>({name:f.name,signature:f.signature})).sort(byName));
+      assert.deepEqual(r.interface.records.map(record=>({name:record.name,fields:record.fields.map(f=>({name:f.name,type:name(f.type)}))})),checked.graph.records.map(record=>({name:record.name,fields:record.fields.map(f=>({name:f.name,type:f.type}))})).sort(byName));
+    }else{assert.equal(r.interface.phase,'preflight');assert.equal(r.interface.functions,undefined);assert.equal(r.interface.records,undefined);}
+  }
+  return r;
+}
+for(const source of [...sources,'','record B { z:Int,a:String } record A { b:B } fn f(x:A,b:Bool)->A{x}','fn f(x:Int)->Int{f(x)} print(1/0);'])compareInterface({op:'describe',source});
+for(const limits of [{fuel:0,cases:0,call_depth:0,output_bytes:0,allocation_bytes:0},{source_bytes:0},null,[]])compareInterface({op:'describe',source:reviewSources[0],limits});
+for(const field of ['focus','budget','ghost','artifact','function','args','candidate','suite','change']){
+  const value=field==='focus'||field==='function'?'f':field==='budget'?0:null;
+  compareInterface({op:'describe',source:'print(7);',[field]:value});
+}
+for(const bytes of [65536,65537])compareInterface({op:'describe',source:' '.repeat(bytes)});
+compareInterface('{"op":"describe","source":"","limits":{"fuel":1,"fue\\u006c":2}}');
+console.log(`Checked interfaces: ${interfaceComparisons} exact non-executing native/WASM comparisons with independent revisions and structured-type/signature reconciliation (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons + editComparisons + reviewComparisons + interfaceComparisons} total).`);

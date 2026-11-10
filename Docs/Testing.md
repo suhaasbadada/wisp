@@ -1,5 +1,32 @@
 # Verification
 
+## Checked callable interfaces
+
+Interface v1 adds compiler-owned tagged parameter/return/record types and native
+project discovery without a machine or suite verification. Tests cover exact
+declaration/type ordering, whole-program error provenance, zero execution budgets,
+byte boundaries, envelope precedence, all-policy aggregation and unchanged frozen
+context identities. Python host consumes the metadata and checks discovery/startup
+hashes. CI retains a project-interface JSON report. Primary Rust verification
+passed 149 tests plus fmt/strict Clippy; npm ci, rebuilt WASM, TypeScript and
+static build passed. Joffrey found no substantive issues and independently passed
+22 targeted native/WASM comparisons, frozen context fixture and the Python host
+using the existing compiled artifacts. Primary's parity reconciliation initially
+assumed graph functions shared interface's name sorting; corrected the harness
+to sort the old graph projection without changing either contract. A subsequent
+full run reached the 120-second host deadline during parity, with no remaining
+process; it was not counted as a pass. The bounded full rerun passed 41 Node
+tests, 326 exact native/WASM comparisons (37 targeted interface comparisons with
+independent revisions and type/signature reconciliation), all 36 Chromium tests
+and the Python host. Discovery advertises interface v1, 12 operations, 55 codes
+and seven runnable examples. No old identity fixtures were rewritten.
+
+PR #12 shipped at `40f524bf351487bd7c277e9ef0f5852eb9029aad`; exact PR Checks
+`42753562750`, merge Checks `42754071218`, Pages `42754071220` and deployment
+`7673344571` passed. Merged native adapter/core object-only release checks, actual
+CI decision evidence, published docs/WASM, original artifact and frozen context
+acceptance are recorded [on the PR](https://github.com/suhaasbadada/wisp/pull/12#issuecomment-6758774519).
+
 ## Native decision adapter
 
 Adapter v1 adds pinned JSON-lines sessions and a dependency-free Python host

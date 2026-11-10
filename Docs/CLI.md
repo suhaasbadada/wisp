@@ -223,6 +223,10 @@ candidate Pass. Verifying the baseline returns Fail, not a parse error.
 Pass is not authorization to apply, merge or deploy.
 # Repository projects
 
+`wisp describe FILE` and `wisp project describe MANIFEST` return checked,
+structured function/record boundaries without executing policies or suites.
+Use [Interface](Interface.md) for type tags, project status and session hash guards.
+
 `wisp project serve MANIFEST` pins project files and accepts serial typed decision
 requests on stdin after a readiness line. JSON-lines stdout contains per-request
 core evidence, not an aggregate verification verdict. See [Adapter](Adapter.md)

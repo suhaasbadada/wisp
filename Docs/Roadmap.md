@@ -1,8 +1,9 @@
 # Roadmap
 
 Shipped: policy-change workbench v1 (PR #10) and saved repository projects
-(PR #11), with release acceptance recorded on their PRs. Current increment:
-native JSON-lines decision adapter with a runnable Python application host;
+(PR #11), and native JSON-lines decision adapter/application host (PR #12), with
+release acceptance recorded on their PRs. Current increment: compiler-owned
+structured callable interface discovery and discovery-to-session revision guards;
 publication pending. No automatic approval or new core host permissions.
 Next exercise a recurring policy-maintenance/application workflow and address
 its demonstrated gaps, rather than treating a merged PR as the product's finish
@@ -28,7 +29,8 @@ published acceptance is recorded in Testing.
 7. Guarded body preparation shipped via PR #7 (ADR 0007): explicit guards/Preview/Apply/new-file output, no automatic execution or repair.
 8. Frozen validation pilot shipped via PR #8; repeated maintenance follow-up shipped via PR #9. Neither demonstrates a Wisp advantage.
 9. Policy-change workbench shipped via PR #10; repository manifests and CI evidence shipped via PR #11.
-10. Application integration: pinned native decision sessions (ADR 0012), under verification/publication.
+10. Application integration: pinned native decision sessions shipped via PR #12 (ADR 0012).
+11. Checked interface discovery (ADR 0013), under verification/publication.
 
 Longer-term research: deeper property-specific context boundaries with explicit
 unknowns/omissions, and strong repository-scale comparisons with actual task

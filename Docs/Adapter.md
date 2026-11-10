@@ -18,6 +18,11 @@ effect. A policy decision is data, not authorization to perform a host action.
 
 ## Start and pin a session
 
+Before startup, [`project describe MANIFEST`](Interface.md) provides checked
+function/record boundaries. The Python host verifies its expected interface and
+requires startup manifest/source hashes to match discovery. If files changed
+between commands, it fails rather than silently switching revisions.
+
 ```sh
 target/debug/wisp project serve examples/policies/project.json
 ```

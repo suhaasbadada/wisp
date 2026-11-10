@@ -3,8 +3,8 @@
 Policy review v1 (ADR 0010) implements an agent-facing workbench with explicit
 typed cases, shared Rust before/after execution, candidate expectations and
 revision-linked evidence. Native review/verify and browser review shipped via
-PR #10; saved repository projects shipped via PR #11. The native decision adapter
-(ADR 0012) is under verification/publication. No approval, automatic application,
+PR #10; saved repository projects shipped via PR #11; native decision adapter
+shipped via PR #12. Checked interface discovery (ADR 0013) is under verification/publication. No approval, automatic application,
 new language syntax or core host permissions. See [Workbench](Workbench.md),
 [Projects](Projects.md) and [Adapter](Adapter.md).
 
@@ -21,7 +21,7 @@ permission changes. See [Evaluation](Evaluation.md).
 
 Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger and guarded edits are shipped.
 
-Status: first playable through repository policy projects shipped via PRs #1–#11. Repeated maintenance study, workbench and project release acceptance are recorded on their PRs. Native adapter publication is pending. Experimental; not production-ready. No license selected (owner decision pending).
+Status: first playable through native decision adapter shipped via PRs #1–#12. Study, workbench, project and adapter release acceptance are recorded on their PRs. Checked interface publication is pending. Experimental; not production-ready. No license selected (owner decision pending).
 
 Wisp is function-oriented and statically typed. The first slice is a real Rust lexer, parser, checker and bounded interpreter, shared by the native CLI and browser WebAssembly. Its first domain is agent-generated sandboxed CLI/data transformations, later maintained business logic.
 

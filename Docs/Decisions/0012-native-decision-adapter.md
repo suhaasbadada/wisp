@@ -1,7 +1,8 @@
 # ADR 0012: Native JSON-lines decision adapter
 
-Status: implemented; independent finding repaired and local checks passed;
-exact-head CI and publication pending.
+Status: accepted; shipped through PR #12 at
+`40f524bf351487bd7c277e9ef0f5852eb9029aad`. Exact-head CI, merged release and
+published acceptance are recorded on that PR.
 
 ## Need
 

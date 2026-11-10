@@ -199,6 +199,24 @@ pub(super) fn execute(before: &str, after: Option<&str>) -> Result<Value, String
 const ADAPTER_LINE_BYTES: usize = 131_072;
 const ADAPTER_REQUESTS: usize = 1_024;
 
+pub(super) fn describe(manifest: &str) -> Result<Value, String> {
+    let project = load(manifest)?;
+    let mut rows = Vec::new();
+    let mut error = false;
+    let mut unknown = false;
+    for policy in project.policies {
+        let report = super::dispatch(json!({"op":"describe","source":policy.source}));
+        error |= report["status"] == "Error";
+        unknown |= report["status"] == "Unknown";
+        rows.push(json!({"id":policy.id,"suite_file_hash":hash(&policy.suite),"report":report}));
+    }
+    Ok(
+        json!({"status":if error {"Error"}else if unknown {"Unknown"}else{"Ready"},"output":"","diagnostics":[],
+        "project":{"contract_version":1,"mode":"describe","phase":"described","approval":"not_granted","new_execution":false,
+            "manifest_hash":project.manifest_hash,"summary":{"total":rows.len(),"attempted_invocations":0},"policies":rows}}),
+    )
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct DecisionRequest {
