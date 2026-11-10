@@ -1,7 +1,8 @@
 # ADR 0019: One-command observation with exact input receipt
 
-Status: implemented; full local checks and independent review passed;
-exact-head CI and publication pending.
+Status: accepted; shipped via PR #19 at
+`cbbf5401d23e86579d7a05034118fda587352a89`. Exact-head CI, native release,
+actual receipt artifacts and published contract acceptance are recorded on that PR.
 
 Join explicit-attempt capture and native triage behind one read-only operator
 entry point, with an offline saved-file mode. Preserve the exact input spelling

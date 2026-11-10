@@ -1,5 +1,31 @@
 # Verification
 
+## Offline replay and handoff
+
+Count correction: earlier summaries below/on prior PRs quoted 149 Rust tests.
+Direct `cargo test -- --list` enumeration confirms **139** in the unchanged suite.
+That was a totaling error, not a missing/failed check; historical pass/fail outcomes
+and raw CI evidence are unchanged.
+
+Nine focused tests cover full native reproduction without GitHub, receipt hashes/
+schema/fact/result tampering, policy/compiler pins before submission, output/usage/
+coherent-decision corruption, business blocked/pending/unknown outcomes, real
+native Error/Unknown policies, maximum input byte/depth compatibility, receipt
+limits, CLI exits and closed stdout. CI retains/checks replay alongside the receipt.
+Primary full verification passed 139 Rust, 41 Node, 67 Python tests (27 workflow,
+9 client, 7 triage, 8 capture, 7 observation, 9 replay), 326 native/WASM comparisons
+and 36 Chromium tests, plus fmt/Clippy/npm ci/WASM/TypeScript/build. Joffrey reviewed
+the final guards/comparison/handoff and found no substantive issues; nine replay
+tests and diff checks passed in review. Actual merged PR #19 Linux CI receipt
+artifact `13741574684` reproduced exactly through the local native release binary,
+with new execution and no GitHub access during replay. Exact-head CI/publication
+are separate gates; consult PR #20 for their final acceptance record.
+
+PR #19 shipped at `cbbf5401d23e86579d7a05034118fda587352a89`: PR Checks
+`42771545588`, merged Checks `42772214714`, Pages `42772214741` and deployment
+`7675724651` passed. Actual PR/merged receipt hashes, native release observation
+and public contracts are [accepted](https://github.com/suhaasbadada/wisp/pull/19#issuecomment-6761272942).
+
 ## Workflow observation receipts (under verification)
 
 Seven tests cover saved-byte/hash recovery, offline no-network mode, explicit

@@ -6,8 +6,9 @@ release acceptance recorded on their PRs. Checked callable interfaces shipped vi
 PR #13; composed three-policy application/workflow observations shipped via PR #14,
 retaining the adverse discount/shipping effect. Caller-owned end-to-end gates
 shipped via PR #15, blocking unmet requirements despite component Pass. Current
-increment: one-command read-only workflow observation with exact-input receipts.
-Explicit-attempt capture shipped via PR #18; CI triage via PR #17; Python client via
+increment: offline receipt replay and operator handoff. Observation receipts
+shipped via PR #19; capture via PR #18;
+CI triage via PR #17; Python client via
 PR #16. No automatic
 approval or new core host permissions.
 Next exercise a recurring policy-maintenance/application workflow and address
@@ -41,7 +42,12 @@ published acceptance is recorded in Testing.
 14. Reusable Python project client shipped via PR #16 (ADR 0016).
 15. Read-only repository workflow triage shipped via PR #17 (ADR 0017).
 16. Explicit-attempt GitHub capture shipped via PR #18 (ADR 0018).
-17. One-command workflow observation receipts (ADR 0019), under verification/publication.
+17. One-command workflow observation receipts shipped via PR #19 (ADR 0019).
+18. Offline receipt replay and operator handoff implemented (ADR 0020); see PR #20 for release acceptance.
+
+Continue in tested increments focused on recurring agent/application workflows
+and demonstrated gaps. Benchmark concrete claims before promoting them; neither
+more features nor authored examples establish comparative advantage or adoption.
 
 Longer-term research: deeper property-specific context boundaries with explicit
 unknowns/omissions, and strong repository-scale comparisons with actual task

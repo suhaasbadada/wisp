@@ -4,6 +4,11 @@ Guarded function-body editing now offers explicit **Preview → Apply** in the p
 
 **Built for agents. By agents.**
 
+Start with the [operator quickstart](Docs/Operator-quickstart.md): review finite
+policy cases, exercise positive/negative end-to-end gates, and observe/replay saved
+repository workflow evidence. Narrowly usable and experimental—not production
+readiness, proven superiority or automatic approval.
+
 ## Review a real policy change
 
 For an agent or CI job working with saved repository policies:
@@ -48,6 +53,8 @@ Its [explicit-attempt capture](Docs/Release-capture.md) reads chosen GitHub run
 IDs without automatic selection, retry or mutation.
 Use the [observation command](Docs/Workflow-observation.md) to combine collection
 and native triage, or inspect saved evidence offline, with an exact-input receipt.
+Validate and reproduce that receipt with [offline replay](Docs/Workflow-replay.md),
+checking policy/compiler pins before a new execution.
 
 The policy-change workbench compares two checked revisions against explicit typed
 cases and shows before/after decisions, mismatches, faults and limits. Try the
@@ -66,7 +73,8 @@ rewrites or deployment. See [Workbench](Docs/Workbench.md).
 Follow-up [maintenance study](Docs/Maintenance-study.md): both Wisp and strict
 TypeScript completed three repetitions of one dependency/stale-evidence task.
 No Wisp advantage established; missing capabilities remain an open product issue.
-Next direction: a concrete policy-change workbench, not endless benchmarks.
+That led to the policy-change workbench, composed gates and repository-local
+observation/replay workflow. Independent recurring use remains unproven.
 
 The first small paired maintenance pilot accepted **Wisp 2/3 tasks and strict
 TypeScript/BigInt 3/3**. Wisp's refund attempt failed the exact-body-boundary rule

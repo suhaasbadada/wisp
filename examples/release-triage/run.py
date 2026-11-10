@@ -15,6 +15,7 @@ CONCLUSIONS = {"", "success", "failure", "cancelled", "timed_out", "action_requi
                "neutral", "skipped", "startup_failure", "stale"}
 FAILURES = {"failure", "timed_out", "action_required", "startup_failure"}
 REQUIRED = {"Checks": {"verify"}, "Pages": {"build", "deploy"}}
+SCOPE = "saved workflow evidence only; not deployment or functional acceptance"
 WORKFLOW_FIELDS = [("present", "Bool"), ("current", "Bool"), ("status", "String"),
                    ("conclusion", "String"), ("failed_jobs", "Int"),
                    ("required_present", "Bool"), ("pending_jobs", "Int"), ("unsuccessful_jobs", "Int")]
@@ -90,8 +91,8 @@ def facts(data):
             "checks": workflow(data["checks"], "Checks"), "pages": workflow(data["pages"], "Pages")}
 
 
-def triage(data, digest, binary, project=HERE / "project.json"):
-    client = ProjectClient(project, binary=binary)
+def triage(data, digest, binary, project=HERE / "project.json", client=None):
+    client = ProjectClient(project, binary=binary) if client is None else client
     policies = client.description["project"]["policies"]
     require(len(policies) == 1 and policies[0]["id"] == "release", "Expected the release triage project")
     interface = policies[0]["report"]["interface"]
@@ -109,7 +110,7 @@ def triage(data, digest, binary, project=HERE / "project.json"):
     response = client.call("release", "decide", [inputs], request_id="release-triage")
     decision = response["report"]["result"]["value"] if response["status"] == "Complete" else None
     return {"contract_version": 1, "status": response["status"], "approval": "not_granted", "side_effects": "none",
-            "scope": "saved workflow evidence only; not deployment or functional acceptance", "evidence_hash": digest,
+            "scope": SCOPE, "evidence_hash": digest,
             "evidence": data, "inputs": inputs, "decision": decision, "response": response}
 
 
