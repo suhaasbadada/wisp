@@ -149,10 +149,13 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
     if r.budget.is_some() || r.ghost.is_some() || r.artifact.is_some() {
         return invalid("edit accepts only source, focus, change and limits");
     }
-    let change: Change = match r.change.as_ref().map(|raw| serde_json::from_str(raw.get())) {
-        Some(Ok(c)) => c,
-        _ => return invalid("edit requires strict change with three string fields"),
-    };
+    let change: Change =
+        match r.change.as_ref().map(|raw| {
+            serde_json::from_str::<wire::Object<Change>>(raw.get()).map(|wire::Object(c)| c)
+        }) {
+            Some(Ok(c)) => c,
+            _ => return invalid("edit requires strict change with three string fields"),
+        };
     let Some(target) = r.focus.as_deref().filter(|s| !s.is_empty()) else {
         return invalid("edit requires an explicit global function focus");
     };

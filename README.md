@@ -16,6 +16,12 @@ cargo run -- project review examples/policies/project-before.json examples/polic
 Projects are read-only and reject specification drift during review. See
 [repository project workflow](Docs/Projects.md) for the manifest and CI contract.
 
+For an application consuming policy decisions, `wisp project serve MANIFEST`
+provides a pinned JSON-lines session. Run `python3 examples/policies/decisions.py`
+after `cargo build --locked` for a dependency-free host example. See the
+[decision adapter](Docs/Adapter.md): no network server, automatic approval or host
+side effects; callers must handle Error/Unknown explicitly.
+
 The policy-change workbench compares two checked revisions against explicit typed
 cases and shows before/after decisions, mismatches, faults and limits. Try the
 reservation walkthrough in the playground, or:

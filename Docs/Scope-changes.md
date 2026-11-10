@@ -1,5 +1,9 @@
 # Scope change log
 
+- 2026-11-09: ADR 0012 adds pinned native JSON-lines decision sessions and a dependency-free application host example. Explicit caller-owned targets and raw typed arguments use shared Rust calls; no network service, cache, approval or host side effects. Independent review exposed positional arrays entering strict object schemas; map-only decoding closes that validation gap in host/core boundaries without changing valid object identities.
+
+- 2026-11-09: ADR 0011 adds read-only saved policy projects, immutable specification review gates, bounded confined snapshots and retained CI evidence; shipped through PR #11. Semantic preflight remains per policy, not falsely global.
+
 - 2026-11-09: ADR 0010 starts an end-to-end policy-change workbench: explicit typed cases, shared Rust before/after evaluation, honest differences/expectations and revision-linked evidence. No automatic approval, source/spec repair or deployment; no core host permissions or language-semantics change.
 
 - 2026-11-09: ADR 0009 repeats an independently agent-authored dependency/stale-evidence task against a stronger TypeScript baseline. Both arms pass; no superiority inference. Temporary feature freeze gives way to a concrete policy-change workbench, with capability upgrades driven by that workflow rather than speculative syntax or endless trials.

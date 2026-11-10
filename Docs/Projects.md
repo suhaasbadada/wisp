@@ -1,5 +1,8 @@
 # Repository policy projects (native v1)
 
+For host applications that consume decisions rather than verify saved examples,
+use [`project serve MANIFEST`](Adapter.md), the pinned JSON-lines adapter.
+
 Save a project manifest beside policies and caller-owned suites. An agent or CI
 job can check the saved examples with one read-only command:
 

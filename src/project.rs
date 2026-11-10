@@ -1,15 +1,18 @@
 //! Native, read-only repository orchestration. Language semantics stay in the core.
+use super::wire::{self, Object};
 use serde::Deserialize;
 use serde_json::{json, value::RawValue, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::fs;
+use std::io::{self, BufRead, Read, Write};
 use std::path::{Component, Path};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Manifest {
     version: u64,
+    #[serde(deserialize_with = "wire::objects")]
     policies: Vec<Policy>,
 }
 #[derive(Deserialize)]
@@ -83,7 +86,7 @@ fn load(path: &str) -> Result<Project, String> {
     let path = Path::new(path);
     regular(path)?;
     let raw = super::read(path.to_str().ok_or("path is not UTF-8")?, 16_384)?;
-    let manifest: Manifest =
+    let Object(manifest): Object<Manifest> =
         serde_json::from_str(&raw).map_err(|e| format!("invalid project: {e}"))?;
     if manifest.version != 1 || manifest.policies.is_empty() || manifest.policies.len() > 8 {
         return Err("project version must be 1 with 1–8 policies".into());
@@ -191,4 +194,113 @@ pub(super) fn execute(before: &str, after: Option<&str>) -> Result<Value, String
     report["project"]["summary"] = json!({"total":rows.len(),"attempted_invocations":attempted});
     report["project"]["policies"] = json!(rows);
     Ok(report)
+}
+
+const ADAPTER_LINE_BYTES: usize = 131_072;
+const ADAPTER_REQUESTS: usize = 1_024;
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DecisionRequest {
+    id: String,
+    policy: String,
+    function: String,
+    args: Box<RawValue>,
+}
+
+fn adapter_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 64
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
+fn decision(project: &Project, line: &[u8]) -> String {
+    let mut response = json!({"status":"Error","diagnostics":[],"adapter":{
+        "contract_version":1,"phase":"response","manifest_hash":project.manifest_hash,
+        "approval":"not_granted","new_execution":false
+    }});
+    let request: DecisionRequest = match serde_json::from_slice::<Object<DecisionRequest>>(line) {
+        Ok(Object(r)) => r,
+        Err(_) => {
+            response["diagnostics"] = json!([{"code":"ADAPTER_REQUEST_INVALID","kind":"Adapter","message":"expected strict JSON object with string id, policy, function and raw args"}]);
+            return response.to_string();
+        }
+    };
+    if !adapter_id(&request.id) || !adapter_id(&request.policy) {
+        response["diagnostics"] = json!([{"code":"ADAPTER_REQUEST_INVALID","kind":"Adapter","message":"id and policy must be ASCII [A-Za-z0-9_-]{1,64}"}]);
+        return response.to_string();
+    }
+    response["adapter"]["request_id"] = json!(request.id);
+    response["adapter"]["policy_id"] = json!(request.policy);
+    let Some(policy) = project.policies.iter().find(|p| p.id == request.policy) else {
+        response["diagnostics"] = json!([{"code":"ADAPTER_POLICY_UNKNOWN","kind":"Adapter","message":"policy ID is not in the pinned project"}]);
+        return response.to_string();
+    };
+    response["adapter"]["source_revision"] = json!(hash(&policy.source));
+    response["adapter"]["suite_file_hash"] = json!(hash(&policy.suite));
+    // Preserve exact raw argument bytes, duplicates and integer widths. The core
+    // owns target/type validation, checking, limits, invocation identity and execution.
+    let raw = wisp::dispatch(&format!(
+        "{{\"op\":\"call\",\"source\":{},\"function\":{},\"args\":{}}}",
+        json!(policy.source),
+        json!(request.function),
+        request.args.get()
+    ));
+    let report: Value = serde_json::from_str(&raw).expect("core emits JSON");
+    response["status"] = report["status"].clone();
+    response["adapter"]["new_execution"] = json!(report["invocation"]["new_execution"] == true);
+    // Embed the original serialized report, preserving nominal result field order
+    // as well as the core's private encoded-value finalization boundary.
+    let mut serialized = response.to_string();
+    serialized.pop();
+    format!("{serialized},\"report\":{raw}}}")
+}
+
+pub(super) fn serve(manifest: &str) -> Result<(), String> {
+    let project = load(manifest)?;
+    let ready = json!({"status":"Ready","diagnostics":[],"adapter":{
+        "contract_version":1,"phase":"ready","manifest_hash":project.manifest_hash,
+        "approval":"not_granted","new_execution":false,
+        "line_bytes":ADAPTER_LINE_BYTES,"requests":ADAPTER_REQUESTS,
+        "policies":project.policies.iter().map(|p| json!({"id":p.id,
+            "source_revision":hash(&p.source),"suite_file_hash":hash(&p.suite)})).collect::<Vec<_>>()
+    }});
+    let stdin = io::stdin();
+    let mut input = stdin.lock();
+    let stdout = io::stdout();
+    let mut output = stdout.lock();
+    writeln!(output, "{ready}")
+        .and_then(|_| output.flush())
+        .map_err(|e| e.to_string())?;
+    for index in 0..=ADAPTER_REQUESTS {
+        let mut line = Vec::new();
+        // take() bounds allocation even when a peer never sends a newline. The
+        // extra two bytes distinguish full content + LF from an oversized frame.
+        let n = (&mut input)
+            .take(ADAPTER_LINE_BYTES as u64 + 2)
+            .read_until(b'\n', &mut line)
+            .map_err(|e| e.to_string())?;
+        if n == 0 {
+            return Ok(());
+        }
+        if line.last() == Some(&b'\n') {
+            line.pop();
+        }
+        if line.len() > ADAPTER_LINE_BYTES {
+            return Err(format!(
+                "adapter line exceeds {ADAPTER_LINE_BYTES} bytes; session terminated"
+            ));
+        }
+        if index == ADAPTER_REQUESTS {
+            return Err(format!(
+                "adapter session exceeds {ADAPTER_REQUESTS} requests; session terminated"
+            ));
+        }
+        writeln!(output, "{}", decision(&project, &line))
+            .and_then(|_| output.flush())
+            .map_err(|e| e.to_string())?;
+    }
+    unreachable!("bounded session returns on EOF or request limit")
 }

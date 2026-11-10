@@ -2,6 +2,7 @@ use serde_json::{json, Value};
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 mod project;
+mod wire;
 
 const HELP: &str = "usage: wisp FILE | wisp --json < request.json
        wisp capabilities
@@ -11,6 +12,7 @@ const HELP: &str = "usage: wisp FILE | wisp --json < request.json
         wisp verify SOURCE --suite CASES
         wisp project verify MANIFEST
         wisp project review BASE_MANIFEST CANDIDATE_MANIFEST
+        wisp project serve MANIFEST
        wisp edit FILE FUNCTION --replacement-file BODY --expected-revision SHA --expected-body SHA --out NEWFILE
        wisp check FILE
        wisp focus FILE FUNCTION [--budget N]
@@ -319,6 +321,15 @@ fn main() {
     if args == ["--help"] || args == ["-h"] {
         println!("{HELP}");
         return;
+    }
+    if let [project, serve, manifest] = args.as_slice() {
+        if project == "project" && serve == "serve" {
+            if let Err(e) = project::serve(manifest) {
+                eprintln!("{e}");
+                std::process::exit(2);
+            }
+            return;
+        }
     }
     match execute(&args) {
         Ok((report, legacy, raw)) => {

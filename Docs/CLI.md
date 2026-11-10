@@ -223,6 +223,11 @@ candidate Pass. Verifying the baseline returns Fail, not a parse error.
 Pass is not authorization to apply, merge or deploy.
 # Repository projects
 
+`wisp project serve MANIFEST` pins project files and accepts serial typed decision
+requests on stdin after a readiness line. JSON-lines stdout contains per-request
+core evidence, not an aggregate verification verdict. See [Adapter](Adapter.md)
+for limits, lifecycle and the runnable Python integration.
+
 `wisp project verify MANIFEST` checks saved policy suites; `wisp project review
 BASE_MANIFEST CANDIDATE_MANIFEST` compares matching policy sets with unchanged
 suite bytes. Read-only native host commands with JSON evidence and semantic exit
