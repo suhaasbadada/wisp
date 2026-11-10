@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0027 makes official SDK source/project/strict/internal tests required within the existing read-only CI verify job. Test-only Python 3.12 dependencies are fully version/hash locked, installed as wheels and checked; reports/package versions are retained. No server runtime dependency, core semantics or deployment permission added; one configuration is not universal compatibility.
+
 - 2026-11-09: ADR 0026 exposes selected saved-case verification through guarded native/Python/MCP operations, reusing shared Rust review. Pass/Fail/Error/Unknown and fresh-attempt markers remain separate from invocation completion and approval. All-policy pins are validated after the selected operation; other-policy drift or lost responses do not establish zero execution. No core semantics, expectation overrides or host authority added.
 
 - 2026-11-09: ADR 0025 enforces stdout4MiB/stderr64KiB native-command caps during concurrent collection, before decoding; previously capture preceded report checks. Overflow/deadline invalidates output and cleans up the direct child without claiming zero execution. No Rust semantics, host authority, retries or descendant sandbox added.

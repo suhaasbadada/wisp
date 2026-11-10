@@ -1,6 +1,26 @@
 # Verification
 
-## Saved-policy finite-suite verification (under publication)
+## Required pinned MCP SDK CI (under publication)
+
+A fresh disposable Python 3.12 venv installed the full committed SDK dependency
+lock with hashes required and wheels only; `pip check`, all three SDK modes and
+historical internal triage passed. This was macOS, not the pending exact-head
+Linux CI run. The existing required verify job now includes these checks, a
+five-minute step limit and structured report/package-list artifacts. The exact YAML
+shell step also passed in an owned local fixture; all four JSON artifacts and
+package list were checked. Full prescribed checks passed: 157 Rust, 41 Node,
+126 Python, 326 native/WASM comparisons, 36 Chromium, fmt/Clippy/npm ci/WASM/check/
+build. Joffrey independently reviewed with no substantive findings and checked
+all 30 pinned packages' hashes against PyPI metadata, including Linux CPython 3.12
+wheels. Exact-head Linux CI and publication remain pending; no server runtime SDK
+dependency or dependency-authenticity claim is added.
+
+PR #26 shipped at `c57c0707d0a2aece13f635b57bc5e9f0b79e8900`: PR Checks
+`42792515022`, merge Checks `42793111572`, Pages `42793111632`, deployment
+`7678678941` passed. Immutable SDK/internal triage, adverse artifacts and four
+public contracts are [accepted](https://github.com/suhaasbadada/wisp/pull/26#issuecomment-6764179220).
+
+## Saved-policy finite-suite verification
 
 Ten native tests passed in Bob's 157-test Rust suite, including exact core report
 parity, all four guards, Pass/Fail/Error/Unknown, raw JSON, confinement and selected

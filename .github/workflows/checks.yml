@@ -20,6 +20,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
@@ -49,6 +52,17 @@ jobs:
           python3 -c 'import json,hashlib; r=json.load(open("release-triage-receipt.json")); c=r["collection"]; assert c["snapshot_hash"] == hashlib.sha256(c["snapshot_json"].encode("utf-8")).hexdigest() == r["triage"]["evidence_hash"]; assert r["triage"]["decision"]["state"] == "Observed" and c["api_get_invocations"] == 0'
           python3 -B examples/release-triage/replay.py --receipt release-triage-receipt.json > release-triage-replay.json
           python3 -c 'import json; r=json.load(open("release-triage-replay.json")); assert r["comparison"] == "Reproduced" and r["status"] == "Observed" and r["new_execution"] is True and r["approval"] == "not_granted"'
+      - name: Official MCP SDK interoperability
+        timeout-minutes: 5
+        run: |
+          python3 -m venv .venv-mcp-sdk
+          .venv-mcp-sdk/bin/python -m pip --isolated install --index-url https://pypi.org/simple --only-binary=:all: --require-hashes -r integrations/mcp/requirements-test.txt
+          .venv-mcp-sdk/bin/python -m pip check
+          .venv-mcp-sdk/bin/python -m pip freeze > mcp-sdk-packages.txt
+          .venv-mcp-sdk/bin/python -B scripts/mcp_sdk_smoke.py > mcp-sdk-source.json
+          .venv-mcp-sdk/bin/python -B scripts/mcp_sdk_smoke.py --project examples/policies/project.json > mcp-sdk-project.json
+          .venv-mcp-sdk/bin/python -B scripts/mcp_sdk_smoke.py --project examples/policies/project.json --require-project-guard > mcp-sdk-strict.json
+          .venv-mcp-sdk/bin/python -B scripts/mcp_internal_triage.py --budget 2048 > mcp-sdk-internal-triage.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -58,6 +72,8 @@ jobs:
             project-*.jsonl
             order-gate-*.json
             release-triage-*.json
+            mcp-sdk-*.json
+            mcp-sdk-packages.txt
           if-no-files-found: ignore
       - run: cargo install wasm-pack --locked --version 0.15.1
       - run: npm ci
