@@ -6,9 +6,9 @@ release acceptance recorded on their PRs. Checked callable interfaces shipped vi
 PR #13; composed three-policy application/workflow observations shipped via PR #14,
 retaining the adverse discount/shipping effect. Caller-owned end-to-end gates
 shipped via PR #15, blocking unmet requirements despite component Pass. Current
-increment: review exact prepared candidates against retained saved baselines and
-unchanged owner suites, without resending baseline or changing expectations.
-Saved preparation shipped via PR #31; inline preparation via PR #30. No Apply.
+increment: one caller-pinned read-only proposal command coordinating context,
+guarded preparation and exact saved-case review. Candidate review shipped via
+PR #32; saved preparation via PR #31; inline preparation via PR #30. No Apply.
 Historical-checkpoint documentation clarification shipped via PR #29;
 real-SDK failure/reconnect regressions via
 PR #28. Required hash-locked SDK CI shipped via PR #27;
@@ -63,7 +63,8 @@ published acceptance is recorded in Testing.
 26. Saved-policy real-SDK failure regressions shipped via PR #28 (ADR 0028).
 27. Pure guarded MCP edit preparation shipped via PR #30 (ADR 0029).
 28. Saved-project guarded body preparation shipped via PR #31 (ADR 0030).
-29. Saved exact-candidate review (ADR 0031), under verification/publication.
+29. Saved exact-candidate review shipped via PR #32 (ADR 0031).
+30. Read-only pinned maintenance driver (ADR 0032), under verification/publication.
 
 Continue in tested increments focused on recurring agent/application workflows
 and demonstrated gaps. Benchmark concrete claims before promoting them; neither

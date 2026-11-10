@@ -1,5 +1,9 @@
 # A narrowly usable Wisp workflow
 
+For a caller-pinned read-only maintenance flow (context → preparation → exact
+saved-case review), see [policy proposals](Policy-proposals.md). Original policy
+and cases remain unchanged; finite Pass is not Apply or approval.
+
 Wisp is usable for checked finite policy maintenance and read-only application
 observations, not yet a broadly validated production product. Requirements:
 Rust/Cargo and Python 3.8+; Node/WASM only for browser/full tests. No API key,

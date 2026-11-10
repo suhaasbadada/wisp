@@ -1,5 +1,9 @@
 # Experimental local MCP bridge
 
+For an operator command that coordinates the same pinned native/client workflow
+without requiring an MCP SDK, see [policy proposals](Policy-proposals.md). It
+requires authored caller pins and does not apply or approve candidates.
+
 GitHub's existing read-only `verify` job now requires the official Python SDK
 interoperability checks: source tools, configured project, strict caller guards
 and internal historical CI triage, plus saved-policy failure/reconnect regressions.

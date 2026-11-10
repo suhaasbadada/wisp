@@ -23,6 +23,10 @@ reasoned about across reconnects; owners can enforce this with
 
 ## Review a real policy change
 
+For one read-only command that checks caller pins, fetches context, prepares a
+guarded body and reviews the exact candidate, see [policy proposals](Docs/Policy-proposals.md).
+It returns evidence, never Apply or approval.
+
 For an agent or CI job working with saved repository policies:
 
 ```sh

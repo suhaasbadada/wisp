@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-10: ADR 0032 coordinates caller-pinned discovery/context/preparation/exact saved-suite review in one read-only operator command. Authored pins are checked before focus/body IO; failed stages retain native outcomes, no review follows rejected preparation, and no expectations or policy files change. Frozen demonstration inputs and CI evidence are authored coverage, not independent agent trials, approval or language superiority.
+
 - 2026-11-10: ADR 0031 reviews exact candidate bytes against a retained saved baseline and unchanged owner suite. Candidate hash and project guards precede attempts; no suite override, automatic repair or Apply. Core review preserves finite outcomes and both identities; review is not a separate preservation/intent proof. Configured tools become13, defaults remain7.
 
 - 2026-11-10: ADR 0030 prepares saved-policy bodies using retained project snapshots and unchanged Rust edit. Body guards remain mandatory; project guards refuse before replacement reads, and strict caller guards cover all four saved operations. No writes, Apply, case execution or approval. The returned full candidate is not a total token-saving/confidentiality claim; configured tools become12 while defaults stay7.
