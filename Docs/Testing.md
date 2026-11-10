@@ -1,6 +1,24 @@
 # Verification
 
-## Saved projects in MCP (under publication)
+## Caller-owned MCP snapshot guards (under publication)
+
+Primary full verification passed 139 Rust, 41 Node, 93 Python tests (26 MCP/native),
+326 native/WASM comparisons, 36 Chromium tests, fmt/Clippy/npm ci/WASM/TypeScript/
+build and three official Python SDK 2.3.0 modes (source, saved project, strict caller
+guard). Seven additional MCP tests cover defensive guard metadata, exact native
+evidence parity, invalid/mismatched guards before submission, behavior changes
+across reconnect with unguarded negative control, readiness drift/native-error
+preservation, strict schema isolation and owner configuration guards. Joffrey
+independently reviewed and found no substantive issues; 26 focused tests passed.
+Exact-head CI/publication remain separate gates. This is a finite stale-reasoning
+regression, not authentication, intended-requirement proof or measured superiority.
+
+PR #22 shipped at `77564e9d3457f4115d5449307808c03c0726954b`: PR Checks
+`42780646278`, merge Checks `42781496644`, Pages `42781496345` and deployment
+`7677010536` passed. Immutable merged project/SDK verification, actual artifacts
+and public guides are [accepted](https://github.com/suhaasbadada/wisp/pull/22#issuecomment-6762705294).
+
+## Saved projects in MCP
 
 Primary full checks passed 139 Rust, 41 Node, 86 Python tests (19 MCP/native),
 326 native/WASM comparisons and 36 Chromium tests, plus fmt/Clippy/npm ci/WASM/

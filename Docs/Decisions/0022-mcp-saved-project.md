@@ -1,7 +1,8 @@
 # ADR 0022: Owner-configured saved projects in MCP
 
-Status: implemented; full local checks, both SDK modes and independent review
-passed; exact-head CI and publication pending.
+Status: accepted; shipped via PR #22 at
+`77564e9d3457f4115d5449307808c03c0726954b`. Exact-head CI, immutable project/SDK
+native verification, artifacts and public contract acceptance are recorded there.
 
 Inline source tools require agents to resend source for each invocation. Add an
 optional owner-selected startup manifest, exposing checked project metadata and

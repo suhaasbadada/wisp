@@ -75,6 +75,11 @@ adds two saved-project tools without source/path selection by the agent.
 Configure the trusted server/binary paths in
 that client; no global harness configuration is installed automatically. This
 adds a tested agent transport, not production authority or universal compatibility.
+For reasoning that persists across reconnects, use `--require-project-guard` with
+the owner-selected project and copy that policy's discovery `bridge.call_guards`
+object into invocation `expected`. Server-only session pins do not bind earlier
+reasoning after a restart; caller guards do, while readiness still guards disk
+drift. Neither mechanism verifies intended business requirements or approval.
 
 Separately verify exact PR/head/checks/review; authorized merge; merged CI;
 actual deployment revision/status; actual artifacts; public content and
