@@ -6,8 +6,9 @@ release acceptance recorded on their PRs. Checked callable interfaces shipped vi
 PR #13; composed three-policy application/workflow observations shipped via PR #14,
 retaining the adverse discount/shipping effect. Caller-owned end-to-end gates
 shipped via PR #15, blocking unmet requirements despite component Pass. Current
-increment: exercise saved-suite failure outcomes and changed-behavior reconnects
-through the real SDK. Required hash-locked SDK CI shipped via PR #27;
+maintenance: clarify historical verification checkpoints without rewriting
+results or review provenance. Real-SDK failure/reconnect regressions shipped via
+PR #28. Required hash-locked SDK CI shipped via PR #27;
 saved finite-suite verification via PR #26.
 Bounded native collection shipped via PR #25; saved-function context via PR #24;
 caller-owned reconnect guards via PR #23. Saved-project
@@ -56,7 +57,7 @@ published acceptance is recorded in Testing.
 23. Bounded native-command output collection shipped via PR #25 (ADR 0025).
 24. Guarded saved-policy finite-suite verification shipped via PR #26 (ADR 0026).
 25. Required pinned MCP SDK CI checks shipped via PR #27 (ADR 0027).
-26. Saved-policy real-SDK failure regressions (ADR 0028), under verification/publication.
+26. Saved-policy real-SDK failure regressions shipped via PR #28 (ADR 0028).
 
 Continue in tested increments focused on recurring agent/application workflows
 and demonstrated gaps. Benchmark concrete claims before promoting them; neither

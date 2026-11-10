@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-10: Clarify that older Testing entries retain local/pre-publication checkpoints, not live release blockers; exact shipped revisions and acceptance links govern release evidence. Correct ADR 0011's stale pending status while preserving its primary/CI-only post-fix provenance. Documentation maintenance only; no historical result, runtime or core behavior change.
+
 - 2026-11-10: ADR 0028 adds required real-SDK saved-policy failure/reconnect regressions with disposable owner-created projects. Pass/Fail/runtime Error/Unknown/preflight outcomes, stale/missing guards and same-session drift retain explicit evidence/no-approval semantics. Fresh adoption is demonstrated not to imply requirements Pass. Test coverage only; no language/runtime permission or model-reasoning claim.
 
 - 2026-11-09: ADR 0027 makes official SDK source/project/strict/internal tests required within the existing read-only CI verify job. Test-only Python 3.12 dependencies are fully version/hash locked, installed as wheels and checked; reports/package versions are retained. No server runtime dependency, core semantics or deployment permission added; one configuration is not universal compatibility.

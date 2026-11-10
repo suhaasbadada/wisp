@@ -1,6 +1,11 @@
 # ADR 0011: Native repository policy projects
 
-Status: implemented; independent review and publication pending.
+Status: accepted; shipped via PR #11 at
+`47366afc25a32bac20052c69769d8c542252f990`. Exact-head/merge CI, deployment,
+artifacts and published contracts are
+[accepted](https://github.com/suhaasbadada/wisp/pull/11#issuecomment-6757764759).
+Joffrey's finding was repaired; post-fix verification was primary plus CI, not an
+independent re-review.
 
 ## Need
 
