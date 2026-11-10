@@ -311,6 +311,129 @@ class MCP(unittest.TestCase):
             self.assertIsNone(result["structuredContent"]["report"])
             self.assertEqual(result["structuredContent"]["bridge"]["execution"], "unresolved")
 
+    def test_project_discovery_returns_defensive_call_guards(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples" / "policies" / "project.json")
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        result = server.call({"name": "wisp_project_describe", "arguments": {}})
+        data = result["structuredContent"]
+        self.assertEqual(json.loads(result["content"][0]["text"]), data)
+        guard = data["bridge"]["call_guards"]["reservations"]
+        row = data["report"]["project"]["policies"][0]
+        self.assertEqual(guard, {"policy_id": "reservations", "manifest_hash": data["report"]["project"]["manifest_hash"],
+                                 "source_revision": row["report"]["revision"], "suite_file_hash": row["suite_file_hash"],
+                                 "compiler": row["report"]["compiler"]})
+        guard["source_revision"] = "0" * 64
+        next_result = server.call({"name": "wisp_project_describe", "arguments": {}})
+        self.assertNotEqual(next_result["structuredContent"]["bridge"]["call_guards"]["reservations"]["source_revision"], "0" * 64)
+
+    def test_guarded_and_unguarded_calls_have_identical_native_evidence(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples" / "policies" / "project.json")
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        args = {"id": "one", "policy": "reservations", "function": "decide", "args": [
+            {"quantity": "11", "pack_size": "5", "expires_at": "101"}, {"available": "11", "now": "100"}]}
+        ordinary = server.call({"name": "wisp_project_invoke", "arguments": args})
+        guarded = server.call({"name": "wisp_project_invoke", "arguments": {**args, "expected": copy.deepcopy(server.project_guards["reservations"])}})
+        self.assertEqual(ordinary["structuredContent"]["report"], guarded["structuredContent"]["report"])
+        self.assertEqual(ordinary["structuredContent"]["bridge"]["guard_status"], "not_requested")
+        self.assertEqual(guarded["structuredContent"]["bridge"]["guard_status"], "matched")
+
+    def test_bad_guard_fields_fail_before_native_session_creation(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples" / "policies" / "project.json")
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        guard = server.project_guards["reservations"]
+        variants = [{}, {**guard, "extra": 1}, {**guard, "source_revision": True}, {**guard, "source_revision": "short"},
+                    {**guard, "source_revision": "0" * 64}, {**guard, "manifest_hash": "0" * 64},
+                    {**guard, "suite_file_hash": "0" * 64}, {**guard, "compiler": "other"}, {**guard, "policy_id": "other"}]
+        for expected in variants:
+            with mock.patch.object(server.project, "_exchange", side_effect=AssertionError("No native session")) as exchange:
+                result = server.call({"name": "wisp_project_invoke", "arguments": {
+                    "id": "guard", "policy": "reservations", "function": "decide", "args": [], "expected": expected}})
+            self.assertTrue(result["isError"])
+            self.assertIsNone(result["structuredContent"]["report"])
+            self.assertEqual(result["structuredContent"]["bridge"]["guard_status"], "rejected")
+            self.assertEqual(result["structuredContent"]["bridge"]["execution"], "not_submitted")
+            exchange.assert_not_called()
+
+    def test_old_reasoning_guard_survives_reconnect_and_refuses_new_source(self):
+        with tempfile.TemporaryDirectory(prefix="wisp-mcp-reconnect-") as temp:
+            folder = pathlib.Path(temp)
+            source = folder / "price.wisp"; source.write_text('fn price(n: Int) -> Int { n }')
+            (folder / "cases.json").write_text('{}')
+            manifest = folder / "project.json"
+            manifest.write_text(json.dumps({"version": 1, "policies": [{"id": "pricing", "source": "price.wisp", "suite": "cases.json"}]}))
+            def connect():
+                server = HOST.Server(BINARY, manifest=manifest)
+                server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+                return server
+            before = connect()
+            old_guard = copy.deepcopy(before.project_guards["pricing"])
+            source.write_text('fn price(n: Int) -> Int { n + 1 }')
+            after = connect()
+            args = {"id": "quote", "policy": "pricing", "function": "price", "args": ["1"]}
+            with mock.patch.object(after.project, "_exchange", side_effect=AssertionError("Stale reasoning must not execute")):
+                blocked = after.call({"name": "wisp_project_invoke", "arguments": {**args, "expected": old_guard}})
+            self.assertEqual(blocked["structuredContent"]["bridge"]["guard_status"], "rejected")
+            self.assertEqual(blocked["structuredContent"]["bridge"]["execution"], "not_submitted")
+            # Negative control: server-only pins intentionally accept the new
+            # session; the caller guard is what binds earlier reasoning.
+            unguarded = after.call({"name": "wisp_project_invoke", "arguments": args})
+            self.assertEqual(unguarded["structuredContent"]["report"]["report"]["result"]["value"], "2")
+            self.assertEqual(unguarded["structuredContent"]["bridge"]["guard_status"], "not_requested")
+            adopted = after.call({"name": "wisp_project_invoke", "arguments": {**args, "expected": copy.deepcopy(after.project_guards["pricing"])}})
+            self.assertEqual(adopted["structuredContent"]["bridge"]["guard_status"], "matched")
+
+    def test_caller_guard_does_not_bypass_readiness_drift_or_fabricate_error_success(self):
+        example = ROOT / "examples" / "policies"
+        with tempfile.TemporaryDirectory(prefix="wisp-mcp-guard-ready-") as temp:
+            folder = pathlib.Path(temp)
+            for name in ["project.json", "reservations-after.wisp", "cases.json"]: (folder / name).write_bytes((example / name).read_bytes())
+            server = HOST.Server(BINARY, manifest=folder / "project.json")
+            server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+            args = {"id": "guarded", "policy": "reservations", "function": "decide", "args": [
+                {"quantity": 1, "pack_size": "1", "expires_at": "101"}, {"available": "1", "now": "100"}],
+                "expected": copy.deepcopy(server.project_guards["reservations"])}
+            typed_error = server.call({"name": "wisp_project_invoke", "arguments": args})
+            self.assertEqual(typed_error["structuredContent"]["bridge"]["guard_status"], "matched")
+            self.assertEqual(typed_error["structuredContent"]["report"]["status"], "Error")
+            self.assertTrue(typed_error["isError"])
+            path = folder / "reservations-after.wisp"; path.write_bytes(path.read_bytes() + b"\n")
+            drift = server.call({"name": "wisp_project_invoke", "arguments": args})
+            self.assertTrue(drift["isError"])
+            self.assertEqual(drift["structuredContent"]["bridge"]["guard_status"], "matched")
+            self.assertEqual(drift["structuredContent"]["bridge"]["execution"], "unresolved")
+            self.assertIsNone(drift["structuredContent"]["report"])
+
+    def test_owner_can_require_caller_guards_without_mutating_other_sessions(self):
+        manifest = ROOT / "examples" / "policies" / "project.json"
+        strict = HOST.Server(BINARY, manifest=manifest, require_project_guard=True)
+        strict.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); strict.handle(initialize()[1])
+        metadata = strict.call({"name": "wisp_project_describe", "arguments": {}})
+        self.assertTrue(metadata["structuredContent"]["bridge"]["caller_guard_required"])
+        self.assertIn("expected", strict.definitions()["wisp_project_invoke"]["inputSchema"]["required"])
+        ordinary = HOST.Server(BINARY, manifest=manifest)
+        ordinary.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); ordinary.handle(initialize()[1])
+        self.assertNotIn("expected", ordinary.definitions()["wisp_project_invoke"]["inputSchema"]["required"])
+        args = {"id": "strict", "policy": "reservations", "function": "decide", "args": [
+            {"quantity": "1", "pack_size": "1", "expires_at": "101"}, {"available": "1", "now": "100"}]}
+        with mock.patch.object(strict.project, "_exchange", side_effect=AssertionError("No unguarded native session")):
+            refused = strict.call({"name": "wisp_project_invoke", "arguments": args})
+        self.assertTrue(refused["isError"])
+        self.assertEqual(refused["structuredContent"]["bridge"]["guard_status"], "rejected")
+        self.assertEqual(refused["structuredContent"]["bridge"]["execution"], "not_submitted")
+        accepted = strict.call({"name": "wisp_project_invoke", "arguments": {
+            **args, "expected": metadata["structuredContent"]["bridge"]["call_guards"]["reservations"]}})
+        self.assertFalse(accepted["isError"])
+        self.assertEqual(accepted["structuredContent"]["bridge"]["guard_status"], "matched")
+
+    def test_caller_guard_enforcement_requires_an_owner_project(self):
+        with self.assertRaises(HOST.ClientError): HOST.Server(BINARY, require_project_guard=True)
+        p = subprocess.run([sys.executable, "-B", str(ENTRY), "--require-project-guard", "--wisp", "nonexistent-wisp"],
+                           capture_output=True, text=True, timeout=10)
+        self.assertEqual(p.returncode, 2)
+        self.assertEqual(p.stdout, "")
+        self.assertIn("requires --project", p.stderr)
+        self.assertNotIn("unavailable", p.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0023 binds an agent's earlier project snapshot through copyable exact caller guards, rejecting mismatch before native submission even after reconnect. An owner can require guards without changing legacy optional behavior or other sessions. Readiness/native failures remain separate; no automatic adoption, intended-rule proof, approval, core semantics or runtime permission change.
+
 - 2026-11-09: ADR 0022 adds optional owner-configured MCP project discovery/invocation without repeated source. The agent cannot select a manifest/path; compiler/manifest/source/suite pins and initialization metadata stay explicit, edits fail closed, and calls remain fresh native executions. No case-verification implication, execution cache, language permission or measured efficiency claim.
 
 - 2026-11-09: ADR 0021 adds a local MCP stdio bridge exposing existing native discovery/check/interface/invocation/review/context operations as six fixed agent tools. No agent-controlled command/path, file writes, networking, core semantics, automatic approval or global client configuration. Focused protocol/native checks and one official SDK interoperability smoke keep compatibility claims bounded.

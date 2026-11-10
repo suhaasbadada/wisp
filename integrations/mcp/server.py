@@ -23,6 +23,11 @@ def schema(properties, required):
 
 
 SOURCE = {"type": "string", "description": "Wisp source text, checked by Rust; default source limit is 65536 UTF-8 bytes."}
+GUARD_HASHES = ["manifest_hash", "source_revision", "suite_file_hash"]
+GUARD_FIELDS = ["policy_id", *GUARD_HASHES, "compiler"]
+EXPECTED_GUARD = schema({"policy_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
+                         **{key: {"type": "string", "pattern": "^[0-9a-f]{64}$"} for key in GUARD_HASHES},
+                         "compiler": {"type": "string", "minLength": 1}}, GUARD_FIELDS)
 TOOLS = [
     {"name": "wisp_capabilities", "description": "Discover the actual native compiler, language operations, limits and diagnostic codes. Does not execute policy code.",
      "inputSchema": schema({}, [])},
@@ -42,10 +47,10 @@ TOOLS = [
 PROJECT_TOOLS = [
     {"name": "wisp_project_describe", "description": "Get checked callable metadata pinned at initialization for the owner-configured project. Not suite verification or a live filesystem rescan.",
      "inputSchema": schema({}, [])},
-    {"name": "wisp_project_invoke", "description": "Call one function in the owner-configured pinned project without resending source. No agent-selected files. Project/source/suite drift fails closed; no automatic adoption or approval.",
+    {"name": "wisp_project_invoke", "description": "Call one function in the owner-configured project without resending source. Copy the selected policy's call_guards from project discovery into optional expected to bind the revision you reasoned about across reconnects. Without expected only server/session pins apply. No agent-selected files or approval.",
      "inputSchema": schema({"id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
                             "policy": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
-                            "function": {"type": "string"}, "args": {"type": "array", "items": {}}},
+                            "function": {"type": "string"}, "args": {"type": "array", "items": {}}, "expected": EXPECTED_GUARD},
                            ["id", "policy", "function", "args"])},
 ]
 for tool in TOOLS + PROJECT_TOOLS:
@@ -78,17 +83,25 @@ def error(identifier, code, message):
     return {"jsonrpc": "2.0", "id": identifier, "error": {"code": code, "message": message}}
 
 
-def tool_result(report=None, message=None, execution="see_native_report"):
+def tool_result(report=None, message=None, execution="see_native_report", guard_status=None, call_guards=None, caller_guard_required=None):
     bridge = {"contract_version": 1, "status": "Error" if message else "Complete", "approval": "not_granted", "execution": execution}
     if message:
         bridge["message"] = message
+    if guard_status is not None:
+        bridge["guard_status"] = guard_status
+    if call_guards is not None:
+        bridge["call_guards"] = copy.deepcopy(call_guards)
+    if caller_guard_required is not None:
+        bridge["caller_guard_required"] = caller_guard_required
     data = {"bridge": bridge, "report": report}
     return {"content": [{"type": "text", "text": encode_json(data, ascii_strings=True)}],
             "structuredContent": data, "isError": bool(message) or report["status"] in {"Error", "Unknown", "Fail"}}
 
 
 class Server:
-    def __init__(self, binary, manifest=None):
+    def __init__(self, binary, manifest=None, require_project_guard=False):
+        if type(require_project_guard) is not bool or (require_project_guard and manifest is None):
+            raise ClientError("Caller-guard enforcement requires an owner-configured project")
         self.binary = str(binary)
         self.phase = "new"
         self.compiler = None
@@ -96,9 +109,15 @@ class Server:
         self.manifest = manifest
         self.project = None
         self.project_targets = {}
+        self.project_guards = {}
+        self.require_project_guard = require_project_guard
 
     def definitions(self):
-        return {**DEFINITIONS, **PROJECT_DEFINITIONS} if self.project is not None else DEFINITIONS
+        definitions = {**DEFINITIONS, **PROJECT_DEFINITIONS} if self.project is not None else DEFINITIONS
+        if self.require_project_guard and self.project is not None:
+            definitions["wisp_project_invoke"] = copy.deepcopy(definitions["wisp_project_invoke"])
+            definitions["wisp_project_invoke"]["inputSchema"]["required"].append("expected")
+        return definitions
 
     def native(self, request):
         payload = encode_json(request)
@@ -126,6 +145,7 @@ class Server:
             require(isinstance(params["_meta"], dict), -32602, "Expected object _meta")
         arguments = params.get("arguments", {})
         definition = definitions[name]["inputSchema"]
+        guard_status = "rejected" if name == "wisp_project_invoke" and self.require_project_guard else None
         try:
             if (not isinstance(arguments, dict) or not set(definition["required"]) <= set(arguments)
                     or not set(arguments) <= set(definition["properties"])):
@@ -147,8 +167,21 @@ class Server:
             if name == "wisp_project_invoke" and (arguments["policy"] not in self.project_targets
                     or arguments["function"] not in self.project_targets[arguments["policy"]]):
                 raise ClientError("Unknown described project policy/function")
+            if name == "wisp_project_invoke":
+                guard_status = "not_requested"
+                if "expected" in arguments:
+                    guard_status = "rejected"
+                    expected = arguments["expected"]
+                    if (set(expected) != set(GUARD_FIELDS) or any(not isinstance(expected[key], str) for key in GUARD_FIELDS)
+                            or re.fullmatch(r"[A-Za-z0-9_-]{1,64}", expected["policy_id"]) is None
+                            or any(re.fullmatch(r"[0-9a-f]{64}", expected[key]) is None for key in GUARD_HASHES)
+                            or not expected["compiler"]):
+                        raise ClientError("Expected an exact policy/compiler/manifest/source/suite guard object")
+                    if expected != self.project_guards[arguments["policy"]]:
+                        raise ClientError("Expected project snapshot differs from this session; no request submitted")
+                    guard_status = "matched"
         except ClientError as failure:
-            return tool_result(message=str(failure), execution="not_submitted")
+            return tool_result(message=str(failure), execution="not_submitted", guard_status=guard_status)
         self.calls += 1
         try:
             if name in PROJECT_DEFINITIONS:
@@ -160,13 +193,15 @@ class Server:
                     execution = "see_native_report"
                 if len(encode_json(report).encode("utf-8")) > REPORT_BYTES:
                     raise ClientError("Project report exceeds the bridge output bound")
-                return tool_result(report, execution=execution)
+                return tool_result(report, execution=execution, guard_status=guard_status,
+                                   call_guards=self.project_guards if name == "wisp_project_describe" else None,
+                                   caller_guard_required=self.require_project_guard if name == "wisp_project_describe" else None)
             request = {"op": OPERATIONS[name], "source": "", **arguments}
             return tool_result(self.native(request))
         except (ClientError, OSError, ValueError, TypeError, KeyError, RecursionError):
             # Never expose process stderr, command environment or credentials.
             # A submitted request may have executed even without a valid result.
-            return tool_result(message="Native transport/report failed; unreceived outcomes are unresolved", execution="unresolved")
+            return tool_result(message="Native transport/report failed; unreceived outcomes are unresolved", execution="unresolved", guard_status=guard_status)
 
     def handle(self, value):
         identifier = None
@@ -197,11 +232,17 @@ class Server:
                     self.compiler = capabilities["compiler"]
                     if self.manifest is not None:
                         project = ProjectClient(self.manifest, binary=self.binary)
-                        policies = project.description["project"]["policies"]
+                        description = project.description["project"]
+                        policies = description["policies"]
                         if any(p["report"]["compiler"] != self.compiler for p in policies):
                             raise ClientError("Configured project compiler differs from source tools")
+                        targets = {p["id"]: {f["name"] for f in p["report"]["interface"]["functions"]} for p in policies}
+                        guards = {p["id"]: {"policy_id": p["id"], "manifest_hash": description["manifest_hash"],
+                                           "source_revision": p["report"]["revision"], "suite_file_hash": p["suite_file_hash"],
+                                           "compiler": p["report"]["compiler"]} for p in policies}
                         self.project = project
-                        self.project_targets = {p["id"]: {f["name"] for f in p["report"]["interface"]["functions"]} for p in policies}
+                        self.project_targets = targets
+                        self.project_guards = guards
                 except (ClientError, OSError, ValueError, TypeError, KeyError, RecursionError):
                     raise ProtocolError(-32603, "Native compiler/project discovery failed")
                 self.phase = "initializing"
@@ -222,8 +263,8 @@ class Server:
             return None if notification else error(identifier, failure.code, failure.message)
 
 
-def serve(binary, input_stream, output_stream, manifest=None):
-    server = Server(binary, manifest=manifest)
+def serve(binary, input_stream, output_stream, manifest=None, require_project_guard=False):
+    server = Server(binary, manifest=manifest, require_project_guard=require_project_guard)
     for _ in range(MAX_MESSAGES):
         raw = input_stream.readline(FRAME_BYTES + 2)
         if not raw:
@@ -248,7 +289,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wisp", default="target/debug/wisp")
     parser.add_argument("--project", type=pathlib.Path, help="Owner-configured saved project; agents cannot select or change this path")
+    parser.add_argument("--require-project-guard", action="store_true", help="Require caller-supplied expected snapshot on every saved-project invocation")
     args = parser.parse_args()
+    if args.require_project_guard and args.project is None:
+        parser.error("--require-project-guard requires --project")
     binary = shutil.which(args.wisp)
     if binary is None:
         print("Wisp MCP host: configured native executable is unavailable", file=sys.stderr)
@@ -260,7 +304,8 @@ def main():
     signal.signal(signal.SIGTERM, terminate)
     try:
         manifest = str(args.project.absolute()) if args.project is not None else None
-        return serve(str(pathlib.Path(binary).resolve()), sys.stdin.buffer, sys.stdout.buffer, manifest=manifest)
+        return serve(str(pathlib.Path(binary).resolve()), sys.stdin.buffer, sys.stdout.buffer, manifest=manifest,
+                     require_project_guard=args.require_project_guard)
     except KeyboardInterrupt:
         return 0
     except (OSError, ClientError):

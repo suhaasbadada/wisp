@@ -15,6 +15,9 @@ tools. The Rust core still implements the language; no shell, file-writing or
 network tool is added. One official client SDK has been interoperability-tested.
 An owner-selected `--project MANIFEST` adds pinned project metadata/invocation
 tools, so callers can use policy/function IDs without repeatedly sending source.
+Copy discovery's caller guard into `expected` to bind the revision an agent
+reasoned about across reconnects; owners can enforce this with
+`--require-project-guard`. Matching a guard is not correctness or approval.
 
 ## Review a real policy change
 
