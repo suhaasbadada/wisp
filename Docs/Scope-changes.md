@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0020 completes offline receipt validation/replay and operator handoff. Exact snapshot/fact/native checks and current policy/compiler pins guard a new execution; full report comparison keeps reproduced Error/Unknown and blocked/pending outcomes non-successful. No GitHub requests, mutation, cache, permissions or core semantics change. Implementation pauses after PR #20 acceptance as requested.
+
 - 2026-11-09: ADR 0019 joins explicit-attempt capture and native triage in one read-only operator command, with a no-network saved-file mode. Self-contained receipts retain exact input bytes/hash and separate collection, runtime and business outcomes. No retry, cache, mutation, new core syntax or permission; receipts remain forgeable evidence, not approval.
 
 - 2026-11-09: ADR 0018 adds explicit-attempt read-only GitHub capture through an authorized trusted local `gh` host. Fixed repository/GET endpoints, exact run/job/head/attempt correlation and bounded consistency reads replace manual transcription. No automatic run selection, retry, watch, merge/deploy authority or network capability in the Wisp core.

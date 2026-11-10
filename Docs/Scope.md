@@ -8,8 +8,9 @@ shipped via PR #12; checked interface discovery shipped via PR #13. A composed
 order reference workflow shipped via PR #14; caller-owned composed gates shipped
 via PR #15; the reusable experimental Python client shipped via PR #16. Read-only
 repository workflow triage shipped via PR #17. Explicit-attempt read-only GitHub
-capture shipped via PR #18. One-command observation receipts (ADR 0019) are under
-verification/publication.
+capture shipped via PR #18; observation receipts via PR #19. Offline replay and
+operator handoff (ADR 0020) close this bounded development sequence. Consult
+PR #20 for their exact CI and publication acceptance.
 No approval, automatic application,
 new language syntax or core host permissions. See [Workbench](Workbench.md),
 [Projects](Projects.md) and [Adapter](Adapter.md).
@@ -27,7 +28,7 @@ permission changes. See [Evaluation](Evaluation.md).
 
 Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger and guarded edits are shipped.
 
-Status: first playable through explicit-attempt capture shipped via PRs #1–#18. Release acceptance is recorded on each PR. Workflow observation receipts are under publication. Experimental; not production-ready. No license selected (owner decision pending).
+Status: implemented through offline replay/handoff; release acceptance is recorded on each corresponding PR. Implementation pauses after PR #20 acceptance. Experimental; not production-ready. No license selected (owner decision pending).
 
 Wisp is function-oriented and statically typed. The first slice is a real Rust lexer, parser, checker and bounded interpreter, shared by the native CLI and browser WebAssembly. Its first domain is agent-generated sandboxed CLI/data transformations, later maintained business logic.
 

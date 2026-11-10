@@ -59,8 +59,9 @@ raw evidence and decision remain available, not collapsed into a Boolean result.
 The API invocation count describes the operator mode's successful capture path,
 not an authenticated remote telemetry receipt. Saved files can contain copied or
 forged capture descriptors. Observation metadata and hashes are not signatures,
-freshness guarantees or permission grants. This version emits a receipt; it does
-not yet independently validate arbitrary saved receipt files or replay them.
+freshness guarantees or permission grants. Use [offline replay](Workflow-replay.md)
+to validate a receipt and compare a new native execution; reproducibility remains
+separate from provenance.
 
 The command reads at most 65,536 input bytes (one extra byte detects overflow),
 validates the saved envelope and retains its exact bytes before native execution.
