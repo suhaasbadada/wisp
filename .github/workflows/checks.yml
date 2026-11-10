@@ -23,6 +23,17 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+      - name: Saved policy project acceptance
+        run: |
+          cargo build --locked
+          target/debug/wisp project verify examples/policies/project.json > project-verify.json
+          target/debug/wisp project review examples/policies/project-before.json examples/policies/project.json > project-review.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: policy-project-evidence
+          path: project-*.json
+          if-no-files-found: ignore
       - run: cargo install wasm-pack --locked --version 0.15.1
       - run: npm ci
       - run: npm run wasm

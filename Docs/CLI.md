@@ -221,3 +221,10 @@ wisp verify examples/policies/reservations-after.wisp --suite examples/policies/
 The seven explicit reservation cases show two Changed, five Unchanged and
 candidate Pass. Verifying the baseline returns Fail, not a parse error.
 Pass is not authorization to apply, merge or deploy.
+# Repository projects
+
+`wisp project verify MANIFEST` checks saved policy suites; `wisp project review
+BASE_MANIFEST CANDIDATE_MANIFEST` compares matching policy sets with unchanged
+suite bytes. Read-only native host commands with JSON evidence and semantic exit
+codes; malformed config/IO uses stderr/exit 2. See [Projects](Projects.md) for the
+strict v1 manifest, path confinement, drift gate, budgets and per-policy preflight.

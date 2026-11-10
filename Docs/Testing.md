@@ -1,5 +1,24 @@
 # Verification
 
+## Repository policy projects
+
+Native project v1 adds end-to-end tests for shipped reservation manifests,
+read-only behavior, strict config/IDs, confined paths, symlinks, bounded UTF-8,
+raw duplicate suite preservation, specification drift with zero execution,
+sorted multi-policy evidence, continuation after faults and aggregate Unknown.
+CI runs saved project verify/review and retains JSON evidence separately from
+test logs. Joffrey's independent review found a saved filename `-` could invoke
+the legacy stdin reader with a bare manifest path. Project references now open
+files directly; regressions cover both source and suite named `-` with unrelated
+stdin bytes. Primary full pre-fix checks passed 133 Rust, 41 Node, 276 exact
+native/WASM comparisons, 36 Chromium tests, fmt, strict Clippy, npm ci, WASM,
+TypeScript and static build. After the reader fix, primary reran all 134 Rust
+tests plus fmt and strict Clippy successfully. The nine project tests include
+the maximum 8-policy/256-invocation workload, exact manifest/suite boundaries,
+standalone-review report parity and the stdin regression. This is primary repair
+verification, not a claimed independent re-review. Exact-head CI remains a
+separate publication gate.
+
 ## Policy workbench integration
 
 Post-repair primary full verification passed 125 Rust tests, 41 Node evaluation

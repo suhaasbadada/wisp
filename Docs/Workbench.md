@@ -1,5 +1,9 @@
 # Policy-change workbench v1
 
+For saved suites across a repository and a single agent/CI entry point, use
+[native policy projects](Projects.md): `wisp project verify MANIFEST` or
+`wisp project review BASE_MANIFEST CANDIDATE_MANIFEST`.
+
 Review a concrete policy change using caller-owned structured examples, exact
 source revisions and observed before/after results. The shared Rust implementation
 runs in native CLI and browser WASM. It does not pick your requirements, change
