@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0025 enforces stdout4MiB/stderr64KiB native-command caps during concurrent collection, before decoding; previously capture preceded report checks. Overflow/deadline invalidates output and cleans up the direct child without claiming zero execution. No Rust semantics, host authority, retries or descendant sandbox added.
+
 - 2026-11-09: ADR 0024 adds guarded saved-project function context through native CLI, Python and MCP. Reuses shared Rust analysis without execution; all-policy pins are checked before client context exposure. Text budgets exclude graph metadata and do not guarantee relevance, completeness or measured savings. Internal historical CI triage uses context then a separate guarded invocation; no core semantics, approval or host permissions change.
 
 - 2026-11-09: ADR 0023 binds an agent's earlier project snapshot through copyable exact caller guards, rejecting mismatch before native submission even after reconnect. An owner can require guards without changing legacy optional behavior or other sessions. Readiness/native failures remain separate; no automatic adoption, intended-rule proof, approval, core semantics or runtime permission change.

@@ -1,5 +1,11 @@
 # Experimental local MCP bridge
 
+Native one-command transport now enforces raw stdout 4 MiB/stderr 64 KiB caps
+while collecting, before report decoding. Either overflow rejects the entire
+result; post-submission transport failures remain unresolved, not evidence of zero
+execution. The trusted direct child is killed/reaped on failure; this is not
+descendant isolation or a hostile-executable sandbox. See [Python client](Python-client.md).
+
 Agents with an MCP client can discover and call Wisp without copying native CLI
 transport. `integrations/mcp/server.py` is a standard-library Python 3.8+ stdio
 host; **all language checking/execution remains in the trusted Rust binary**.

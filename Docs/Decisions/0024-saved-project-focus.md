@@ -1,7 +1,8 @@
 # ADR 0024: Guarded saved-project function context
 
-Status: implemented; full local checks and independent review passed after two
-malformed-report validation fixes. Exact-head CI and publication pending.
+Status: accepted; shipped via PR #24 at
+`b57c869249ba5179e2c244d48d912d9325077e68`. Exact-head CI, immutable SDK/internal
+triage checks, adverse artifacts and published contract acceptance recorded there.
 
 Expose the existing Rust compiler's bounded Agent View through `project focus`,
 the Python client and optional owner-configured MCP. Agents select a described

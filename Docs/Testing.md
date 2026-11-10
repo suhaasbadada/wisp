@@ -1,6 +1,26 @@
 # Verification
 
-## Saved-project function context (under publication)
+## Bounded native collection (under publication)
+
+Seventeen actual-subprocess transport regressions passed, including exact/default
+stdout and stderr caps, one-byte overflow, UTF-8 byte counting/decoding, concurrent
+pipe pressure with large stdin, deadlines, exit handling and direct-child/worker
+cleanup, including injected thread-start failures. Full prescribed checks passed:
+147 Rust, 41 Node, 117 Python before the added startup regression, 326 native/WASM
+comparisons, 36 Chromium, fmt/Clippy/npm ci/WASM/check/build, three official SDK
+modes and the internal historical triage driver. Joffrey found a startup cleanup
+gap; primary repaired it and added the regression. All 118 Python workflow tests,
+three SDK modes and internal driver passed after the code repair; the corrected
+startup test independently passed in Joffrey's re-review with no remaining
+substantive findings. Exact-head CI/publication remain pending. macOS checks are
+not a cross-platform cleanup proof.
+
+PR #24 shipped at `b57c869249ba5179e2c244d48d912d9325077e68`: PR Checks
+`42788102350`, merge Checks `42788586198`, Pages `42788585841`, deployment
+`7678007901` passed. Immutable three-mode SDK/internal triage, adverse artifacts
+and four public contracts are [accepted](https://github.com/suhaasbadada/wisp/pull/24#issuecomment-6763593355).
+
+## Saved-project function context
 
 Eight native focus tests, five Python client-focus tests and 29 MCP tests passed
 in focused verification; the Python workflow totals 101 tests. Native context
