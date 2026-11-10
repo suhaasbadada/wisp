@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0022 adds optional owner-configured MCP project discovery/invocation without repeated source. The agent cannot select a manifest/path; compiler/manifest/source/suite pins and initialization metadata stay explicit, edits fail closed, and calls remain fresh native executions. No case-verification implication, execution cache, language permission or measured efficiency claim.
+
 - 2026-11-09: ADR 0021 adds a local MCP stdio bridge exposing existing native discovery/check/interface/invocation/review/context operations as six fixed agent tools. No agent-controlled command/path, file writes, networking, core semantics, automatic approval or global client configuration. Focused protocol/native checks and one official SDK interoperability smoke keep compatibility claims bounded.
 
 - 2026-11-09: ADR 0020 completes offline receipt validation/replay and operator handoff. Exact snapshot/fact/native checks and current policy/compiler pins guard a new execution; full report comparison keeps reproduced Error/Unknown and blocked/pending outcomes non-successful. No GitHub requests, mutation, cache, permissions or core semantics change. The owner superseded the earlier PR #20 pause and authorized continued tested development.
