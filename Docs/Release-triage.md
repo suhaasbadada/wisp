@@ -7,6 +7,10 @@ Actions workflow permissions, deployment guards and human authorization remain
 unchanged. It does not repair failures, retry cancelled runs, merge, deploy, fetch
 URLs or contact GitHub.
 
+For a single entry point with offline/explicit-capture modes and an exact-input
+receipt, see [workflow observation](Workflow-observation.md). The standalone
+triage command remains offline and unchanged in its report format.
+
 ```sh
 cargo build --locked
 target/debug/wisp project verify examples/release-triage/project.json

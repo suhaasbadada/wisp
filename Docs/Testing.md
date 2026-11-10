@@ -1,5 +1,26 @@
 # Verification
 
+## Workflow observation receipts (under verification)
+
+Seven tests cover saved-byte/hash recovery, offline no-network mode, explicit
+capture/native composition, capture failure before native execution, incompatible
+selection, business and mocked runtime incomplete outcomes, malformed/Unicode
+input, real CLI exits and closed stdout. CI retains the offline receipt and
+recomputes its exact snapshot hash. A real read-only observation of PR #18 merge
+`e5e96bcfd68477ac759c75fcd7c69194c7c97b82` using Checks `42770806017`, Pages
+`42770806358`, explicit attempt 1 each, produced native workflow Observed with
+exact captured input retained and approval not_granted. Primary full checks passed
+149 Rust, 41 Node, 27 workflow, 9 client, 7 triage, 8 capture and 7 observation
+tests, 326 native/WASM comparisons and 36 Chromium tests, plus fmt/Clippy/npm ci/
+WASM/TypeScript/build. Joffrey independently reviewed and found no substantive
+issues; seven observation and seven triage tests passed in review. Exact-head CI
+and publication remain separate gates.
+
+PR #18 passed exact-head Checks `42768233545`, merged Checks `42770806017`, Pages
+`42770806358` and deployment `7675541951` for that merge. Actual PR/merged artifacts,
+native read-only capture and public contract bytes are separately
+[accepted](https://github.com/suhaasbadada/wisp/pull/18#issuecomment-6761045533).
+
 ## Explicit-attempt capture (under verification)
 
 Eight focused tests cover fixed-host GET invocation, pre-network argument checks,

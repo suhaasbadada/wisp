@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0019 joins explicit-attempt capture and native triage in one read-only operator command, with a no-network saved-file mode. Self-contained receipts retain exact input bytes/hash and separate collection, runtime and business outcomes. No retry, cache, mutation, new core syntax or permission; receipts remain forgeable evidence, not approval.
+
 - 2026-11-09: ADR 0018 adds explicit-attempt read-only GitHub capture through an authorized trusted local `gh` host. Fixed repository/GET endpoints, exact run/job/head/attempt correlation and bounded consistency reads replace manual transcription. No automatic run selection, retry, watch, merge/deploy authority or network capability in the Wisp core.
 
 - 2026-11-09: ADR 0017 exercises Wisp on read-only repository Checks/Pages triage using actual saved PR #16 merge evidence. The host maps provider metadata; Wisp classifies observed/pending/blocked/unknown workflow evidence. No authenticated collection, latest-run selection, merge/deploy authority, runtime permission or core syntax change.

@@ -6,6 +6,9 @@ already authenticated **trusted local `gh` executable**, emits one bounded saved
 bundle on stdout, and performs no workflow, repository or deployment mutation.
 It does not invoke Wisp; run the triage host separately on the captured bundle.
 
+The [observation command](Workflow-observation.md) can join these two steps and
+retain the exact captured bytes/hash, without an intermediate file.
+
 ```sh
 python3 -B examples/release-triage/capture.py \
   --revision ae1d71f8cc0d7804570f1982e323259524955c84 \

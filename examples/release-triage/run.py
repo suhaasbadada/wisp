@@ -32,6 +32,10 @@ def sha(value):
 def load(path):
     with open(path, "rb") as stream:
         raw = stream.read(65537)
+    return decode_evidence(raw)
+
+
+def decode_evidence(raw):
     require(len(raw) <= 65536, "Evidence exceeds 65536 bytes")
     data = decode_json(raw.decode("utf-8"))
     validate_evidence(data)
@@ -109,6 +113,18 @@ def triage(data, digest, binary, project=HERE / "project.json"):
             "evidence": data, "inputs": inputs, "decision": decision, "response": response}
 
 
+def report_exit(report):
+    require(report["status"] in {"Complete", "Error", "Unknown"}, "Unsupported runtime triage status")
+    if report["status"] != "Complete":
+        require(report["decision"] is None, "Incomplete triage must not fabricate a decision")
+        return 3 if report["status"] == "Unknown" else 1
+    require(isinstance(report["decision"], dict) and set(report["decision"]) == {"state", "reason"}
+            and isinstance(report["decision"]["state"], str)
+            and report["decision"]["state"] in {"Observed", "Blocked", "Pending", "Unknown"}
+            and isinstance(report["decision"]["reason"], str), "Unsupported triage decision")
+    return {"Observed": 0, "Blocked": 1, "Pending": 3, "Unknown": 3}[report["decision"]["state"]]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evidence", required=True, type=pathlib.Path)
@@ -117,13 +133,9 @@ def main():
     try:
         data, digest = load(args.evidence)
         report = triage(data, digest, args.wisp)
-        if report["status"] == "Complete":
-            require(isinstance(report["decision"], dict) and set(report["decision"]) == {"state", "reason"}
-                    and report["decision"]["state"] in {"Observed", "Blocked", "Pending", "Unknown"}, "Unsupported triage decision")
+        code = report_exit(report)
         print(encode_json(report, ascii_strings=True), flush=True)
-        if report["status"] != "Complete":
-            return 3 if report["status"] == "Unknown" else 1
-        return {"Observed": 0, "Blocked": 1, "Pending": 3, "Unknown": 3}[report["decision"]["state"]]
+        return code
     except (ClientError, OSError, ValueError, TypeError, KeyError, RecursionError) as error:
         if isinstance(error, BrokenPipeError):
             try:
