@@ -59,7 +59,31 @@ Rust review report, including exact revisions, suite/query identities, individua
 observations and candidate expectation verdicts. No second evaluator is added.
 Pass is only finite evidence, not approval, proof or deployment authorization.
 
-## Manifest
+## Selected saved-case verification
+
+`wisp project verify-policy MANIFEST POLICY` verifies only the selected policy's
+saved suite, using the same optional all-or-none four `--expected-*` flags as
+focus. Manifest/selected-source/full-suite/compiler guards run before any case
+attempt, using retained snapshots. Unknown policy and guard drift use the same
+selector/guard diagnostics and no-execution reports as focus. Syntax failures are
+host exit 2 before file access; existing bounded/confined loading still applies.
+
+The outer shape matches focus with `mode:verify-policy`, terminal `phase:verified`
+and `new_execution` copied from inner `review.new_execution`. The inner report is
+unchanged shared Rust self-review (`source == candidate`), exactly as `wisp verify`.
+This attempts fresh before/after calls for each saved case: 1–16 cases, at most 32
+attempts. It does not run top-level statements or probes. Pass/Fail/Error/Unknown
+remain distinct (exits 0/1/1/3); invalid suite schemas and resource bounds are core
+evidence, not automatically repaired expectations. `verified` means orchestration
+returned, not Pass; inspect case expectations and execution/preflight markers.
+
+All project files and JSON suites load; only the selected source/suite is
+semantically checked and its cases attempted. This is not whole-project or
+composed-application acceptance. Finite Pass is not proof, intended-requirement
+verification or approval. Neither the command nor MCP allows source/expectation
+overrides. Full-file suite pins remain distinct from core's retained-JSON hash.
+
+## Manifest format
 
 ```json
 {"version":1,"policies":[

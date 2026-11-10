@@ -216,6 +216,34 @@ pub(super) fn focus(
     {
         return Err(super::HELP.into());
     }
+    let (budget, expected) = selection_options(options, true)?;
+    let project = load(manifest)?;
+    let (mut outer, policy) = select(&project, policy_id, "focus", expected);
+    let Some(policy) = policy else {
+        return Ok(outer);
+    };
+    // Analyze only retained bytes: no execution, suite verification or rereads.
+    let mut report = super::dispatch(json!({"op":"analyze","source":policy.source,
+        "focus":function,"budget":budget.unwrap_or(4096)}));
+    if report["status"] == "Ready" && report["agent_view"]["focus"].is_null() {
+        report = super::semantic_error(
+            report,
+            wisp::DiagnosticCode::FocusUnknown,
+            "no matching focus function",
+        );
+    }
+    outer["status"] = report["status"].clone();
+    outer["project"]["phase"] = json!("focused");
+    outer["report"] = report;
+    Ok(outer)
+}
+
+// Share the exact guard grammar and snapshot selection with focus. Verification
+// has no budget/limit override: the saved suite uses shared review defaults.
+fn selection_options<'a>(
+    options: &[&'a str],
+    allow_budget: bool,
+) -> Result<(Option<u64>, [Option<&'a str>; 4]), String> {
     let mut budget = None;
     let mut expected = [None; 4];
     for pair in options.chunks(2) {
@@ -223,7 +251,7 @@ pub(super) fn focus(
             return Err(super::HELP.into());
         }
         let slot = match pair[0] {
-            "--budget" if budget.is_none() => {
+            "--budget" if allow_budget && budget.is_none() => {
                 budget = Some(super::number(pair[1])?);
                 continue;
             }
@@ -248,9 +276,18 @@ pub(super) fn focus(
     if guarded && expected.iter().any(Option::is_none) {
         return Err(super::HELP.into());
     }
-    let project = load(manifest)?;
+    Ok((budget, expected))
+}
+
+fn select<'a>(
+    project: &'a Project,
+    policy_id: &str,
+    mode: &str,
+    expected: [Option<&str>; 4],
+) -> (Value, Option<&'a Snapshot>) {
+    let guarded = expected.iter().any(Option::is_some);
     let mut outer = json!({"status":"Error","output":"","diagnostics":[],"project":{
-        "contract_version":1,"mode":"focus","phase":"selector","approval":"not_granted",
+        "contract_version":1,"mode":mode,"phase":"selector","approval":"not_granted",
         "new_execution":false,"manifest_hash":project.manifest_hash,"policy_id":policy_id,
         "source_revision":null,"suite_file_hash":null,
         "guard_status":if guarded{"not_evaluated"}else{"not_requested"},
@@ -259,7 +296,7 @@ pub(super) fn focus(
     },"report":null});
     let Some(policy) = project.policies.iter().find(|p| p.id == policy_id) else {
         outer["diagnostics"] = json!([{"code":"PROJECT_POLICY_UNKNOWN","kind":"Project","message":"policy ID is not in the project snapshot"}]);
-        return Ok(outer);
+        return (outer, None);
     };
     let revision = hash(&policy.source);
     let suite_hash = hash(&policy.suite);
@@ -277,22 +314,44 @@ pub(super) fn focus(
             outer["project"]["phase"] = json!("guard");
             outer["project"]["guard_status"] = json!("rejected");
             outer["diagnostics"] = json!([{"code":"PROJECT_SNAPSHOT_DRIFT","kind":"Project","message":"project snapshot does not match expected pins"}]);
-            return Ok(outer);
+            return (outer, None);
         }
         outer["project"]["guard_status"] = json!("matched");
     }
-    // Analyze only retained bytes: no execution, suite verification or rereads.
-    let mut report = super::dispatch(json!({"op":"analyze","source":policy.source,
-        "focus":function,"budget":budget.unwrap_or(4096)}));
-    if report["status"] == "Ready" && report["agent_view"]["focus"].is_null() {
-        report = super::semantic_error(
-            report,
-            wisp::DiagnosticCode::FocusUnknown,
-            "no matching focus function",
-        );
+    (outer, Some(policy))
+}
+
+pub(super) fn verify_policy(
+    manifest: &str,
+    policy_id: &str,
+    options: &[&str],
+) -> Result<Value, String> {
+    if manifest.is_empty()
+        || manifest == "-"
+        || manifest.starts_with("--")
+        || !adapter_id(policy_id)
+    {
+        return Err(super::HELP.into());
     }
+    let (_, expected) = selection_options(options, false)?;
+    let project = load(manifest)?;
+    let (mut outer, policy) = select(&project, policy_id, "verify-policy", expected);
+    let Some(policy) = policy else {
+        return Ok(outer);
+    };
+    // Preserve raw suite tokens (including duplicate keys and integer widths).
+    // The sole evaluator and semantic preflight are shared core review.
+    let request = format!(
+        "{{\"op\":\"review\",\"source\":{},\"candidate\":{},\"suite\":{}}}",
+        json!(policy.source),
+        json!(policy.source),
+        policy.suite_raw
+    );
+    let report: Value = serde_json::from_str(&wisp::dispatch(&request)).expect("core emits JSON");
     outer["status"] = report["status"].clone();
-    outer["project"]["phase"] = json!("focused");
+    // Finished orchestration is neither approval nor evidence of success.
+    outer["project"]["phase"] = json!("verified");
+    outer["project"]["new_execution"] = json!(report["review"]["new_execution"] == true);
     outer["report"] = report;
     Ok(outer)
 }

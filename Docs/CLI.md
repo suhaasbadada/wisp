@@ -1,5 +1,10 @@
 # Native CLI
 
+Selected saved cases: `wisp project verify-policy MANIFEST POLICY` accepts the
+same all-or-none `--expected-*` snapshot pins as focus, executes finite saved
+cases through shared Rust review, and returns Pass/Fail/Error/Unknown. See
+[Projects](Projects.md); finite Pass is not approval or whole-project acceptance.
+
 Saved-function context: `wisp project focus MANIFEST POLICY FUNCTION [--budget N]`
 with optional all-or-none `--expected-manifest HASH --expected-revision HASH
 --expected-suite HASH --expected-compiler ID`. See [Projects](Projects.md) for

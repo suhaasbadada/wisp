@@ -40,7 +40,7 @@ operations:
 
 ### Optional owner-configured saved project
 
-Start with one explicit manifest to add three tools, avoiding repeated source in
+Start with one explicit manifest to add four tools, avoiding repeated source in
 invocations:
 
 ```sh
@@ -50,7 +50,7 @@ python3 -B integrations/mcp/server.py --wisp target/debug/wisp \
 
 Only the owner/startup configuration chooses this path. The agent cannot choose
 another manifest, pass a path/source override or browse files. Without `--project`,
-these three tools are absent and project discovery does not occur:
+these four tools are absent and project discovery does not occur:
 
 - `wisp_project_describe {}` returns the checked interface/pins loaded during
   initialization. Bridge execution is `initialization_metadata`: **not a live
@@ -90,7 +90,7 @@ discovery and adapter provenance add their own output and startup costs.
 `wisp_project_focus {policy,function,budget?,expected?}` reads compiler-derived
 Agent View context from the saved snapshot without source input or execution.
 It uses the same caller guard as invocation; strict owner mode requires `expected`
-for **both** tools. Default budget is 4096 UTF-8 text bytes, range 0–65536. Its
+for focus, invocation and verification. Default budget is 4096 UTF-8 text bytes, range 0–65536. Its
 native report wraps the unchanged core report under `report.report`; inspect
 `report.project.new_execution:false`, inner status, omissions and overflow. Graph
 and identity JSON are outside the text budget, so this is not a total-output cap.
@@ -98,6 +98,17 @@ The client validates every policy pin before exposing context, but only selected
 source is semantically checked. No suite cases execute. Stale guard refusal is
 `not_submitted`; later transport/drift failures remain conservatively unresolved.
 See [Projects](Projects.md) and [Python client](Python-client.md).
+
+`wisp_project_verify {policy,expected?}` executes that policy's saved finite case
+suite without source, path or expectation overrides. Copy the same discovery
+guard; strict owner mode requires it. The native wrapper's `report.report.review`
+retains exact shared Rust self-review, case expectations, attempts and explicit
+Pass/Fail/Error/Unknown. `isError` is true for Fail/Error/Unknown, while transport
+completion and matched guards are not passing evidence. The root bridge still
+grants no approval. This is selected-policy verification, not whole-project or
+composed-application acceptance. Other-policy pins are validated after the native
+operation; a later client/transport failure may follow execution and remains
+unresolved. Discovery or focus never substitutes for verification.
 
 Server/session pins protect against disk changes **within** a session. They do
 not by themselves bind an agent's earlier reasoning after a restart that discovers
@@ -127,7 +138,7 @@ python3 -B integrations/mcp/server.py --wisp target/debug/wisp \
 ```
 
 The flag requires a project at startup, advertises `expected` as required in this
-session's tool schema, and refuses unguarded saved-project invocations. Project
+session's tool schema, and refuses unguarded saved-project focus, invocation and verification. Project
 metadata exposes `bridge.caller_guard_required`. It does not alter other server
 instances or the six independent inline-source tools. Default mode stays backward
 compatible; omission is not silently claimed to be caller-pinned.
@@ -216,7 +227,7 @@ execution capability from this transport.
 
 ## Verification
 
-`npm run test:workflow` includes twenty-nine authored MCP/native tests covering lifecycle,
+`npm run test:workflow` includes thirty-two authored MCP/native tests covering lifecycle,
 tool discovery, exact i64 transport, native Error/Unknown/continuation, review
 Pass/Fail, nonexecuting context/interface operations, invalid schemas/IDs/frames,
 quotas/compiler drift, malformed/oversized native reports, real stdio EOF and
@@ -244,15 +255,15 @@ not a runtime requirement or package publication. One local SDK 2.3.0 smoke pass
 initialize/list/call with exact i64 and native Complete/Error/Unknown, with no
 top-level execution. This is measured interoperability with one client, not all
 clients, external adoption, benchmark superiority or production readiness. The
-optional configured-project SDK smoke also passes nine-tool discovery and a
+optional configured-project SDK smoke also passes ten-tool discovery and a
 pinned reservation decision without source in the tool arguments.
 Guarded/strict modes also exercise rejected stale guards and required-guard
 enforcement without fabricating native outcomes.
 
-Current configured modes discover nine tools and exercise guarded bounded focus,
+Current configured modes discover ten tools and exercise guarded bounded focus,
 nonexecution and stale-context refusal. The six default source tools are unchanged.
 An optional internal driver uses the official SDK to fetch bounded `decide`
-context then invoke the same pinned policy against saved historical repository CI
+context, verify its saved finite cases, then invoke the same pinned policy against saved historical repository CI
 evidence:
 
 ```sh

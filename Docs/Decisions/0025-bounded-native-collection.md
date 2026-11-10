@@ -1,7 +1,8 @@
 # ADR 0025: Bound native output during collection
 
-Status: implemented; full local checks and independent review passed after a
-thread-start cleanup repair and regression. Exact-head CI/publication pending.
+Status: accepted; shipped via PR #25 at
+`18e30b58f5328a4cb8bb83fcb092e5a05b52fdb4`. Exact-head CI, immutable transport/SDK
+checks, adverse artifacts and published contract acceptance are recorded there.
 
 The Python command helper previously captured stdout and stderr in full before
 MCP/focus applied their report-size checks. Rejecting a large report after capture

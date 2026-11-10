@@ -56,8 +56,10 @@ PROJECT_TOOLS = [
      "inputSchema": schema({"policy": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
                             "function": {"type": "string"}, "budget": {"type": "integer", "minimum": 0, "maximum": 65536, "default": 4096},
                             "expected": EXPECTED_GUARD}, ["policy", "function"])},
+    {"name": "wisp_project_verify", "description": "Execute one saved policy's finite caller-owned case suite under project pins. No agent-selected paths, source or expectation overrides. Copy discovery call_guards into expected for caller revision binding. Pass is finite case evidence, not whole-project verification, proof or approval. Error/Unknown/Fail are not success.",
+     "inputSchema": schema({"policy": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"}, "expected": EXPECTED_GUARD}, ["policy"])},
 ]
-GUARDED_PROJECT_TOOLS = {"wisp_project_invoke", "wisp_project_focus"}
+GUARDED_PROJECT_TOOLS = {"wisp_project_invoke", "wisp_project_focus", "wisp_project_verify"}
 for tool in TOOLS + PROJECT_TOOLS:
     tool["annotations"] = {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}
     tool["execution"] = {"taskSupport": "forbidden"}
@@ -171,7 +173,7 @@ class Server:
             if self.calls >= MAX_CALLS:
                 raise ClientError("Session tool-call quota exhausted; start a new session explicitly")
             if name in GUARDED_PROJECT_TOOLS and (arguments["policy"] not in self.project_targets
-                    or arguments["function"] not in self.project_targets[arguments["policy"]]):
+                    or (name != "wisp_project_verify" and arguments["function"] not in self.project_targets[arguments["policy"]])):
                 raise ClientError("Unknown described project policy/function")
             if name in GUARDED_PROJECT_TOOLS:
                 guard_status = "not_requested"
@@ -198,6 +200,9 @@ class Server:
                     budget = arguments.get("budget", 4096)
                     budget = int(budget.token) if isinstance(budget, JsonNumber) else budget
                     report = self.project.focus(arguments["policy"], arguments["function"], budget=budget)
+                    execution = "see_native_report"
+                elif name == "wisp_project_verify":
+                    report = self.project.verify(arguments["policy"])
                     execution = "see_native_report"
                 else:
                     report = self.project.call(arguments["policy"], arguments["function"], arguments["args"], arguments["id"])
@@ -300,7 +305,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wisp", default="target/debug/wisp")
     parser.add_argument("--project", type=pathlib.Path, help="Owner-configured saved project; agents cannot select or change this path")
-    parser.add_argument("--require-project-guard", action="store_true", help="Require caller-supplied expected snapshot on saved-project focus and invocation")
+    parser.add_argument("--require-project-guard", action="store_true", help="Require caller-supplied expected snapshot on saved-project focus, invocation and verification")
     args = parser.parse_args()
     if args.require_project_guard and args.project is None:
         parser.error("--require-project-guard requires --project")
