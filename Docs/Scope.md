@@ -12,8 +12,8 @@ capture shipped via PR #18; observation receipts via PR #19. Offline replay and
 operator handoff shipped via PR #20; local MCP tools via PR #21. Optional
 owner-configured MCP project tools shipped via PR #22 and caller-owned snapshot
 guards via PR #23; saved-project context via PR #24; bounded native collection via
-PR #25. Guarded saved-policy finite-suite verification (ADR 0026) is under
-verification/publication without core semantics changes.
+PR #25; saved-policy finite-suite verification via PR #26. Required pinned SDK
+CI checks (ADR 0027) are under verification/publication without core semantics changes.
 No approval, automatic application,
 new language syntax or core host permissions. See [Workbench](Workbench.md),
 [Projects](Projects.md) and [Adapter](Adapter.md).
@@ -31,7 +31,7 @@ permission changes. See [Evaluation](Evaluation.md).
 
 Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger and guarded edits are shipped.
 
-Status: shipped through bounded native collection via PR #25; release acceptance is recorded on each corresponding PR. Saved-policy verification is under publication. Continued tested development is authorized. Experimental; not production-ready. No license selected (owner decision pending).
+Status: shipped through saved-policy verification via PR #26; release acceptance is recorded on each corresponding PR. Pinned SDK CI is under publication. Continued tested development is authorized. Experimental; not production-ready. No license selected (owner decision pending).
 
 Wisp is function-oriented and statically typed. The first slice is a real Rust lexer, parser, checker and bounded interpreter, shared by the native CLI and browser WebAssembly. Its first domain is agent-generated sandboxed CLI/data transformations, later maintained business logic.
 

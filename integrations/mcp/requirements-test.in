@@ -1,0 +1,2 @@
+# Optional interoperability tests only; the MCP server has no SDK dependency.
+mcp==2.3.0

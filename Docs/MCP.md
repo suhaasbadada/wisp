@@ -1,5 +1,30 @@
 # Experimental local MCP bridge
 
+GitHub's existing read-only `verify` job now requires the official Python SDK
+interoperability checks: source tools, configured project, strict caller guards
+and internal historical CI triage. A Python 3.12 test-only virtual environment
+installs the fully pinned `requirements-test.txt` with required distribution
+hashes and wheels only, then checks dependency consistency. SDK reports and the
+installed package list are retained with `policy-project-evidence`; a five-minute
+step limit applies. This adds no deployment privileges or server runtime
+dependency. It is one pinned client/runner configuration, not universal MCP
+compatibility or authenticated model-reasoning evidence.
+
+Regenerate the test lock intentionally (review dependency/hash changes):
+
+```sh
+uv pip compile integrations/mcp/requirements-test.in --default-index https://pypi.org/simple \
+  --python-version 3.12 --universal --generate-hashes --only-binary :all: \
+  --output-file integrations/mcp/requirements-test.txt
+```
+
+The `uv run --with mcp==2.3.0` examples below remain convenient optional manual
+smokes; they do not lock every transitive dependency. To reproduce CI's dependency
+set, install the committed lock in a disposable Python 3.12 venv using
+`python -m pip --isolated install --index-url https://pypi.org/simple
+--only-binary=:all: --require-hashes -r integrations/mcp/requirements-test.txt`,
+then use that venv's Python for the same scripts.
+
 Native one-command transport now enforces raw stdout 4 MiB/stderr 64 KiB caps
 while collecting, before report decoding. Either overflow rejects the entire
 result; post-submission transport failures remain unresolved, not evidence of zero

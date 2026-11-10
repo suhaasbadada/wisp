@@ -1,7 +1,8 @@
 # ADR 0026: Guarded verification of saved finite cases
 
-Status: implemented; full local checks and independent review passed. Exact-head
-CI and publication pending.
+Status: accepted; shipped via PR #26 at
+`c57c0707d0a2aece13f635b57bc5e9f0b79e8900`. Exact-head CI, immutable SDK/internal
+triage checks, adverse artifacts and published contracts are recorded there.
 
 Saved-project MCP could discover, inspect and invoke policies but not verify their
 caller-owned suites. A Complete invocation is not evidence that saved expectations
