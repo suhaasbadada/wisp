@@ -1,0 +1,7 @@
+{"version":1,"target":"decide","cases":[
+  {"id":"below-free","args":[{"total_cents":"999","zone":"local"}],"expect":{"result":{"type":"Delivery","value":{"accepted":true,"fee_cents":"100","grand_total_cents":"1099","reason":"local"}},"output":""}},
+  {"id":"exact-free","args":[{"total_cents":"1000","zone":"local"}],"expect":{"result":{"type":"Delivery","value":{"accepted":true,"fee_cents":"0","grand_total_cents":"1000","reason":"local"}},"output":""}},
+  {"id":"remote","args":[{"total_cents":"400","zone":"remote"}],"expect":{"result":{"type":"Delivery","value":{"accepted":true,"fee_cents":"500","grand_total_cents":"900","reason":"remote"}},"output":""}},
+  {"id":"unsupported-zone","args":[{"total_cents":"100","zone":"moon"}],"expect":{"result":{"type":"Delivery","value":{"accepted":false,"fee_cents":"0","grand_total_cents":"0","reason":"unsupported_zone"}},"output":""}},
+  {"id":"invalid-total","args":[{"total_cents":"-1","zone":"local"}],"expect":{"result":{"type":"Delivery","value":{"accepted":false,"fee_cents":"0","grand_total_cents":"0","reason":"invalid_total"}},"output":""}}
+]}

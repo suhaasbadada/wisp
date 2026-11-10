@@ -1,0 +1,10 @@
+[
+  {"id":"standard-local","quantity":"10","unit_cents":"100","member":false,"pack_size":"5","expires_at":"101","available":"10","now":"100","zone":"local"},
+  {"id":"member-ten","quantity":"10","unit_cents":"100","member":true,"pack_size":"5","expires_at":"101","available":"10","now":"100","zone":"local"},
+  {"id":"member-eleven","quantity":"11","unit_cents":"100","member":true,"pack_size":"5","expires_at":"101","available":"11","now":"100","zone":"local"},
+  {"id":"remote","quantity":"2","unit_cents":"200","member":false,"pack_size":"5","expires_at":"101","available":"10","now":"100","zone":"remote"},
+  {"id":"expired","quantity":"10","unit_cents":"100","member":false,"pack_size":"5","expires_at":"100","available":"10","now":"100","zone":"local"},
+  {"id":"out-of-stock","quantity":"11","unit_cents":"100","member":false,"pack_size":"5","expires_at":"101","available":"10","now":"100","zone":"local"},
+  {"id":"invalid-price","quantity":"1","unit_cents":"0","member":false,"pack_size":"5","expires_at":"101","available":"10","now":"100","zone":"local"},
+  {"id":"unknown-zone","quantity":"1","unit_cents":"100","member":false,"pack_size":"5","expires_at":"101","available":"10","now":"100","zone":"moon"}
+]

@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0014 exercises the shipped interfaces/projects/adapter in a read-only three-policy order host. Component gates and composed observations remain separate; Error/Unknown never become acceptance or fabricated unchanged data. Retains the observed discount/free-shipping cliff and both traces, with no automatic business-intent repair, checkout effects or new language/core permissions.
+
 - 2026-11-09: ADR 0013 adds checked, structured callable types and native project discovery without executing policies/cases. Applications enforce expected boundaries and match discovery/startup hashes before consuming decisions. No signature parsing in clients, new language syntax, export authorization, context-completeness or suite-approval claim; existing graph/context evidence remains unchanged.
 
 - 2026-11-09: ADR 0012 adds pinned native JSON-lines decision sessions and a dependency-free application host example. Explicit caller-owned targets and raw typed arguments use shared Rust calls; no network service, cache, approval or host side effects. Independent review exposed positional arrays entering strict object schemas; map-only decoding closes that validation gap in host/core boundaries without changing valid object identities.

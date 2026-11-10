@@ -1,0 +1,22 @@
+{
+  "candidate":[
+    {"id":"standard-local","status":"Accepted","stage":"shipping","reason":"local","grand_total_cents":"1000"},
+    {"id":"member-ten","status":"Accepted","stage":"shipping","reason":"local","grand_total_cents":"1000"},
+    {"id":"member-eleven","status":"Accepted","stage":"shipping","reason":"local","grand_total_cents":"1090"},
+    {"id":"remote","status":"Accepted","stage":"shipping","reason":"remote","grand_total_cents":"900"},
+    {"id":"expired","status":"Rejected","stage":"eligibility","reason":"expired"},
+    {"id":"out-of-stock","status":"Rejected","stage":"eligibility","reason":"insufficient"},
+    {"id":"invalid-price","status":"Rejected","stage":"pricing","reason":"invalid_price"},
+    {"id":"unknown-zone","status":"Rejected","stage":"shipping","reason":"unsupported_zone"}
+  ],
+  "baseline":[
+    {"id":"standard-local","status":"Accepted","stage":"shipping","reason":"local","grand_total_cents":"1000"},
+    {"id":"member-ten","status":"Accepted","stage":"shipping","reason":"local","grand_total_cents":"1050"},
+    {"id":"member-eleven","status":"Accepted","stage":"shipping","reason":"local","grand_total_cents":"1045"},
+    {"id":"remote","status":"Accepted","stage":"shipping","reason":"remote","grand_total_cents":"900"},
+    {"id":"expired","status":"Rejected","stage":"eligibility","reason":"expired"},
+    {"id":"out-of-stock","status":"Rejected","stage":"eligibility","reason":"insufficient"},
+    {"id":"invalid-price","status":"Rejected","stage":"pricing","reason":"invalid_price"},
+    {"id":"unknown-zone","status":"Rejected","stage":"shipping","reason":"unsupported_zone"}
+  ]
+}

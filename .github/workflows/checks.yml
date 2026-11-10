@@ -30,6 +30,9 @@ jobs:
           target/debug/wisp project verify examples/policies/project.json > project-verify.json
           target/debug/wisp project review examples/policies/project-before.json examples/policies/project.json > project-review.json
           python3 examples/policies/decisions.py > project-decisions.jsonl
+          target/debug/wisp project verify examples/order-gate/project.json > order-gate-verify.json
+          python3 -B examples/order-gate/run.py > order-gate-plan.json
+          python3 -B examples/order-gate/run.py --baseline examples/order-gate/project-before.json > order-gate-review.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -37,6 +40,7 @@ jobs:
           path: |
             project-*.json
             project-*.jsonl
+            order-gate-*.json
           if-no-files-found: ignore
       - run: cargo install wasm-pack --locked --version 0.15.1
       - run: npm ci

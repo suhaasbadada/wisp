@@ -3,6 +3,9 @@
 Use [`project describe MANIFEST`](Interface.md) to discover structured function
 and record types without executing policies or verifying cases.
 
+The [order workflow](Order-workflow.md) exercises a three-policy project and
+composed before/after decisions, with component and application gates kept separate.
+
 For host applications that consume decisions rather than verify saved examples,
 use [`project serve MANIFEST`](Adapter.md), the pinned JSON-lines adapter.
 

@@ -1,0 +1,9 @@
+{"version":1,"target":"decide","cases":[
+  {"id":"standard","args":[{"quantity":"10","unit_cents":"100","member":false}],"expect":{"result":{"type":"Quote","value":{"accepted":true,"subtotal_cents":"1000","total_cents":"1000","reason":"quoted"}},"output":""}},
+  {"id":"member-nine","args":[{"quantity":"9","unit_cents":"100","member":true}],"expect":{"result":{"type":"Quote","value":{"accepted":true,"subtotal_cents":"900","total_cents":"900","reason":"quoted"}},"output":""}},
+  {"id":"member-ten","args":[{"quantity":"10","unit_cents":"100","member":true}],"expect":{"result":{"type":"Quote","value":{"accepted":true,"subtotal_cents":"1000","total_cents":"900","reason":"quoted"}},"output":""}},
+  {"id":"member-eleven","args":[{"quantity":"11","unit_cents":"100","member":true}],"expect":{"result":{"type":"Quote","value":{"accepted":true,"subtotal_cents":"1100","total_cents":"990","reason":"quoted"}},"output":""}},
+  {"id":"round-discount-down","args":[{"quantity":"11","unit_cents":"1","member":true}],"expect":{"result":{"type":"Quote","value":{"accepted":true,"subtotal_cents":"11","total_cents":"10","reason":"quoted"}},"output":""}},
+  {"id":"invalid-price","args":[{"quantity":"1","unit_cents":"0","member":false}],"expect":{"result":{"type":"Quote","value":{"accepted":false,"subtotal_cents":"0","total_cents":"0","reason":"invalid_price"}},"output":""}},
+  {"id":"invalid-quantity","args":[{"quantity":"0","unit_cents":"100","member":false}],"expect":{"result":{"type":"Quote","value":{"accepted":false,"subtotal_cents":"0","total_cents":"0","reason":"invalid_quantity"}},"output":""}}
+]}

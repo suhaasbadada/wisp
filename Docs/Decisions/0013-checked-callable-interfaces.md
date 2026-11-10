@@ -1,7 +1,8 @@
 # ADR 0013: Compiler-owned callable interface discovery
 
-Status: implemented; local verification passed, independent review found no
-substantive issues; exact-head CI and publication pending.
+Status: accepted; shipped through PR #13 at
+`8b28f49fad338a776ac80f266a4cd5c38c97289f`. Exact-head CI, native/CI-artifact and
+published WASM/document acceptance are recorded on that PR.
 
 ## Need
 
