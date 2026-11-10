@@ -1,6 +1,24 @@
 # Verification
 
-## Required pinned MCP SDK CI (under publication)
+## Real-SDK saved-policy failure regressions (under publication)
+
+The exact hash-locked SDK workflow shell step passed locally with five report
+artifacts. The new report checks six authored verification outcomes (Pass, Fail,
+runtime Error/Unknown, preflight Error/Unknown), all three strict missing/old-guard
+refusals, changed-behavior adoption versus unmet saved requirements, and same-session
+drift as unresolved bridge failure. These are one authored regression matrix, not
+independent agent trials. Full prescribed checks passed: 157 Rust, 41 Node,
+126 Python, 326 native/WASM comparisons, 36 Chromium, fmt/Clippy/npm ci/WASM/check/
+build. Joffrey independently reviewed with no substantive findings; his review
+was inspection-only. Exact-head Linux CI and publication remain pending.
+
+PR #27 shipped at `c9892e2b786c7dd91db1d8b96781127d7c574e59`: PR Checks
+`42794165218`, merge Checks `42794824188`, Pages `42794824083`, deployment
+`7678924016` passed. Actual PR/merge four SDK reports and equal package inventories,
+adverse artifacts, immutable strict release SDK and three public contracts are
+[accepted](https://github.com/suhaasbadada/wisp/pull/27#issuecomment-6764440355).
+
+## Required pinned MCP SDK CI
 
 A fresh disposable Python 3.12 venv installed the full committed SDK dependency
 lock with hashes required and wheels only; `pip check`, all three SDK modes and

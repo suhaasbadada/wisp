@@ -1,8 +1,9 @@
 # ADR 0027: Require pinned SDK interoperability in CI
 
-Status: implemented; clean hash-locked installation, exact workflow shell step,
-full local checks and independent review passed. Exact-head Linux CI/publication
-pending.
+Status: accepted; shipped via PR #27 at
+`c9892e2b786c7dd91db1d8b96781127d7c574e59`. Exact-head Linux CI, actual SDK
+artifacts/package inventory, immutable release smoke and published contracts
+are accepted there.
 
 The bridge's standard-library tests were required in CI, but official SDK checks
 were local-only. Make the three existing SDK modes and historical internal triage
