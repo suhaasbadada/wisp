@@ -53,8 +53,9 @@ gh run view RUN_ID --repo suhaasbadada/wisp \
 ```
 
 Choose the exact Checks and Pages runs for the intended merge, then place those
-objects in the envelope. Capture is currently manual and read-only. No automated
-latest-run selection, authenticated capture, polling, timestamp/freshness window
+objects in the envelope, or use the [explicit-attempt capture host](Release-capture.md)
+to avoid manual transcription. There is no automated latest-run selection,
+authenticated offline provenance, polling, timestamp/freshness window
 or run-attempt selection is implied. Preserve failed/cancelled evidence; do not
 replace it with another run to manufacture success. File hashes are identities,
 not signatures or proof of provenance. A caller can forge a saved bundle; use an

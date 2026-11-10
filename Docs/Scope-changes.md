@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0018 adds explicit-attempt read-only GitHub capture through an authorized trusted local `gh` host. Fixed repository/GET endpoints, exact run/job/head/attempt correlation and bounded consistency reads replace manual transcription. No automatic run selection, retry, watch, merge/deploy authority or network capability in the Wisp core.
+
 - 2026-11-09: ADR 0017 exercises Wisp on read-only repository Checks/Pages triage using actual saved PR #16 merge evidence. The host maps provider metadata; Wisp classifies observed/pending/blocked/unknown workflow evidence. No authenticated collection, latest-run selection, merge/deploy authority, runtime permission or core syntax change.
 
 - 2026-11-09: ADR 0016 extracts the Python examples' shared JSON/discovery/session transport into an experimental source-local client. Readiness checks precede request submission, metadata is defensive, responses stay pinned and Error/Unknown remain data. No package publication, retries, cache, domain-rule interpretation or core semantics change.

@@ -44,6 +44,8 @@ For another Python application, use the experimental source-local
 The read-only [repository workflow triage](Docs/Release-triage.md) applies Wisp to
 saved real Checks/Pages evidence, separating observed workflows from deployment
 and functional acceptance. It never grants merge/deploy approval.
+Its [explicit-attempt capture](Docs/Release-capture.md) reads chosen GitHub run
+IDs without automatic selection, retry or mutation.
 
 The policy-change workbench compares two checked revisions against explicit typed
 cases and shows before/after decisions, mismatches, faults and limits. Try the

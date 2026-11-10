@@ -1,5 +1,25 @@
 # Verification
 
+## Explicit-attempt capture (under verification)
+
+Eight focused tests cover fixed-host GET invocation, pre-network argument checks,
+repository/path/head/event/attempt mismatches, changed attempts/state, job-list
+truncation/duplicates/identity, pending null normalization and direct consumption
+by native Wisp triage. A real read-only capture of PR #16 runs 42765846556 and
+42765846687, attempt 1, at `ae1d71f8cc0d7804570f1982e323259524955c84` produced
+Observed/not_granted with six GET invocations and no file creation or mutation.
+Primary full verification passed 149 Rust, 41 Node, 27 workflow, 9 client,
+7 triage and 8 capture tests, 326 native/WASM comparisons and 36 Chromium tests,
+plus fmt/Clippy/npm ci/WASM/TypeScript/build. Joffrey independently reviewed the
+capture boundary and found no substantive issues; eight capture and seven triage
+tests plus diff checks passed in review. Exact-head CI/publication remain separate.
+
+PR #17 shipped at `e6274997b1925f6953aeeac531b8e175fd50a103`: PR Checks
+`42766922443`, merge Checks `42767389783`, Pages `42767389590` and deployment
+`7675083543` passed. Actual artifacts verify 8 cases/16 invocations and retain
+historical workflow Observed separately from release acceptance; native release
+and published contracts are [accepted](https://github.com/suhaasbadada/wisp/pull/17#issuecomment-6760578891).
+
 ## Repository workflow triage (under verification)
 
 The new read-only host validates bounded saved provider evidence and maps it to
