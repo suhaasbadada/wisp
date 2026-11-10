@@ -33,7 +33,13 @@ def load(path):
     with open(path, "rb") as stream:
         raw = stream.read(65537)
     require(len(raw) <= 65536, "Evidence exceeds 65536 bytes")
-    data = decode_json(raw.decode("utf-8")); validate_json(data)
+    data = decode_json(raw.decode("utf-8"))
+    validate_evidence(data)
+    return data, hashlib.sha256(raw).hexdigest()
+
+
+def validate_evidence(data):
+    validate_json(data)
     require(isinstance(data, dict) and set(data) == {"version", "repository", "revision", "ref", "checks", "pages"}
             and type(data["version"]) is int and data["version"] == 1
             and data["repository"] == REPOSITORY and sha(data["revision"])
@@ -62,7 +68,6 @@ def load(path):
             names.add(job["name"])
     if data["checks"] is not None and data["pages"] is not None:
         require(data["checks"]["databaseId"] != data["pages"]["databaseId"], "Workflow run IDs must be distinct")
-    return data, hashlib.sha256(raw).hexdigest()
 
 
 def facts(data):

@@ -1,7 +1,8 @@
 # ADR 0017: Read-only repository workflow triage
 
-Status: implemented; independent finding repaired and relevant checks passed;
-exact-head CI and publication pending.
+Status: accepted; shipped via PR #17 at
+`e6274997b1925f6953aeeac531b8e175fd50a103`. Exact-head CI, native release,
+actual CI artifacts and published contract acceptance are recorded on that PR.
 
 Exercise Wisp in a recurring repository-local task rather than add more language
 syntax or claim usefulness from authored commerce examples alone. Classify saved
