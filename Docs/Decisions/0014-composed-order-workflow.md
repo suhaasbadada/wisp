@@ -1,7 +1,8 @@
 # ADR 0014: Exercise the product as a composed application
 
-Status: implemented; independent finding repaired, local verification passed;
-exact-head CI and publication pending.
+Status: accepted; shipped through PR #14 at
+`fdcc0605144c32ec75c61ec495cac821d6de42c9`. Exact-head CI, merged release,
+actual CI-artifact and published acceptance are recorded on that PR.
 
 ## Need
 
