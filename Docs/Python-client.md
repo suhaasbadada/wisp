@@ -89,14 +89,27 @@ batch exchange, including readiness. One IO worker owns session pipes; deadline
 or protocol failure kills/waits the owned child and joins the worker. There are
 no automatic retries.
 
+Native one-command collection (`run_cli`, used by discovery, focus and inline MCP
+operations) concurrently reads stdout and stderr while writing optional stdin.
+Stdout is capped at 4,194,304 raw bytes and stderr at 65,536; exactly the cap is
+accepted, one extra byte rejects. Limits apply before strict UTF-8 decoding, not
+after full output capture. Raw newlines and Unicode scalars are preserved.
+Exceeding either pipe's cap invalidates the whole result, even with successful
+stdout or exit 0. Collection, input and child exit share the command deadline;
+failures kill/reap the direct child and close pipes/join workers, returning generic
+`ClientError` without captured output. Cleanup has a separate bounded allowance.
+Successful semantic exits remain 0/1/3 only where requested; other command exits
+are transport failures. These caps do not bound total process/input/decoded-JSON
+memory and do not establish that a submitted operation did not execute.
+
 `ClientError` means host/configuration/protocol/deadline failure. It does **not**
 mean zero execution after submission: some calls may have run before a timeout,
 truncation or mismatched response. Unreceived outcomes are unresolved. Callers
 own action, persistence, authorization and any idempotency strategy. No side
 effect or approval is performed by this client or the example applications.
 
-The CLI is trusted local code, not a hostile subprocess sandbox: captured output
-is accumulated in memory, and this client does not isolate process descendants
+The CLI is trusted local code, not a hostile subprocess sandbox: bounded output
+is retained in memory, and this client does not isolate process descendants
 or defend against an arbitrary malicious executable. Do not point it at untrusted
 programs or expose it directly as a public service. Tests exercise authored peers
 and native cases, not a proof of cleanup or protocol completeness on all systems.

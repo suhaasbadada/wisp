@@ -81,15 +81,96 @@ def encode_json(value, ascii_strings=False):
 
 
 def run_cli(binary, args, input_text=None, semantic_exit=False, timeout=15):
+    import time
+
+    # Count wire bytes before decoding. Each reader retains at most its cap and
+    # reads only one extra byte to detect overflow, independently of stdin IO.
+    deadline = time.monotonic() + timeout
+    process = None
+    workers = []
+    started_workers = []
+    completed = queue.Queue(maxsize=3)
+
+    def collect(stream, limit, slot):
+        # Fixed capacity avoids bytearray growth over-allocation beyond the cap.
+        data = bytearray(limit)
+        used = 0
+        try:
+            while True:
+                chunk = stream.read(min(65536, limit - used + 1))
+                if not chunk:
+                    del data[used:]
+                    slot.append(data)
+                    completed.put((True, None))
+                    return
+                if used + len(chunk) > limit:
+                    completed.put((False, None))
+                    return
+                data[used:used + len(chunk)] = chunk
+                used += len(chunk)
+        except (OSError, ValueError):
+            completed.put((False, None))
+
+    def write_input(payload):
+        try:
+            remaining = memoryview(payload)
+            while remaining:
+                written = process.stdin.write(remaining[:65536])
+                remaining = remaining[written:]
+            process.stdin.close()
+            completed.put((True, None))
+        except BrokenPipeError:
+            # Like communicate(), an early child exit may leave unused input.
+            completed.put((True, None))
+        except (OSError, ValueError):
+            completed.put((False, None))
+
     try:
-        process = subprocess.run([str(binary), *map(str, args)], input=input_text,
-                                 text=True, encoding="utf-8", capture_output=True,
-                                 timeout=timeout, check=False)
-    except (OSError, UnicodeError, subprocess.TimeoutExpired) as error:
-        raise ClientError("Wisp transport failed or exceeded its deadline") from error
-    if process.returncode not in ({0, 1, 3} if semantic_exit else {0}):
-        raise ClientError("Wisp command did not complete normally; inspect it separately")
-    return process.stdout
+        payload = input_text.encode("utf-8") if input_text is not None else None
+        process = subprocess.Popen([str(binary), *map(str, args)],
+                                   stdin=subprocess.PIPE if payload is not None else None,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
+        output = []
+        for stream, limit in [(process.stdout, 4194304), (process.stderr, 65536)]:
+            # Dedicated result slots preserve stdout/stderr identity regardless
+            # of completion order; the queue carries only completion/failure.
+            slot = []
+            output.append(slot)
+
+            workers.append(threading.Thread(target=collect, args=(stream, limit, slot), daemon=True))
+        if payload is not None:
+            workers.append(threading.Thread(target=write_input, args=(payload,), daemon=True))
+        for worker in workers:
+            worker.start()
+            started_workers.append(worker)
+        for _ in workers:
+            success, _ = completed.get(timeout=max(0, deadline - time.monotonic()))
+            if not success:
+                raise ClientError("Wisp transport failed or exceeded its collection limit")
+        process.wait(timeout=max(0, deadline - time.monotonic()))
+        if process.returncode not in ({0, 1, 3} if semantic_exit else {0}):
+            raise ClientError("Wisp command did not complete normally; inspect it separately")
+        output[1][0].decode("utf-8")  # Preserve strict decoding of stderr too.
+        return output[0][0].decode("utf-8")
+    except (OSError, UnicodeError, subprocess.TimeoutExpired, queue.Empty, RuntimeError):
+        raise ClientError("Wisp transport failed or exceeded its deadline") from None
+    finally:
+        if process is not None:
+            try:
+                if process.poll() is None:
+                    process.kill()
+                process.wait(timeout=2)
+                cleanup_deadline = time.monotonic() + 2
+                for worker in started_workers:
+                    worker.join(timeout=max(0, cleanup_deadline - time.monotonic()))
+                if any(worker.is_alive() for worker in started_workers):
+                    raise ClientError("Wisp transport IO cleanup did not finish")
+            except (OSError, subprocess.TimeoutExpired, RuntimeError):
+                raise ClientError("Wisp transport IO cleanup did not finish") from None
+            finally:
+                for stream in [process.stdin, process.stdout, process.stderr]:
+                    if stream is not None:
+                        stream.close()
 
 
 def _require(condition, message):
