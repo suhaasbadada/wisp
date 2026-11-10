@@ -1,6 +1,37 @@
 # Verification
 
-## Real-SDK saved-policy failure regressions (under publication)
+## Reading historical checkpoints
+
+This is an accumulated verification log, not a live CI dashboard. Older sections
+retain the local/pre-publication checkpoint as it was recorded: “pending” or
+“under verification” there does not reopen a subsequently accepted release.
+Use the corresponding **“PR #N shipped at”** entry and linked release-acceptance
+comment for the exact released SHA, CI, deployment and functional evidence.
+Review scope and limitations still apply: later acceptance does not turn a
+primary check into independent review or erase an earlier failure. Current run
+state must be checked at its exact revision; an old green release is not evidence
+for a new head.
+
+## Historical-status documentation maintenance
+
+The reading note above clarifies archived local checkpoints without replacing
+historical results or review limitations. ADR 0011 now links its already-recorded
+PR #11 acceptance and explicitly preserves the lack of independent post-fix
+re-review. TypeScript checking, documentation build and `npm test` passed:
+41 Node, 126 Python, 326 native/WASM comparisons and 36 Chromium tests, including
+frozen study preservation. Joffrey independently inspected the reading note and
+ADR 0011 correction with no substantive findings; no tests were run by him.
+This documentation-only maintenance does not rerun or upgrade historical release
+acceptance. Rust fmt/Clippy/tests and SDK scripts were not rerun for these prose
+changes; immutable PR #28 release checks below are separate evidence.
+
+PR #28 shipped at `06509366b21a6d9bc256a8f4962dd6d6f6c016ad`: PR Checks
+`42795633038`, merge Checks `42796226095`, Pages `42796226605`, deployment
+`7679157894` passed. Actual PR/merge five SDK reports, equal package inventories,
+adverse evidence, immutable hash-locked release SDK checks and three public
+contracts are [accepted](https://github.com/suhaasbadada/wisp/pull/28#issuecomment-6764622743).
+
+## Real-SDK saved-policy failure regressions
 
 The exact hash-locked SDK workflow shell step passed locally with five report
 artifacts. The new report checks six authored verification outcomes (Pass, Fail,
