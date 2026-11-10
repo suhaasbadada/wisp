@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0013 adds checked, structured callable types and native project discovery without executing policies/cases. Applications enforce expected boundaries and match discovery/startup hashes before consuming decisions. No signature parsing in clients, new language syntax, export authorization, context-completeness or suite-approval claim; existing graph/context evidence remains unchanged.
+
 - 2026-11-09: ADR 0012 adds pinned native JSON-lines decision sessions and a dependency-free application host example. Explicit caller-owned targets and raw typed arguments use shared Rust calls; no network service, cache, approval or host side effects. Independent review exposed positional arrays entering strict object schemas; map-only decoding closes that validation gap in host/core boundaries without changing valid object identities.
 
 - 2026-11-09: ADR 0011 adds read-only saved policy projects, immutable specification review gates, bounded confined snapshots and retained CI evidence; shipped through PR #11. Semantic preflight remains per policy, not falsely global.

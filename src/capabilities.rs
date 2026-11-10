@@ -16,6 +16,7 @@ pub(super) fn document() -> Json {
             vec!["focus", "budget", "limits"],
             "whole-program checking and metadata; no execution",
         ),
+        ("describe", vec!["limits"], "whole-program checking and structured global function/record types; no execution, suite verification or authorization"),
         (
             "context",
             vec!["focus", "budget", "limits"],
@@ -101,6 +102,15 @@ pub(super) fn document() -> Json {
         ("input_depth", 17, "JSON containers", "root argument array plus at most 16 record objects"),
         ("capabilities_bytes", CAPABILITIES_BYTES, "UTF-8 bytes", "entire serialized discovery response"),
     ].into_iter().map(|(name, ceiling, unit, scope)|json!({"name":name,"ceiling":ceiling,"unit":unit,"scope":scope})).collect::<Vec<_>>();
+    let examples = json!([
+        {"request":{"op":"describe","source":"record Input { count: Int } fn decide(input: Input) -> Bool { input.count > 0 }"},"expected_status":"Ready"},
+        {"request":{"op":"analyze","source":"fn twice(n: Int) -> Int { n * 2 }"},"expected_status":"Ready"},
+        {"request":{"op":"run","source":"probe n in 1..=3 { n + 1 > n }"},"expected_status":"Complete"},
+        {"request":{"op":"call","source":"fn twice(n: Int) -> Int { n * 2 }","function":"twice","args":["21"]},"expected_status":"Complete","expected_result":{"type":"Int","value":"42"}},
+        {"request":{"op":"context","source":"probe n in 1..=3 { n + 1 > n }","focus":"probe:0","budget":4096},"expected_status":"Ready"},
+        {"request":{"op":"edit","source":"fn twice(n: Int) -> Int { n * 2 }","focus":"twice","change":{"expected_revision":"f59809bffc2adfed70f4dbc000d5bb7223b50359189a05c1fa312a0f017f86c7","expected_body_hash":"64cd3cbb8f071e01a74d17007ab3df19b7d47332bf133633a0f8171e92b50928","replacement":"{ n + n }"}},"expected_status":"Ready"},
+        {"request":{"op":"review","source":"fn twice(n: Int) -> Int { n * 2 }","candidate":"fn twice(n: Int) -> Int { n + n }","suite":{"version":1,"target":"twice","cases":[{"id":"positive","args":["2"],"expect":{"result":{"type":"Int","value":"4"},"output":""}}]}},"expected_status":"Pass"}
+    ]);
     json!({
         "status":"Ready", "compiler":COMPILER,
         "capabilities":{
@@ -109,6 +119,7 @@ pub(super) fn document() -> Json {
             "context_contract_version":CONTEXT_CONTRACT_VERSION,
             "edit_contract_version":EDIT_CONTRACT_VERSION,
             "review_contract_version":REVIEW_CONTRACT_VERSION,
+            "interface_contract_version":INTERFACE_CONTRACT_VERSION,
             "operations":operations,
             "request":{
                 "required_fields":["op","source"],
@@ -130,15 +141,8 @@ pub(super) fn document() -> Json {
             "artifacts":{"format":"wisp-ghost","version":1,"compiler":COMPILER,"compatibility":"Exact compiler identity required; full effective archived limits required; no migration.","authenticated":false,"validation":"Fresh bounded full historical run must reproduce the exact first failed ghost. Reproduction is not authentication or proof of historical author/time."},
             "diagnostics":{"version":DIAGNOSTIC_CONTRACT_VERSION,"shape":"{code,kind,message,span:{start,end},path?}","span":"Half-open UTF-8 source byte offsets; input uses sentinel 0..0 and JSON Pointer path; absent path omitted.","consumer_policy":"Code meanings and wire kinds are stable, never reused. New codes are additive. Unknown codes fall back to kind and report status; human messages are not identifiers. Status is not derived universally from kind/code.","codes":DiagnosticCode::ALL.iter().map(|c|json!({"code":c.wire(),"kind":c.kind(),"meaning":c.meaning()})).collect::<Vec<_>>()},
             "uncertainty":["Finite probe observations and single-input calls/replays are not proofs or intent guarantees.","Dependency edges include unreachable syntactic calls and all record declarations; graph is conservative, not property-specific.","Agent View truncation can omit facts; not context-complete, minimal or guaranteed task relevant.","Logical fuel/allocation units are not absolute CPU, allocator or process/browser bounds; host cancellation is separate.","No automatic repair, cache reuse, telemetry, backend or language IO."],
-            "docs":{"language":"Docs/Language.md","protocol":"Docs/Protocol.md","cli":"Docs/CLI.md","errors":"Docs/Errors.md","scope":"Docs/Scope.md"},
-            "examples":[
-                {"request":{"op":"analyze","source":"fn twice(n: Int) -> Int { n * 2 }"},"expected_status":"Ready"},
-                {"request":{"op":"run","source":"probe n in 1..=3 { n + 1 > n }"},"expected_status":"Complete"},
-                {"request":{"op":"call","source":"fn twice(n: Int) -> Int { n * 2 }","function":"twice","args":["21"]},"expected_status":"Complete","expected_result":{"type":"Int","value":"42"}},
-                {"request":{"op":"context","source":"probe n in 1..=3 { n + 1 > n }","focus":"probe:0","budget":4096},"expected_status":"Ready"},
-                {"request":{"op":"edit","source":"fn twice(n: Int) -> Int { n * 2 }","focus":"twice","change":{"expected_revision":"f59809bffc2adfed70f4dbc000d5bb7223b50359189a05c1fa312a0f017f86c7","expected_body_hash":"64cd3cbb8f071e01a74d17007ab3df19b7d47332bf133633a0f8171e92b50928","replacement":"{ n + n }"}},"expected_status":"Ready"},
-                {"request":{"op":"review","source":"fn twice(n: Int) -> Int { n * 2 }","candidate":"fn twice(n: Int) -> Int { n + n }","suite":{"version":1,"target":"twice","cases":[{"id":"positive","args":["2"],"expect":{"result":{"type":"Int","value":"4"},"output":""}}]}},"expected_status":"Pass"}
-            ]
+            "docs":{"language":"Docs/Language.md","protocol":"Docs/Protocol.md","cli":"Docs/CLI.md","errors":"Docs/Errors.md","scope":"Docs/Scope.md","interface":"Docs/Interface.md"},
+            "examples":examples
         }
     })
 }

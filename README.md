@@ -22,6 +22,10 @@ after `cargo build --locked` for a dependency-free host example. See the
 [decision adapter](Docs/Adapter.md): no network server, automatic approval or host
 side effects; callers must handle Error/Unknown explicitly.
 
+Discover callable JSON boundaries first with `wisp project describe MANIFEST`
+or `wisp describe FILE`. [Checked interface metadata](Docs/Interface.md) comes
+from Rust types, not signature-string parsing, and never executes a policy.
+
 The policy-change workbench compares two checked revisions against explicit typed
 cases and shows before/after decisions, mismatches, faults and limits. Try the
 reservation walkthrough in the playground, or:

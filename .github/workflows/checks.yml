@@ -26,6 +26,7 @@ jobs:
       - name: Saved policy project acceptance
         run: |
           cargo build --locked
+          target/debug/wisp project describe examples/policies/project.json > project-interface.json
           target/debug/wisp project verify examples/policies/project.json > project-verify.json
           target/debug/wisp project review examples/policies/project-before.json examples/policies/project.json > project-review.json
           python3 examples/policies/decisions.py > project-decisions.jsonl

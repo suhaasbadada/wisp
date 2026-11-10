@@ -4,6 +4,7 @@ mod context;
 mod diagnostics;
 mod edit;
 mod engine;
+mod interface;
 mod invocation;
 mod review;
 mod syntax;
@@ -87,6 +88,7 @@ struct Artifact {
 }
 pub const TRANSPORT_BYTES: usize = 1_048_576;
 pub const SOURCE_BYTES: usize = 65_536;
+pub use interface::INTERFACE_CONTRACT_VERSION;
 pub use invocation::ARGUMENT_BYTES;
 pub use review::{REVIEW_BYTES, REVIEW_CONTRACT_VERSION};
 
@@ -222,6 +224,9 @@ fn execute_request(r: Request) -> Json {
     }
     if r.op == "capabilities" {
         return capabilities::document();
+    }
+    if r.op == "describe" {
+        return interface::execute(r, limits);
     }
     if ["archive", "inspect-artifact", "replay-artifact"].contains(&r.op.as_str()) {
         let a = if r.op == "archive" {

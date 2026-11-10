@@ -588,3 +588,11 @@ Serde's positional form; it is now rejected before execution at the owning schem
 boundary, with existing Request/Artifact/Edit/Review diagnostics. Valid object
 reports and semantics-5 identities are unchanged; this is a wire validation fix,
 not new language behavior.
+# Checked callable interfaces
+
+`{"op":"describe","source":SOURCE,"limits":{...}}` returns interface contract
+v1: structured function parameters/return types and nominal record field types,
+all compiler-owned after whole-program checking, with no execution. See
+[Interface](Interface.md) for exact tags, ordering, preflight failures, envelope
+restrictions and native saved-project orchestration. This additive operation
+does not alter existing graph/context reports or semantics-5 identity material.
