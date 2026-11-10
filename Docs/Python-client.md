@@ -27,6 +27,17 @@ implementation and argument/type validator.
 
 ## Discovery and batches
 
+`client.focus(policy, function, budget=4096)` returns guarded saved-function
+context without executing policy code or resending source. Targets must be
+described; budgets are integers (not booleans) from 0 through 65536. Each call
+passes all four native snapshot pins, validates every policy's source/suite hashes
+and selected compiler/revision before exposing context, and checks nonexecution
+markers and the Ready report's UTF-8 byte ledger. Drift or malformed transport
+raises `ClientError`; native Error/Unknown remain report data. Existing command
+deadline/report limits apply. It checks selected source, not suite cases or all
+policy semantics. The graph/identity metadata is outside the text budget; inspect
+omissions and overflow. Context is not relevance/completeness or approval proof.
+
 Construction runs `project describe` without policy execution. It requires a
 Ready version-1 project/interface contract, unique policy/record/function/field/
 parameter identities, known type descriptors and source/suite/manifest hashes.

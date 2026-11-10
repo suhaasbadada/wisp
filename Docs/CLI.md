@@ -1,5 +1,10 @@
 # Native CLI
 
+Saved-function context: `wisp project focus MANIFEST POLICY FUNCTION [--budget N]`
+with optional all-or-none `--expected-manifest HASH --expected-revision HASH
+--expected-suite HASH --expected-compiler ID`. See [Projects](Projects.md) for
+snapshot guards, reports, exits and nonexecution/text-budget limits.
+
 Build with `cargo build`; use `target/debug/wisp` or `cargo run --`.
 All commands emit one structured JSON report on stdout, not evaluated source or
 plain program output. Captured program output lives in the report's `output`.

@@ -1,5 +1,40 @@
 # Repository policy projects (native v1)
 
+## Non-executing saved-function context
+
+```sh
+target/debug/wisp project focus examples/policies/project.json reservations decide --budget 2048
+```
+
+This loads the bounded, confined project snapshot and returns the existing Rust
+`analyze` Agent View for the selected function. It does not evaluate top-level
+statements, probes, functions or suite cases. All policy files are loaded and all
+suites must be JSON, but only the selected source is semantically checked; valid
+JSON is not necessarily a valid case suite. This is not project verification.
+
+Optional `--expected-manifest HASH --expected-revision HASH --expected-suite HASH
+--expected-compiler ID` must appear together. Hashes are lowercase SHA-256; suite
+identity covers its complete file bytes. Comparison precedes analysis and uses
+retained source without rereads. Mismatch returns Error/`PROJECT_SNAPSHOT_DRIFT`,
+phase `guard`, guard status `rejected`, and `report:null`, with no source context.
+Unknown policy returns `PROJECT_POLICY_UNKNOWN`, phase `selector`; a supplied
+guard is `not_evaluated` there. Unknown function follows core `E_FOCUS_UNKNOWN`.
+Malformed options fail host exit 2 before filesystem access. Other semantic exits
+are 0 Ready, 1 Error, 3 Unknown.
+
+The outer report contains `status`, empty `output`, project `diagnostics`,
+`project` metadata and unchanged inner core `report`. Metadata includes
+`contract_version:1`, `mode:focus`, `phase:focused`, `approval:not_granted`,
+`new_execution:false`, manifest/selected-source/full-suite hashes, policy ID,
+`guard_status:matched|not_requested`, and sorted `policies` with every policy's
+source/suite pins. `focused` does not mean Ready: inspect inner status/diagnostics.
+
+Budget defaults to 4096 UTF-8 text bytes. Native u64 budgets clamp to 65536 through
+the shared core. Graph/identity JSON is outside this budget; inspect `overflow`,
+`omitted`, `uncertainty` and the byte ledger. Context can omit the focus itself and
+is not guaranteed relevant or complete. No savings or correctness claim follows.
+The existing stable-filesystem assumptions below remain; hashes are not approval.
+
 Use [`project describe MANIFEST`](Interface.md) to discover structured function
 and record types without executing policies or verifying cases.
 

@@ -34,7 +34,7 @@ operations:
 
 ### Optional owner-configured saved project
 
-Start with one explicit manifest to add two tools, avoiding repeated source in
+Start with one explicit manifest to add three tools, avoiding repeated source in
 invocations:
 
 ```sh
@@ -44,7 +44,7 @@ python3 -B integrations/mcp/server.py --wisp target/debug/wisp \
 
 Only the owner/startup configuration chooses this path. The agent cannot choose
 another manifest, pass a path/source override or browse files. Without `--project`,
-these two tools are absent and project discovery does not occur:
+these three tools are absent and project discovery does not occur:
 
 - `wisp_project_describe {}` returns the checked interface/pins loaded during
   initialization. Bridge execution is `initialization_metadata`: **not a live
@@ -80,6 +80,18 @@ That is **not** a measured latency/token/total-protocol efficiency claim: projec
 discovery and adapter provenance add their own output and startup costs.
 
 ### Bind the caller's reasoning across reconnects
+
+`wisp_project_focus {policy,function,budget?,expected?}` reads compiler-derived
+Agent View context from the saved snapshot without source input or execution.
+It uses the same caller guard as invocation; strict owner mode requires `expected`
+for **both** tools. Default budget is 4096 UTF-8 text bytes, range 0–65536. Its
+native report wraps the unchanged core report under `report.report`; inspect
+`report.project.new_execution:false`, inner status, omissions and overflow. Graph
+and identity JSON are outside the text budget, so this is not a total-output cap.
+The client validates every policy pin before exposing context, but only selected
+source is semantically checked. No suite cases execute. Stale guard refusal is
+`not_submitted`; later transport/drift failures remain conservatively unresolved.
+See [Projects](Projects.md) and [Python client](Python-client.md).
 
 Server/session pins protect against disk changes **within** a session. They do
 not by themselves bind an agent's earlier reasoning after a restart that discovers
@@ -198,7 +210,7 @@ execution capability from this transport.
 
 ## Verification
 
-`npm run test:workflow` includes twenty-six authored MCP/native tests covering lifecycle,
+`npm run test:workflow` includes twenty-nine authored MCP/native tests covering lifecycle,
 tool discovery, exact i64 transport, native Error/Unknown/continuation, review
 Pass/Fail, nonexecuting context/interface operations, invalid schemas/IDs/frames,
 quotas/compiler drift, malformed/oversized native reports, real stdio EOF and
@@ -226,7 +238,22 @@ not a runtime requirement or package publication. One local SDK 2.3.0 smoke pass
 initialize/list/call with exact i64 and native Complete/Error/Unknown, with no
 top-level execution. This is measured interoperability with one client, not all
 clients, external adoption, benchmark superiority or production readiness. The
-optional configured-project SDK smoke also passes eight-tool discovery and a
+optional configured-project SDK smoke also passes nine-tool discovery and a
 pinned reservation decision without source in the tool arguments.
 Guarded/strict modes also exercise rejected stale guards and required-guard
 enforcement without fabricating native outcomes.
+
+Current configured modes discover nine tools and exercise guarded bounded focus,
+nonexecution and stale-context refusal. The six default source tools are unchanged.
+An optional internal driver uses the official SDK to fetch bounded `decide`
+context then invoke the same pinned policy against saved historical repository CI
+evidence:
+
+```sh
+uv run --no-project --default-index https://pypi.org/simple --with mcp==2.3.0 \
+  python -B scripts/mcp_internal_triage.py --budget 2048
+```
+
+This is read-only internal integration, not live CI/deployment authority, a model
+reasoning experiment or a measured language comparison. Overflow/omissions are
+retained and context retrieval is separate from policy invocation and approval.

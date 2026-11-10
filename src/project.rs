@@ -199,6 +199,104 @@ pub(super) fn execute(before: &str, after: Option<&str>) -> Result<Value, String
 const ADAPTER_LINE_BYTES: usize = 131_072;
 const ADAPTER_REQUESTS: usize = 1_024;
 
+pub(super) fn focus(
+    manifest: &str,
+    policy_id: &str,
+    function: &str,
+    options: &[&str],
+) -> Result<Value, String> {
+    // Validate the complete command before touching the filesystem. The four
+    // optional pins form one guard, never a partially enforced expectation.
+    if manifest.is_empty()
+        || manifest == "-"
+        || manifest.starts_with("--")
+        || !adapter_id(policy_id)
+        || function.is_empty()
+        || function.starts_with("--")
+    {
+        return Err(super::HELP.into());
+    }
+    let mut budget = None;
+    let mut expected = [None; 4];
+    for pair in options.chunks(2) {
+        if pair.len() != 2 || pair[1].is_empty() || pair[1].starts_with("--") {
+            return Err(super::HELP.into());
+        }
+        let slot = match pair[0] {
+            "--budget" if budget.is_none() => {
+                budget = Some(super::number(pair[1])?);
+                continue;
+            }
+            "--expected-manifest" => 0,
+            "--expected-revision" => 1,
+            "--expected-suite" => 2,
+            "--expected-compiler" => 3,
+            _ => return Err(super::HELP.into()),
+        };
+        if expected[slot].is_some()
+            || (slot < 3
+                && (pair[1].len() != 64
+                    || !pair[1]
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))))
+        {
+            return Err(super::HELP.into());
+        }
+        expected[slot] = Some(pair[1]);
+    }
+    let guarded = expected.iter().any(Option::is_some);
+    if guarded && expected.iter().any(Option::is_none) {
+        return Err(super::HELP.into());
+    }
+    let project = load(manifest)?;
+    let mut outer = json!({"status":"Error","output":"","diagnostics":[],"project":{
+        "contract_version":1,"mode":"focus","phase":"selector","approval":"not_granted",
+        "new_execution":false,"manifest_hash":project.manifest_hash,"policy_id":policy_id,
+        "source_revision":null,"suite_file_hash":null,
+        "guard_status":if guarded{"not_evaluated"}else{"not_requested"},
+        "policies":project.policies.iter().map(|p| json!({"id":p.id,
+            "source_revision":hash(&p.source),"suite_file_hash":hash(&p.suite)})).collect::<Vec<_>>()
+    },"report":null});
+    let Some(policy) = project.policies.iter().find(|p| p.id == policy_id) else {
+        outer["diagnostics"] = json!([{"code":"PROJECT_POLICY_UNKNOWN","kind":"Project","message":"policy ID is not in the project snapshot"}]);
+        return Ok(outer);
+    };
+    let revision = hash(&policy.source);
+    let suite_hash = hash(&policy.suite);
+    outer["project"]["source_revision"] = json!(revision);
+    outer["project"]["suite_file_hash"] = json!(suite_hash);
+    if guarded {
+        if expected
+            != [
+                Some(project.manifest_hash.as_str()),
+                Some(revision.as_str()),
+                Some(suite_hash.as_str()),
+                Some(wisp::COMPILER),
+            ]
+        {
+            outer["project"]["phase"] = json!("guard");
+            outer["project"]["guard_status"] = json!("rejected");
+            outer["diagnostics"] = json!([{"code":"PROJECT_SNAPSHOT_DRIFT","kind":"Project","message":"project snapshot does not match expected pins"}]);
+            return Ok(outer);
+        }
+        outer["project"]["guard_status"] = json!("matched");
+    }
+    // Analyze only retained bytes: no execution, suite verification or rereads.
+    let mut report = super::dispatch(json!({"op":"analyze","source":policy.source,
+        "focus":function,"budget":budget.unwrap_or(4096)}));
+    if report["status"] == "Ready" && report["agent_view"]["focus"].is_null() {
+        report = super::semantic_error(
+            report,
+            wisp::DiagnosticCode::FocusUnknown,
+            "no matching focus function",
+        );
+    }
+    outer["status"] = report["status"].clone();
+    outer["project"]["phase"] = json!("focused");
+    outer["report"] = report;
+    Ok(outer)
+}
+
 pub(super) fn describe(manifest: &str) -> Result<Value, String> {
     let project = load(manifest)?;
     let mut rows = Vec::new();
