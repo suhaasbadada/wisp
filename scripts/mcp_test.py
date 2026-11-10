@@ -1,4 +1,5 @@
 """MCP stdio/native integration tests, without an external SDK dependency."""
+import copy
 import importlib.util
 import io
 import json
@@ -31,9 +32,9 @@ def initialize():
             {"jsonrpc": "2.0", "method": "notifications/initialized"}]
 
 
-def exchange(messages, binary=BINARY):
+def exchange(messages, binary=BINARY, manifest=None):
     output = io.BytesIO()
-    code = HOST.serve(binary, io.BytesIO(b"".join((json.dumps(m, ensure_ascii=False) + "\n").encode() for m in messages)), output)
+    code = HOST.serve(binary, io.BytesIO(b"".join((json.dumps(m, ensure_ascii=False) + "\n").encode() for m in messages)), output, manifest=manifest)
     return code, [json.loads(line) for line in output.getvalue().split(b"\n") if line]
 
 
@@ -194,6 +195,121 @@ class MCP(unittest.TestCase):
                     except ProcessLookupError: pass
                 for stream in [process.stdin, process.stdout, process.stderr]: stream.close()
                 os.close(fd)
+
+    def test_owner_configured_project_discovery_and_invocation_need_no_source(self):
+        manifest = ROOT / "examples" / "policies" / "project.json"
+        args = [{"quantity": "11", "pack_size": "5", "expires_at": "101"}, {"available": "11", "now": "100"}]
+        _, rows = exchange([*initialize(), request(2, "tools/list"),
+                            request(3, "tools/call", {"name": "wisp_project_describe", "arguments": {}}),
+                            request(4, "tools/call", {"name": "wisp_project_invoke", "arguments": {
+                                "id": "reservation", "policy": "reservations", "function": "decide", "args": args}})], manifest=manifest)
+        self.assertEqual(len(rows[1]["result"]["tools"]), 8)
+        described = rows[2]["result"]["structuredContent"]
+        self.assertEqual(described["bridge"]["execution"], "initialization_metadata")
+        self.assertFalse(described["report"]["project"]["new_execution"])
+        called = rows[3]["result"]["structuredContent"]["report"]
+        self.assertEqual(called["status"], "Complete")
+        self.assertEqual(called["adapter"]["request_id"], "reservation")
+        self.assertEqual(called["adapter"]["manifest_hash"], described["report"]["project"]["manifest_hash"])
+        self.assertEqual(called["report"]["result"]["value"], {"accepted": True, "packs": "3", "reason": "reserved"})
+
+    def test_project_tools_are_absent_without_explicit_owner_configuration(self):
+        with mock.patch.object(HOST, "ProjectClient", side_effect=AssertionError("No project filesystem read")):
+            _, rows = exchange([*initialize(), request(2, "tools/list"), request(3, "tools/call", {
+                "name": "wisp_project_describe", "arguments": {}})])
+        self.assertEqual(len(rows[1]["result"]["tools"]), 6)
+        self.assertEqual(rows[2]["error"]["code"], -32602)
+        _, rows = exchange([*initialize(), request(2, "tools/list")], manifest="nonexistent-project.json")
+        self.assertEqual(rows[0]["error"]["code"], -32603)
+        self.assertEqual(rows[1]["error"]["code"], -32000)
+
+    def test_project_schema_and_unknown_targets_are_rejected_before_submission(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples" / "policies" / "project.json")
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        good = {"id": "one", "policy": "reservations", "function": "decide", "args": []}
+        for change in [{"id": "é"}, {"policy": "unknown"}, {"function": "unknown"},
+                       {"manifest": "/etc/passwd"}, {"source": "print(1);"}, {"args": {}}]:
+            with mock.patch.object(server.project, "_exchange", side_effect=AssertionError("No native session")):
+                result = server.call({"name": "wisp_project_invoke", "arguments": {**good, **change}})
+            self.assertTrue(result["isError"])
+            self.assertEqual(result["structuredContent"]["bridge"]["execution"], "not_submitted")
+
+    def test_project_source_manifest_and_suite_drift_are_not_silently_adopted(self):
+        example = ROOT / "examples" / "policies"
+        for changed in ["project.json", "reservations-after.wisp", "cases.json"]:
+            with tempfile.TemporaryDirectory(prefix="wisp-mcp-project-") as temp:
+                folder = pathlib.Path(temp)
+                for name in ["project.json", "reservations-after.wisp", "cases.json"]:
+                    (folder / name).write_bytes((example / name).read_bytes())
+                server = HOST.Server(BINARY, manifest=folder / "project.json")
+                server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+                old = server.project.description
+                path = folder / changed; raw = path.read_bytes(); path.write_bytes(raw + b"\n")
+                result = server.call({"name": "wisp_project_invoke", "arguments": {"id": "drift", "policy": "reservations", "function": "decide",
+                    "args": [{"quantity": "1", "pack_size": "1", "expires_at": "101"}, {"available": "1", "now": "100"}]}})
+                self.assertTrue(result["isError"])
+                self.assertIsNone(result["structuredContent"]["report"])
+                metadata = server.call({"name": "wisp_project_describe", "arguments": {}})
+                self.assertEqual(metadata["structuredContent"]["report"], old)
+                self.assertEqual(metadata["structuredContent"]["bridge"]["execution"], "initialization_metadata")
+
+    def test_saved_and_inline_invocations_return_identical_core_evidence(self):
+        example = ROOT / "examples" / "policies"
+        source = (example / "reservations-after.wisp").read_text()
+        args = [{"quantity": "11", "pack_size": "5", "expires_at": "101"}, {"available": "11", "now": "100"}]
+        inline = request(2, "tools/call", {"name": "wisp_invoke", "arguments": {"source": source, "function": "decide", "args": args}})
+        saved = request(3, "tools/call", {"name": "wisp_project_invoke", "arguments": {"id": "one", "policy": "reservations", "function": "decide", "args": args}})
+        _, rows = exchange([*initialize(), inline, saved], manifest=example / "project.json")
+        self.assertEqual(rows[1]["result"]["structuredContent"]["report"], rows[2]["result"]["structuredContent"]["report"]["report"])
+        self.assertLess(len(json.dumps(saved).encode()), len(json.dumps(inline).encode()))
+
+    def test_saved_project_error_rejection_unknown_and_continuation_are_data(self):
+        manifest = ROOT / "examples" / "policies" / "project.json"
+        messages = [*initialize()]
+        for index, quantity in enumerate([1, "0", "1"], 2):
+            messages.append(request(index, "tools/call", {"name": "wisp_project_invoke", "arguments": {
+                "id": "order-" + str(index), "policy": "reservations", "function": "decide",
+                "args": [{"quantity": quantity, "pack_size": "1", "expires_at": "101"}, {"available": "1", "now": "100"}]}}))
+        _, rows = exchange(messages, manifest=manifest)
+        results = [r["result"] for r in rows[1:]]
+        self.assertEqual([r["structuredContent"]["report"]["status"] for r in results], ["Error", "Complete", "Complete"])
+        self.assertEqual([r["isError"] for r in results], [True, False, False])
+        self.assertFalse(results[1]["structuredContent"]["report"]["report"]["result"]["value"]["accepted"])
+        self.assertTrue(results[2]["structuredContent"]["report"]["report"]["result"]["value"]["accepted"])
+        with tempfile.TemporaryDirectory(prefix="wisp-mcp-project-limit-") as temp:
+            folder = pathlib.Path(temp)
+            (folder / "source.wisp").write_text('fn spin(n: Int) -> Int { spin(n) }')
+            (folder / "cases.json").write_text('{}')
+            (folder / "project.json").write_text(json.dumps({"version": 1, "policies": [{"id": "loop", "source": "source.wisp", "suite": "cases.json"}]}))
+            _, rows = exchange([*initialize(), request(2, "tools/call", {"name": "wisp_project_invoke", "arguments": {
+                "id": "limit", "policy": "loop", "function": "spin", "args": ["1"]}})], manifest=folder / "project.json")
+            self.assertEqual(rows[1]["result"]["structuredContent"]["report"]["status"], "Unknown")
+            self.assertTrue(rows[1]["result"]["isError"])
+
+    def test_configured_project_compiler_must_match_source_tool_compiler(self):
+        manifest = ROOT / "examples" / "policies" / "project.json"
+        metadata = HOST.ProjectClient(manifest, binary=BINARY).description
+        metadata = copy.deepcopy(metadata)
+        metadata["project"]["policies"][0]["report"]["compiler"] = "different-compiler"
+        project = mock.Mock(); project.description = metadata
+        with mock.patch.object(HOST, "ProjectClient", return_value=project):
+            _, rows = exchange([*initialize(), request(2, "tools/list")], manifest=manifest)
+        self.assertEqual(rows[0]["error"]["code"], -32603)
+        self.assertEqual(rows[1]["error"]["code"], -32000)
+
+    def test_project_metadata_and_adapter_results_share_the_report_byte_cap(self):
+        server = HOST.Server(BINARY)
+        server.project = mock.Mock()
+        server.project_targets = {"reservations": {"decide"}}
+        oversized = {"status": "Complete", "data": "x" * (HOST.REPORT_BYTES + 1)}
+        server.project.description = oversized
+        server.project.call.return_value = oversized
+        for name, args in [("wisp_project_describe", {}), ("wisp_project_invoke", {
+                "id": "one", "policy": "reservations", "function": "decide", "args": []})]:
+            result = server.call({"name": name, "arguments": args})
+            self.assertTrue(result["isError"])
+            self.assertIsNone(result["structuredContent"]["report"])
+            self.assertEqual(result["structuredContent"]["bridge"]["execution"], "unresolved")
 
 
 if __name__ == "__main__":

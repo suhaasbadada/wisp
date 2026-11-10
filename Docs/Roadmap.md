@@ -6,7 +6,9 @@ release acceptance recorded on their PRs. Checked callable interfaces shipped vi
 PR #13; composed three-policy application/workflow observations shipped via PR #14,
 retaining the adverse discount/shipping effect. Caller-owned end-to-end gates
 shipped via PR #15, blocking unmet requirements despite component Pass. Current
-increment: local MCP tools over the shared Rust core for direct agent integration.
+increment: owner-configured saved projects in MCP, avoiding repeated source input
+while preserving explicit initialization/readiness pins. Base MCP tools shipped
+via PR #21.
 Offline replay/handoff shipped via PR #20; observation receipts via PR #19; capture via PR #18;
 CI triage via PR #17; Python client via
 PR #16. No automatic
@@ -44,7 +46,8 @@ published acceptance is recorded in Testing.
 16. Explicit-attempt GitHub capture shipped via PR #18 (ADR 0018).
 17. One-command workflow observation receipts shipped via PR #19 (ADR 0019).
 18. Offline receipt replay and operator handoff shipped via PR #20 (ADR 0020).
-19. Local MCP tools (ADR 0021), under verification/publication.
+19. Local MCP tools shipped via PR #21 (ADR 0021).
+20. Owner-configured MCP project tools (ADR 0022), under verification/publication.
 
 Continue in tested increments focused on recurring agent/application workflows
 and demonstrated gaps. Benchmark concrete claims before promoting them; neither

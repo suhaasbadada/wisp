@@ -1,6 +1,30 @@
 # Verification
 
-## Local MCP bridge (under publication)
+## Saved projects in MCP (under publication)
+
+Primary full checks passed 139 Rust, 41 Node, 86 Python tests (19 MCP/native),
+326 native/WASM comparisons and 36 Chromium tests, plus fmt/Clippy/npm ci/WASM/
+TypeScript/build. Eight additional MCP checks cover owner-only project selection,
+default tool absence, init failure/target/schema/compiler guards, source/manifest/
+suite drift, metadata snapshot semantics, exact inline/project core parity and
+native Error/Unknown/business rejection/continuation and the shared project report
+byte cap. Official Python SDK 2.3.0
+smokes passed both default six-tool mode and configured eight-tool mode, including
+a pinned reservation call without source arguments. Joffrey independently reviewed
+and found no substantive issues; 18 focused tests passed in review. Primary then
+made the existing report byte cap explicit on both saved-project result paths,
+added its regression and reran the entire suite and both SDK modes successfully.
+This post-cap check is primary verification, not independent re-review. Exact-head CI and release
+acceptance remain separate gates. Per-call input savings are not a benchmark of
+total protocol volume, model tokens or latency.
+
+PR #21 shipped at `bcdd5d423d2940e5ff737bfd6203fbaa55badcc1`: PR Checks
+`42778166976`, merge Checks `42779152799`, Pages `42779152536` and deployment
+`7676666935` passed. Actual artifacts, immutable merged MCP server/client smoke
+against official SDK/native release and published guides are
+[accepted](https://github.com/suhaasbadada/wisp/pull/21#issuecomment-6762266364).
+
+## Local MCP bridge
 
 Primary full checks passed 139 Rust, 41 Node, 78 Python tests (including 11 new
 MCP/native tests), 326 native/WASM comparisons and 36 Chromium tests, plus

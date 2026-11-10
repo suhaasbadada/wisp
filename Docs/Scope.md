@@ -9,8 +9,9 @@ order reference workflow shipped via PR #14; caller-owned composed gates shipped
 via PR #15; the reusable experimental Python client shipped via PR #16. Read-only
 repository workflow triage shipped via PR #17. Explicit-attempt read-only GitHub
 capture shipped via PR #18; observation receipts via PR #19. Offline replay and
-operator handoff shipped via PR #20. Local MCP tools (ADR 0021) are under
-verification/publication, exposing the existing Rust core to agent clients.
+operator handoff shipped via PR #20; local MCP tools via PR #21. Optional
+owner-configured MCP project tools (ADR 0022) are under verification/publication,
+retaining readiness pins without agent-selected paths.
 No approval, automatic application,
 new language syntax or core host permissions. See [Workbench](Workbench.md),
 [Projects](Projects.md) and [Adapter](Adapter.md).
@@ -28,7 +29,7 @@ permission changes. See [Evaluation](Evaluation.md).
 
 Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger and guarded edits are shipped.
 
-Status: shipped through offline replay/handoff via PR #20; release acceptance is recorded on each corresponding PR. Local MCP tools are under publication. Continued tested development is authorized. Experimental; not production-ready. No license selected (owner decision pending).
+Status: shipped through local MCP tools via PR #21; release acceptance is recorded on each corresponding PR. MCP saved-project tools are under publication. Continued tested development is authorized. Experimental; not production-ready. No license selected (owner decision pending).
 
 Wisp is function-oriented and statically typed. The first slice is a real Rust lexer, parser, checker and bounded interpreter, shared by the native CLI and browser WebAssembly. Its first domain is agent-generated sandboxed CLI/data transformations, later maintained business logic.
 

@@ -9,7 +9,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "clients" / "python"))
-from wisp_client import ClientError, JsonNumber, decode_json, encode_json, run_cli, validate_json
+from wisp_client import ClientError, JsonNumber, ProjectClient, decode_json, encode_json, run_cli, validate_json
 
 PROTOCOL = "2025-11-25"
 FRAME_BYTES = 1048576
@@ -39,10 +39,20 @@ TOOLS = [
      "inputSchema": schema({"source": SOURCE, "focus": {"type": "string", "default": "probe:0"},
                             "budget": {"type": "integer", "minimum": 0, "maximum": 65536, "default": 4096}}, ["source"])},
 ]
-for tool in TOOLS:
+PROJECT_TOOLS = [
+    {"name": "wisp_project_describe", "description": "Get checked callable metadata pinned at initialization for the owner-configured project. Not suite verification or a live filesystem rescan.",
+     "inputSchema": schema({}, [])},
+    {"name": "wisp_project_invoke", "description": "Call one function in the owner-configured pinned project without resending source. No agent-selected files. Project/source/suite drift fails closed; no automatic adoption or approval.",
+     "inputSchema": schema({"id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
+                            "policy": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
+                            "function": {"type": "string"}, "args": {"type": "array", "items": {}}},
+                           ["id", "policy", "function", "args"])},
+]
+for tool in TOOLS + PROJECT_TOOLS:
     tool["annotations"] = {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}
     tool["execution"] = {"taskSupport": "forbidden"}
 DEFINITIONS = {tool["name"]: tool for tool in TOOLS}
+PROJECT_DEFINITIONS = {tool["name"]: tool for tool in PROJECT_TOOLS}
 OPERATIONS = {"wisp_capabilities": "capabilities", "wisp_check": "analyze", "wisp_describe": "describe",
               "wisp_invoke": "call", "wisp_review": "review", "wisp_context": "context"}
 
@@ -78,11 +88,17 @@ def tool_result(report=None, message=None, execution="see_native_report"):
 
 
 class Server:
-    def __init__(self, binary):
+    def __init__(self, binary, manifest=None):
         self.binary = str(binary)
         self.phase = "new"
         self.compiler = None
         self.calls = 0
+        self.manifest = manifest
+        self.project = None
+        self.project_targets = {}
+
+    def definitions(self):
+        return {**DEFINITIONS, **PROJECT_DEFINITIONS} if self.project is not None else DEFINITIONS
 
     def native(self, request):
         payload = encode_json(request)
@@ -104,11 +120,12 @@ class Server:
         require(isinstance(params, dict) and set(params) <= {"name", "arguments", "_meta"}
                 and isinstance(params.get("name"), str), -32602, "Expected tools/call name and arguments")
         name = params["name"]
-        require(name in DEFINITIONS, -32602, "Unknown Wisp tool")
+        definitions = self.definitions()
+        require(name in definitions, -32602, "Unknown Wisp tool")
         if "_meta" in params:
             require(isinstance(params["_meta"], dict), -32602, "Expected object _meta")
         arguments = params.get("arguments", {})
-        definition = DEFINITIONS[name]["inputSchema"]
+        definition = definitions[name]["inputSchema"]
         try:
             if (not isinstance(arguments, dict) or not set(definition["required"]) <= set(arguments)
                     or not set(arguments) <= set(definition["properties"])):
@@ -119,16 +136,32 @@ class Server:
                         or (kind == "array" and not isinstance(value, list))
                         or (kind == "object" and not isinstance(value, dict))):
                     raise ClientError("Tool argument has the wrong JSON boundary type")
+                pattern = definition["properties"][key].get("pattern")
+                if pattern is not None and re.fullmatch(pattern, value) is None:
+                    raise ClientError("Project and request IDs must be bounded ASCII identities")
                 if kind == "integer" and (not isinstance(value, JsonNumber)
                         or re.fullmatch(r"(?:0|[1-9][0-9]{0,4})", value.token) is None or int(value.token) > 65536):
                     raise ClientError("Context budget must be an integer from 0 to 65536")
             if self.calls >= MAX_CALLS:
-                raise ClientError("Session native-call quota exhausted; start a new session explicitly")
+                raise ClientError("Session tool-call quota exhausted; start a new session explicitly")
+            if name == "wisp_project_invoke" and (arguments["policy"] not in self.project_targets
+                    or arguments["function"] not in self.project_targets[arguments["policy"]]):
+                raise ClientError("Unknown described project policy/function")
         except ClientError as failure:
             return tool_result(message=str(failure), execution="not_submitted")
-        request = {"op": OPERATIONS[name], "source": "", **arguments}
         self.calls += 1
         try:
+            if name in PROJECT_DEFINITIONS:
+                if name == "wisp_project_describe":
+                    report = self.project.description
+                    execution = "initialization_metadata"
+                else:
+                    report = self.project.call(arguments["policy"], arguments["function"], arguments["args"], arguments["id"])
+                    execution = "see_native_report"
+                if len(encode_json(report).encode("utf-8")) > REPORT_BYTES:
+                    raise ClientError("Project report exceeds the bridge output bound")
+                return tool_result(report, execution=execution)
+            request = {"op": OPERATIONS[name], "source": "", **arguments}
             return tool_result(self.native(request))
         except (ClientError, OSError, ValueError, TypeError, KeyError, RecursionError):
             # Never expose process stderr, command environment or credentials.
@@ -162,8 +195,15 @@ class Server:
                 try:
                     capabilities = self.native({"op": "capabilities", "source": ""})
                     self.compiler = capabilities["compiler"]
+                    if self.manifest is not None:
+                        project = ProjectClient(self.manifest, binary=self.binary)
+                        policies = project.description["project"]["policies"]
+                        if any(p["report"]["compiler"] != self.compiler for p in policies):
+                            raise ClientError("Configured project compiler differs from source tools")
+                        self.project = project
+                        self.project_targets = {p["id"]: {f["name"] for f in p["report"]["interface"]["functions"]} for p in policies}
                 except (ClientError, OSError, ValueError, TypeError, KeyError, RecursionError):
-                    raise ProtocolError(-32603, "Native compiler discovery failed")
+                    raise ProtocolError(-32603, "Native compiler/project discovery failed")
                 self.phase = "initializing"
                 result = {"protocolVersion": PROTOCOL, "capabilities": {"tools": {"listChanged": False}},
                           "serverInfo": {"name": "wisp-local", "version": "0.1.0"},
@@ -172,7 +212,7 @@ class Server:
                 require(self.phase == "ready", -32000, "Initialize the MCP session before tool operations")
                 if method == "tools/list":
                     require(set(params) <= {"_meta"}, -32602, "This fixed tool list has no continuation cursor")
-                    result = {"tools": copy.deepcopy(TOOLS)}
+                    result = {"tools": copy.deepcopy(list(self.definitions().values()))}
                 elif method == "tools/call":
                     result = self.call(params)
                 else:
@@ -182,8 +222,8 @@ class Server:
             return None if notification else error(identifier, failure.code, failure.message)
 
 
-def serve(binary, input_stream, output_stream):
-    server = Server(binary)
+def serve(binary, input_stream, output_stream, manifest=None):
+    server = Server(binary, manifest=manifest)
     for _ in range(MAX_MESSAGES):
         raw = input_stream.readline(FRAME_BYTES + 2)
         if not raw:
@@ -207,6 +247,7 @@ def serve(binary, input_stream, output_stream):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wisp", default="target/debug/wisp")
+    parser.add_argument("--project", type=pathlib.Path, help="Owner-configured saved project; agents cannot select or change this path")
     args = parser.parse_args()
     binary = shutil.which(args.wisp)
     if binary is None:
@@ -218,7 +259,8 @@ def main():
         raise SystemExit(0)
     signal.signal(signal.SIGTERM, terminate)
     try:
-        return serve(str(pathlib.Path(binary).resolve()), sys.stdin.buffer, sys.stdout.buffer)
+        manifest = str(args.project.absolute()) if args.project is not None else None
+        return serve(str(pathlib.Path(binary).resolve()), sys.stdin.buffer, sys.stdout.buffer, manifest=manifest)
     except KeyboardInterrupt:
         return 0
     except (OSError, ClientError):

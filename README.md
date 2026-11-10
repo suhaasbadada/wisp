@@ -13,6 +13,8 @@ For an agent client, the experimental [local MCP bridge](Docs/MCP.md) exposes
 compiler discovery, checking, typed calls, finite review and bounded context as
 tools. The Rust core still implements the language; no shell, file-writing or
 network tool is added. One official client SDK has been interoperability-tested.
+An owner-selected `--project MANIFEST` adds pinned project metadata/invocation
+tools, so callers can use policy/function IDs without repeatedly sending source.
 
 ## Review a real policy change
 

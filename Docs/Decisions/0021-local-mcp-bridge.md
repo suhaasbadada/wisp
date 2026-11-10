@@ -1,7 +1,8 @@
 # ADR 0021: Local MCP tools over the shared Rust core
 
-Status: implemented; full local checks, official SDK smoke and independent review
-passed; exact-head CI and publication pending.
+Status: accepted; shipped via PR #21 at
+`bcdd5d423d2940e5ff737bfd6203fbaa55badcc1`. Exact-head CI, immutable server/SDK
+native release smoke, artifacts and public contract acceptance are recorded there.
 
 Make existing Wisp capabilities directly discoverable to an agent's MCP client,
 rather than require copied shell/JSON adapters. Add a local stdio transport exposing
