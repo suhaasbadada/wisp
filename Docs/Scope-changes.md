@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-10: ADR 0030 prepares saved-policy bodies using retained project snapshots and unchanged Rust edit. Body guards remain mandatory; project guards refuse before replacement reads, and strict caller guards cover all four saved operations. No writes, Apply, case execution or approval. The returned full candidate is not a total token-saving/confidentiality claim; configured tools become12 while defaults stay7.
+
 - 2026-11-10: ADR 0029 adds `wisp_prepare_edit` as an inline MCP transport for unchanged pure Rust body preparation. Both revision/body guards are mandatory; Ready is a preservation-audited candidate, not Apply, execution, finite Pass or approval. Default/configured discovery becomes 7/11 tools; existing tool requests retain behavior. No host write, path selection, runtime SDK dependency or core semantics change.
 
 - 2026-11-10: Clarify that older Testing entries retain local/pre-publication checkpoints, not live release blockers; exact shipped revisions and acceptance links govern release evidence. Correct ADR 0011's stale pending status while preserving its primary/CI-only post-fix provenance. Documentation maintenance only; no historical result, runtime or core behavior change.

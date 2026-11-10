@@ -64,8 +64,13 @@ PROJECT_TOOLS = [
                             "expected": EXPECTED_GUARD}, ["policy", "function"])},
     {"name": "wisp_project_verify", "description": "Execute one saved policy's finite caller-owned case suite under project pins. No agent-selected paths, source or expectation overrides. Copy discovery call_guards into expected for caller revision binding. Pass is finite case evidence, not whole-project verification, proof or approval. Error/Unknown/Fail are not success.",
      "inputSchema": schema({"policy": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"}, "expected": EXPECTED_GUARD}, ["policy"])},
+    {"name": "wisp_project_prepare_edit", "description": "Prepare one guarded body in the owner-configured saved policy without source input, writes or execution. Copy body_hash from guarded project focus and call_guards into expected to bind caller reasoning. Returns full candidate source, not Apply, case Pass or approval.",
+     "inputSchema": schema({"policy": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"}, "function": {"type": "string"},
+                            "expected_body_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                            "replacement": {"type": "string", "description": "Replacement body block; maximum 65536 UTF-8 bytes."},
+                            "expected": EXPECTED_GUARD}, ["policy", "function", "expected_body_hash", "replacement"])},
 ]
-GUARDED_PROJECT_TOOLS = {"wisp_project_invoke", "wisp_project_focus", "wisp_project_verify"}
+GUARDED_PROJECT_TOOLS = {"wisp_project_invoke", "wisp_project_focus", "wisp_project_verify", "wisp_project_prepare_edit"}
 for tool in TOOLS + PROJECT_TOOLS:
     tool["annotations"] = {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}
     tool["execution"] = {"taskSupport": "forbidden"}
@@ -180,6 +185,8 @@ class Server:
                     raise ClientError("Context budget must be an integer from 0 to 65536")
             if self.calls >= MAX_CALLS:
                 raise ClientError("Session tool-call quota exhausted; start a new session explicitly")
+            if name == "wisp_project_prepare_edit" and len(arguments["replacement"].encode("utf-8")) > 65536:
+                raise ClientError("Replacement exceeds 65536 UTF-8 bytes")
             if name in GUARDED_PROJECT_TOOLS and (arguments["policy"] not in self.project_targets
                     or (name != "wisp_project_verify" and arguments["function"] not in self.project_targets[arguments["policy"]])):
                 raise ClientError("Unknown described project policy/function")
@@ -211,6 +218,10 @@ class Server:
                     execution = "see_native_report"
                 elif name == "wisp_project_verify":
                     report = self.project.verify(arguments["policy"])
+                    execution = "see_native_report"
+                elif name == "wisp_project_prepare_edit":
+                    report = self.project.prepare_edit(arguments["policy"], arguments["function"],
+                                                       arguments["expected_body_hash"], arguments["replacement"])
                     execution = "see_native_report"
                 else:
                     report = self.project.call(arguments["policy"], arguments["function"], arguments["args"], arguments["id"])
@@ -316,7 +327,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wisp", default="target/debug/wisp")
     parser.add_argument("--project", type=pathlib.Path, help="Owner-configured saved project; agents cannot select or change this path")
-    parser.add_argument("--require-project-guard", action="store_true", help="Require caller-supplied expected snapshot on saved-project focus, invocation and verification")
+    parser.add_argument("--require-project-guard", action="store_true", help="Require caller-supplied expected snapshot on saved-project focus, invocation, verification and preparation")
     args = parser.parse_args()
     if args.require_project_guard and args.project is None:
         parser.error("--require-project-guard requires --project")

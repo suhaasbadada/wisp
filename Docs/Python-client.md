@@ -27,6 +27,22 @@ implementation and argument/type validator.
 
 ## Discovery and batches
 
+`client.prepare_edit(policy, function, expected_body_hash, replacement)` prepares
+an owner-configured saved body without reading source into the caller or writing
+files. Obtain the body hash from a guarded `focus()` report's selected graph
+function. The client always supplies all four native project pins, sends the
+bounded replacement over stdin and validates every policy pin before exposing
+the result. It checks compiler/revision, nonexecution, accepted candidate/body
+SHA-256 identities, byte ranges/replacement bytes and native preservation markers;
+this is protocol validation, not a second parser or proof of preservation.
+
+Ready returns full candidate source, not Apply, case Pass or approval. Native
+Error/Unknown and rejected-candidate diagnostics remain evidence. Malformed input,
+drift or transport raises `ClientError`; replacement must be valid Unicode and at
+most 65,536 UTF-8 bytes. Only selected source is checked; saved cases do not execute.
+No arbitrary source/path override or persistent mutation is accepted. Output still
+contains the full policy, so no total token-saving/confidentiality claim follows.
+
 `client.verify(policy)` executes that described policy's saved finite suite with
 all four native guards supplied from discovery. It returns unchanged core review
 evidence inside the native project wrapper, including Pass/Fail/Error/Unknown and

@@ -48,6 +48,7 @@ async def connect(binary, manifest):
 def arguments():
     return {"wisp_project_focus": {"policy": "p", "function": "f", "budget": 64},
             "wisp_project_verify": {"policy": "p"},
+            "wisp_project_prepare_edit": {"policy": "p", "function": "f", "expected_body_hash": "0" * 64, "replacement": "{ n }"},
             "wisp_project_invoke": {"id": "sdk", "policy": "p", "function": "f", "args": ["2"]}}
 
 

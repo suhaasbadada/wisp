@@ -14,7 +14,7 @@ compatibility or authenticated model-reasoning evidence.
 `scripts/mcp_sdk_failures.py` uses owner-created disposable projects, not edits to
 user policies. It checks finite Pass/Fail, runtime Error/Unknown and preflight
 Error/Unknown through the real SDK, preserving `isError`, execution phase and
-no-approval markers. All three strict saved operations reject missing/old guards;
+no-approval markers. All four strict saved operations reject missing/old guards;
 a reconnect after changed behavior refuses the old guard. Explicit fresh adoption
 can produce invocation Complete while unchanged saved expectations Fail. Matching
 initialization guards still cannot bypass same-session suite drift; transport
@@ -106,7 +106,7 @@ project guard flag only governs saved-project tools. See
 
 ### Optional owner-configured saved project
 
-Start with one explicit manifest to add four tools, avoiding repeated source in
+Start with one explicit manifest to add five tools, avoiding repeated source in
 invocations:
 
 ```sh
@@ -116,7 +116,7 @@ python3 -B integrations/mcp/server.py --wisp target/debug/wisp \
 
 Only the owner/startup configuration chooses this path. The agent cannot choose
 another manifest, pass a path/source override or browse files. Without `--project`,
-these four tools are absent and project discovery does not occur:
+these five tools are absent and project discovery does not occur:
 
 - `wisp_project_describe {}` returns the checked interface/pins loaded during
   initialization. Bridge execution is `initialization_metadata`: **not a live
@@ -153,10 +153,25 @@ discovery and adapter provenance add their own output and startup costs.
 
 ### Bind the caller's reasoning across reconnects
 
+`wisp_project_prepare_edit {policy,function,expected_body_hash,replacement,expected?}`
+uses the owner-selected saved source, without a source/path override. Copy the
+body hash from guarded `wisp_project_focus` graph metadata and the policy's
+discovery guard into `expected`. Strict owner mode requires `expected`; the body
+hash is mandatory in every mode. Project/source/full-suite/compiler pins precede
+native preparation; body conflicts are retained native Error evidence. Replacement
+is a Unicode body block of at most 65,536 UTF-8 bytes, transported over stdin.
+
+Ready wraps the existing pure Rust proposal, with full candidate source under
+`report.report.edit.source` and both native/project no-execution markers. It does
+not Apply, write saved files, execute suites or grant approval. Client checks all
+policy pins and candidate identities/audit markers before exposing the response.
+Only selected source is checked. Full candidate output means this is not a total
+token-saving or source-confidentiality mechanism. See [Projects](Projects.md).
+
 `wisp_project_focus {policy,function,budget?,expected?}` reads compiler-derived
 Agent View context from the saved snapshot without source input or execution.
 It uses the same caller guard as invocation; strict owner mode requires `expected`
-for focus, invocation and verification. Default budget is 4096 UTF-8 text bytes, range 0–65536. Its
+for focus, invocation, verification and saved preparation. Default budget is 4096 UTF-8 text bytes, range 0–65536. Its
 native report wraps the unchanged core report under `report.report`; inspect
 `report.project.new_execution:false`, inner status, omissions and overflow. Graph
 and identity JSON are outside the text budget, so this is not a total-output cap.
@@ -204,7 +219,8 @@ python3 -B integrations/mcp/server.py --wisp target/debug/wisp \
 ```
 
 The flag requires a project at startup, advertises `expected` as required in this
-session's tool schema, and refuses unguarded saved-project focus, invocation and verification. Project
+session's tool schema, and refuses unguarded saved-project focus, invocation,
+verification and preparation. Project
 metadata exposes `bridge.caller_guard_required`. It does not alter other server
 instances or the seven independent inline-source tools. Default mode stays backward
 compatible; omission is not silently claimed to be caller-pinned.
@@ -293,7 +309,7 @@ execution capability from this transport.
 
 ## Verification
 
-`npm run test:workflow` includes thirty-seven authored MCP/native tests covering lifecycle,
+`npm run test:workflow` includes forty authored MCP/native tests covering lifecycle,
 tool discovery, exact i64 transport, native Error/Unknown/continuation, review
 Pass/Fail, nonexecuting context/interface operations, invalid schemas/IDs/frames,
 quotas/compiler drift, malformed/oversized native reports, real stdio EOF and
@@ -321,12 +337,12 @@ not a runtime requirement or package publication. One local SDK 2.3.0 smoke pass
 initialize/list/call with exact i64 and native Complete/Error/Unknown, with no
 top-level execution. This is measured interoperability with one client, not all
 clients, external adoption, benchmark superiority or production readiness. The
-optional configured-project SDK smoke also passes eleven-tool discovery and a
+optional configured-project SDK smoke also passes twelve-tool discovery and a
 pinned reservation decision without source in the tool arguments.
 Guarded/strict modes also exercise rejected stale guards and required-guard
 enforcement without fabricating native outcomes.
 
-Current configured modes discover eleven tools and exercise guarded bounded focus,
+Current configured modes discover twelve tools and exercise guarded bounded focus,
 nonexecution and stale-context refusal. Default discovery has seven tools; the six
 existing source tools retain their request behavior, with edit preparation added.
 All three SDK modes check real guarded preparation, a separate finite review and

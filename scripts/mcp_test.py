@@ -170,6 +170,49 @@ class MCP(unittest.TestCase):
             self.assertFalse(report["new_execution"])
             self.assertNotIn("source", report.get("edit", {}))
 
+    def test_saved_prepare_edit_returns_candidate_without_applying_it(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples/policies/project.json", require_project_guard=True)
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        guard = copy.deepcopy(server.project_guards["reservations"])
+        focus = server.project.focus("reservations", "decide")
+        body = next(f["body_hash"] for f in focus["report"]["graph"]["functions"] if f["name"] == "decide")
+        result = server.call({"name": "wisp_project_prepare_edit", "arguments": {"policy": "reservations", "function": "decide",
+            "expected_body_hash": body, "replacement": '{ new Decision { accepted:false,packs:0,reason:"proposed" } }', "expected": guard}})
+        data = result["structuredContent"]
+        self.assertFalse(result["isError"])
+        self.assertEqual(data["report"]["status"], "Ready")
+        self.assertFalse(data["report"]["project"]["new_execution"])
+        self.assertEqual(data["bridge"]["guard_status"], "matched")
+        self.assertIn("proposed", data["report"]["report"]["edit"]["source"])
+        self.assertEqual(server.project.verify("reservations")["status"], "Pass")
+        self.assertEqual(json.loads(result["content"][0]["text"]), data)
+
+    def test_saved_prepare_missing_stale_and_override_arguments_do_not_dispatch(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples/policies/project.json", require_project_guard=True)
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        guard = copy.deepcopy(server.project_guards["reservations"])
+        args = {"policy": "reservations", "function": "decide", "expected_body_hash": "0" * 64, "replacement": "{}"}
+        self.assertIn("expected", server.definitions()["wisp_project_prepare_edit"]["inputSchema"]["required"])
+        for extra in [{}, {"expected": {**guard, "source_revision": "0" * 64}}, {"expected": guard, "path": "override"},
+                      {"expected": guard, "source": "override"}, {"expected": guard, "expected_body_hash": "bad"},
+                      {"expected": guard, "replacement": "é" * 32769}]:
+            with mock.patch.object(server.project, "prepare_edit", side_effect=AssertionError("No preparation")):
+                result = server.call({"name": "wisp_project_prepare_edit", "arguments": {**args, **extra}})
+            self.assertTrue(result["isError"])
+            self.assertIsNone(result["structuredContent"]["report"])
+            self.assertEqual(result["structuredContent"]["bridge"]["execution"], "not_submitted")
+
+    def test_saved_prepare_stale_body_is_native_error_without_accepted_source(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples/policies/project.json")
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        result = server.call({"name": "wisp_project_prepare_edit", "arguments": {"policy": "reservations", "function": "decide",
+            "expected_body_hash": "0" * 64, "replacement": "{}"}})
+        self.assertTrue(result["isError"])
+        report = result["structuredContent"]["report"]
+        self.assertEqual(report["status"], "Error")
+        self.assertEqual(report["report"]["diagnostics"][0]["code"], "E_EDIT_CONFLICT")
+        self.assertNotIn("source", report["report"].get("edit", {}))
+
     def test_raw_numeric_tokens_never_coerce_to_wisp_int_strings(self):
         source = 'fn identity(n: Int) -> Int { n }'
         for token in ["1e400", "-0", "1.0"]:
@@ -307,7 +350,7 @@ class MCP(unittest.TestCase):
                             request(3, "tools/call", {"name": "wisp_project_describe", "arguments": {}}),
                             request(4, "tools/call", {"name": "wisp_project_invoke", "arguments": {
                                 "id": "reservation", "policy": "reservations", "function": "decide", "args": args}})], manifest=manifest)
-        self.assertEqual(len(rows[1]["result"]["tools"]), 11)
+        self.assertEqual(len(rows[1]["result"]["tools"]), 12)
         described = rows[2]["result"]["structuredContent"]
         self.assertEqual(described["bridge"]["execution"], "initialization_metadata")
         self.assertFalse(described["report"]["project"]["new_execution"])

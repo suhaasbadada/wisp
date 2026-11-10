@@ -59,6 +59,30 @@ Rust review report, including exact revisions, suite/query identities, individua
 observations and candidate expectation verdicts. No second evaluator is added.
 Pass is only finite evidence, not approval, proof or deployment authorization.
 
+## Saved guarded body preparation
+
+`wisp project prepare-edit MANIFEST POLICY FUNCTION --expected-body HASH
+--replacement-file BODY` prepares a proposal using retained selected source.
+`BODY` may be `-` for bounded UTF-8 stdin. Both options are mandatory; the same
+four optional `--expected-*` project pins as focus remain all-or-none. Syntax,
+duplicates and hash formats are checked before project IO. Project guard mismatch
+returns the existing no-context `PROJECT_SNAPSHOT_DRIFT` wrapper **before reading
+the replacement**, including stdin. Replacement IO/UTF-8/65,536-byte failures are
+host exit 2, consistent with the standalone edit CLI.
+
+The wrapper uses `mode:prepare-edit`, terminal `phase:prepared`, no approval and
+`new_execution:false`; unchanged inner Rust `edit` owns baseline/type checking,
+body conflicts and preservation audits. Ready exposes full candidate source at
+`report.edit.source`, not a write, Apply, execution or case Pass. Core Error/Unknown
+and rejected replacement/candidate diagnostic ownership remain intact. Phase
+`prepared` means orchestration returned, not that a proposal was accepted.
+
+All project files load, but only selected source is semantically checked; suite
+files receive JSON syntax checks, not case execution. Other policy bytes are never
+rewritten. The existing trusted/stable-filesystem assumptions apply. Returned
+candidate includes the whole selected policy: avoiding source input does not mean
+bounded total output, source confidentiality or measured token savings.
+
 ## Selected saved-case verification
 
 `wisp project verify-policy MANIFEST POLICY` verifies only the selected policy's
