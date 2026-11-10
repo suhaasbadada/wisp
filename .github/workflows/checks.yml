@@ -32,6 +32,8 @@ jobs:
           target/debug/wisp project describe examples/policies/project.json > project-interface.json
           target/debug/wisp project verify examples/policies/project.json > project-verify.json
           target/debug/wisp project review examples/policies/project-before.json examples/policies/project.json > project-review.json
+          python3 -B examples/policies/propose.py --project examples/policies/project-before.json --policy reservations --function decide --expected-guard-file examples/policies/maintenance.guard.json --replacement-file examples/policies/maintenance.body.txt > project-proposal.json
+          python3 -c 'import json; r=json.load(open("project-proposal.json")); s=r["review"]["report"]["review"]["summary"]; assert r["status"] == "Pass" and r["approval"] == "not_granted" and r["applied"] is False and r["context"]["status"] == r["preparation"]["status"] == "Ready" and r["review"]["status"] == "Pass" and s["expectation_pass"] == 7 and s["changed"] == 2 and s["attempted_invocations"] == 14'
           python3 examples/policies/decisions.py > project-decisions.jsonl
           target/debug/wisp project verify examples/order-gate/project.json > order-gate-verify.json
           python3 -B examples/order-gate/run.py > order-gate-plan.json

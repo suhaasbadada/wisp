@@ -15,8 +15,9 @@ guards via PR #23; saved-project context via PR #24; bounded native collection v
 PR #25; saved-policy finite-suite verification via PR #26; required pinned SDK CI
 via PR #27; real-SDK failure/reconnect regressions via PR #28; historical-status
 clarification via PR #29; inline preparation via PR #30; saved preparation via
-PR #31. Saved exact-candidate review (ADR 0031) is under verification/publication,
-reusing existing Rust review without expectation changes or Apply.
+PR #31; saved exact-candidate review via PR #32. The read-only pinned maintenance
+driver (ADR 0032) is under verification/publication, coordinating these primitives
+without expectation changes, writes or Apply.
 No approval, automatic application,
 new language syntax or core host permissions. See [Workbench](Workbench.md),
 [Projects](Projects.md) and [Adapter](Adapter.md).
@@ -34,7 +35,7 @@ permission changes. See [Evaluation](Evaluation.md).
 
 Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger and guarded edits are shipped.
 
-Status: shipped through saved preparation via PR #31; release acceptance is recorded on each corresponding PR. Saved exact-candidate review is under publication. Continued tested development is authorized. Experimental; not production-ready. No license selected (owner decision pending).
+Status: shipped through saved candidate review via PR #32; release acceptance is recorded on each corresponding PR. The pinned maintenance driver is under publication. Continued tested development is authorized. Experimental; not production-ready. No license selected (owner decision pending).
 
 Wisp is function-oriented and statically typed. The first slice is a real Rust lexer, parser, checker and bounded interpreter, shared by the native CLI and browser WebAssembly. Its first domain is agent-generated sandboxed CLI/data transformations, later maintained business logic.
 

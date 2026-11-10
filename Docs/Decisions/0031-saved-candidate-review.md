@@ -1,7 +1,9 @@
 # ADR 0031: Exact candidate review against saved requirements
 
-Status: implemented; full local checks, exact hash-locked SDK workflow and
-independent review passed. Exact-head Linux CI/publication pending.
+Status: accepted; shipped via PR #32 at
+`a701f03604320a55eba380ac2254efe0f31ced12`. Exact-head Linux CI, actual SDK
+artifacts, immutable strict release smoke and five published contracts are
+[accepted](https://github.com/suhaasbadada/wisp/pull/32#issuecomment-6776656234).
 
 Saved preparation returns a proposal but saved verification checks the unchanged
 original. Add `project review-candidate`, Python `review_candidate` and an optional

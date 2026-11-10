@@ -1,5 +1,8 @@
 # Repository policy projects (native v1)
 
+The [read-only proposal command](Policy-proposals.md) coordinates pinned context,
+guarded preparation and exact saved-case review without Apply or file writes.
+
 ## Non-executing saved-function context
 
 ```sh

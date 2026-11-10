@@ -12,7 +12,29 @@ primary check into independent review or erase an earlier failure. Current run
 state must be checked at its exact revision; an old green release is not evidence
 for a new head.
 
-## Saved exact-candidate review (under publication)
+## Read-only pinned maintenance command (under publication)
+
+Bob implemented the operator/example/CI/test work unit. Twelve new tests passed,
+including real staged outcomes, original-file preservation, exact guard/candidate
+identities, drift before body IO, malformed/capped inputs and lost-response/closed
+stdout behavior. Python workflow totals 159 tests. The authored demo returns
+Pass7/Changed2/14attempts, with separate Ready context/preparation, no approval and
+`applied:false`. Primary full prescribed checks passed: 180 Rust, 41 Node,
+159 Python, 326 native/WASM comparisons, 36 Chromium, fmt/Clippy/npm ci/WASM/check/
+build. Exact new CI commands/assertions also passed in an isolated local fixture,
+with input bytes unchanged and the proposal artifact validated. Joffrey reviewed
+with no substantive findings, passed all twelve focused tests and checked a real
+closed-stdout subprocess returning 2. He did not rerun builds, full suites or SDK.
+Exact-head Linux CI/publication remain pending. This is one authored workflow
+example, not an agent trial or comparative measurement.
+
+PR #32 shipped at `a701f03604320a55eba380ac2254efe0f31ced12`: PR Checks
+`42879364379`, merge Checks `42881154231`, Pages `42881154008`, deployment
+`7691487607` passed. Actual PR/merge candidate-review SDK reports, equal package
+inventories, adverse evidence, immutable strict release SDK and five published
+contracts are [accepted](https://github.com/suhaasbadada/wisp/pull/32#issuecomment-6776656234).
+
+## Saved exact-candidate review
 
 Bob's native unit passed ten new CLI tests and the 180-test Rust suite. Five
 Python candidate-review tests and 43 MCP tests passed; workflow totals 147 Python
