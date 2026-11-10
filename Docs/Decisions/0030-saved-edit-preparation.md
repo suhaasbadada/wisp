@@ -1,7 +1,9 @@
 # ADR 0030: Prepare guarded bodies from saved project snapshots
 
-Status: implemented; full local checks, exact hash-locked SDK workflow and
-independent review passed. Exact-head Linux CI/publication pending.
+Status: accepted; shipped via PR #31 at
+`1c1fa2603902d0099c29b07ffd559e88855348e8`. Exact-head Linux CI, actual SDK
+artifacts, immutable strict release checks and five published contracts are
+[accepted](https://github.com/suhaasbadada/wisp/pull/31#issuecomment-6775936341).
 
 Inline MCP preparation still required complete source input. Add native
 `project prepare-edit`, Python `prepare_edit` and `wisp_project_prepare_edit` to

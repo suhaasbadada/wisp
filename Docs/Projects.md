@@ -83,6 +83,33 @@ rewritten. The existing trusted/stable-filesystem assumptions apply. Returned
 candidate includes the whole selected policy: avoiding source input does not mean
 bounded total output, source confidentiality or measured token savings.
 
+## Review an exact candidate against saved requirements
+
+`wisp project review-candidate MANIFEST POLICY --candidate-file CANDIDATE
+--expected-candidate HASH` compares retained baseline source with a bounded UTF-8
+candidate and the selected **unchanged saved suite**. Candidate `-` reads stdin;
+both options are mandatory. The four optional project pins follow the same
+all-or-none grammar as focus/preparation. Full option validation precedes IO;
+project guard refusal precedes candidate reads. Exact candidate SHA-256 is checked
+before core preflight or case attempts. Mismatch returns Error with host-project
+`PROJECT_CANDIDATE_DRIFT`, phase `candidate`, no inner report or execution.
+
+The wrapper uses `mode:review-candidate`, terminal `phase:reviewed`, actual
+`candidate_revision` (null before candidate IO), and execution copied from the
+unchanged shared Rust review report. Baseline revision stays selected source;
+candidate revision identifies the supplied proposal; full saved-suite file pins
+remain distinct from core's retained-JSON suite hash. Raw suite tokens are not
+decoded/re-encoded. Pass/Fail/Error/Unknown and preflight/attempt markers remain
+distinct, with exits 0/1/1/3; bounded read/encoding/usage failures are host exit 2.
+
+Only selected baseline, candidate and saved suite are semantically checked. Cases
+run fresh before/after calls (at most 16 cases/32 attempts), not top-level code or
+probes. No suite override, expectation repair, write or Apply is supported. Review
+does not independently enforce single-body preservation: use guarded preparation
+for its separate audit and bind its `candidate_revision` to this command. A hash
+match is byte identity, not provenance, intent or approval. Finite Pass is not
+whole-project/composed acceptance or proof of requirements sufficiency.
+
 ## Selected saved-case verification
 
 `wisp project verify-policy MANIFEST POLICY` verifies only the selected policy's

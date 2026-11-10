@@ -2,6 +2,7 @@
 import argparse
 import asyncio
 import contextlib
+import hashlib
 import json
 import pathlib
 import sys
@@ -49,6 +50,8 @@ def arguments():
     return {"wisp_project_focus": {"policy": "p", "function": "f", "budget": 64},
             "wisp_project_verify": {"policy": "p"},
             "wisp_project_prepare_edit": {"policy": "p", "function": "f", "expected_body_hash": "0" * 64, "replacement": "{ n }"},
+            "wisp_project_review_candidate": {"policy": "p", "candidate": "fn f(n:Int)->Int{n}",
+                "expected_candidate_revision": hashlib.sha256(b"fn f(n:Int)->Int{n}").hexdigest()},
             "wisp_project_invoke": {"id": "sdk", "policy": "p", "function": "f", "args": ["2"]}}
 
 

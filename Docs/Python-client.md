@@ -27,6 +27,22 @@ implementation and argument/type validator.
 
 ## Discovery and batches
 
+`client.review_candidate(policy, candidate, expected_candidate_revision)` reviews
+a proposal against retained saved source and its owner-saved suite. Use the
+candidate revision from `prepare_edit()` to bind that exact proposal. Unicode,
+65,536-byte cap and candidate SHA-256 are checked before native dispatch; all four
+project pins are supplied and candidate travels over stdin. Returned project and
+core baseline/candidate identities, all policy pins, no-approval and finite attempt
+ledgers are checked. `verify()` reuses the same report validator with baseline
+equal to candidate; its behavior is unchanged.
+
+Pass/Fail/Error/Unknown remain native evidence, including semantic preflight
+without attempts. There is no suite/expectation override, candidate persistence or
+Apply. Other-policy drift is checked on the returned snapshot and may follow
+selected case attempts; client/transport failure never implies zero execution.
+This is selected finite acceptance, not independent preservation/intent proof,
+whole-project acceptance or approval.
+
 `client.prepare_edit(policy, function, expected_body_hash, replacement)` prepares
 an owner-configured saved body without reading source into the caller or writing
 files. Obtain the body hash from a guarded `focus()` report's selected graph
