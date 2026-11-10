@@ -1,5 +1,28 @@
 # Verification
 
+## Repository workflow triage (under verification)
+
+The new read-only host validates bounded saved provider evidence and maps it to
+typed Wisp facts. Eight policy cases and six Python tests cover actual PR #16
+historical Checks/Pages, current/stale/missing identities, failed jobs while runs
+are active, failures with other missing/stale workflows, required-job coverage,
+cancelled/skipped jobs, malformed provider metadata and distinct CLI exits. No
+core source or existing historical fixture changed. Primary full verification
+passed 149 Rust, 41 Node, 27 workflow, 9 client and 6 triage tests, 326 native/WASM
+comparisons and 36 Chromium tests, plus fmt/Clippy/npm ci/WASM/TS/build. Joffrey
+found broken stdout could override host exit 2 with Python shutdown exit 120;
+primary closed the failed stream and added a real closed-reader regression.
+Post-repair primary verification passed 27 workflow, 9 client and 7 triage tests,
+TypeScript and static build. Other full checks passed before this stdout-only
+repair; this is primary repair verification, not independent re-review.
+Exact-head CI and publication remain separate gates.
+
+PR #16 shipped at `ae1d71f8cc0d7804570f1982e323259524955c84`: PR Checks
+`42765177801`, merged Checks `42765846556`, Pages `42765846687` and deployment
+`7674877682` passed. Actual PR/merged artifacts retain both native decisions and
+Pass/8 versus proposed Fail/2; published client contract bytes match the merge.
+[Release acceptance](https://github.com/suhaasbadada/wisp/pull/16#issuecomment-6760365551).
+
 ## Python project client (under verification)
 
 Both examples share discovery/session transport and the lossless codec. Client

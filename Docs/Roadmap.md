@@ -6,8 +6,8 @@ release acceptance recorded on their PRs. Checked callable interfaces shipped vi
 PR #13; composed three-policy application/workflow observations shipped via PR #14,
 retaining the adverse discount/shipping effect. Caller-owned end-to-end gates
 shipped via PR #15, blocking unmet requirements despite component Pass. Current
-increment: a reusable source-local Python client for pinned integration, replacing
-copied transport in the two applications; publication pending. No automatic
+increment: read-only repository CI triage using actual saved run evidence.
+The reusable source-local Python client shipped via PR #16. No automatic
 approval or new core host permissions.
 Next exercise a recurring policy-maintenance/application workflow and address
 its demonstrated gaps, rather than treating a merged PR as the product's finish
@@ -37,7 +37,8 @@ published acceptance is recorded in Testing.
 11. Checked interface discovery shipped via PR #13 (ADR 0013).
 12. Composed order workflow shipped via PR #14 (ADR 0014).
 13. Caller-owned composed expectation gates shipped via PR #15 (ADR 0015).
-14. Reusable Python project client (ADR 0016), under verification/publication.
+14. Reusable Python project client shipped via PR #16 (ADR 0016).
+15. Read-only repository workflow triage (ADR 0017), under verification/publication.
 
 Longer-term research: deeper property-specific context boundaries with explicit
 unknowns/omissions, and strong repository-scale comparisons with actual task
