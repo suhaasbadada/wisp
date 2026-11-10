@@ -345,48 +345,80 @@ class ProjectClient:
                                         "--expected-suite", described["suite_file_hash"],
                                         "--expected-compiler", described["report"]["compiler"]], semantic_exit=True, timeout=self._timeout)
             response = decode_json(raw); validate_json(response)
-            _require(isinstance(response, dict), "Expected native saved-policy verification report")
-            project = response["project"]; report = response["report"]
-            self._pins(project)
-            _require(project["mode"] == "verify-policy" and project["phase"] == "verified"
-                     and project["guard_status"] == "matched" and project["policy_id"] == policy
-                     and project["source_revision"] == described["report"]["revision"]
-                     and project["suite_file_hash"] == described["suite_file_hash"], "Unmatched saved-policy snapshot")
-            _require(isinstance(report, dict) and response["status"] == report["status"]
-                     and report["status"] in ["Pass", "Fail", "Error", "Unknown"]
-                     and report["compiler"] == described["report"]["compiler"]
-                     and report["revision"] == described["report"]["revision"]
-                     and report["probes"] == [] and report["output"] == "" and "usage" not in report
-                     and "invocation" not in report and "result" not in report
-                     and response["output"] == "" and response["diagnostics"] == []
-                     and isinstance(report["diagnostics"], list), "Unexpected saved-policy verification report")
-            review = report["review"]
-            _require(_version(review["contract_version"]) and review["approval"] == "not_granted"
-                     and review["baseline_revision"] == described["report"]["revision"]
-                     and review["candidate_revision"] == described["report"]["revision"]
-                     and _hash(review["suite_hash"]) and _hash(review["query_key"])
-                     and type(review["new_execution"]) is bool and type(project["new_execution"]) is bool
-                     and project["new_execution"] == review["new_execution"]
-                     and isinstance(review["cases"], list), "Unrecognized saved-suite evidence")
-            if review["phase"] == "preflight":
-                _require(report["status"] in ["Error", "Unknown"] and not review["new_execution"]
-                         and review["cases"] == [] and "summary" not in review, "Invalid verification preflight")
-            else:
-                summary = review["summary"]
-                _require(review["phase"] == "executed" and review["new_execution"]
-                         and type(summary["total"]) is int and 1 <= summary["total"] <= 16
-                         and summary["total"] == len(review["cases"])
-                         and type(summary["attempted_invocations"]) is int
-                         and summary["attempted_invocations"] == 2 * summary["total"], "Invalid finite-suite execution ledger")
-                if report["status"] == "Pass":
-                    _require(type(summary["expectation_pass"]) is int and summary["expectation_pass"] == summary["total"]
-                             and all(isinstance(case, dict) and case["expectation"] == "Pass" for case in review["cases"]),
-                             "Pass requires passing finite expectations")
-            return response
+            return self._review_response(response, policy, "verify-policy", "verified", described["report"]["revision"])
         except ClientError:
             raise
         except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as error:
             raise ClientError("Invalid verification request or malformed native verification report") from error
+
+    def review_candidate(self, policy, candidate, expected_candidate_revision):
+        """Compare an exact proposal with retained source and the saved suite.
+
+        This executes finite cases, never changes their expectations or applies
+        the candidate. Failure after submission does not imply zero execution.
+        """
+        try:
+            _require(_id(policy) and policy in self._policies and isinstance(candidate, str)
+                     and _hash(expected_candidate_revision), "Expected described policy, candidate and revision")
+            validate_json(candidate)
+            raw_candidate = candidate.encode("utf-8")
+            _require(len(raw_candidate) <= 65536 and hashlib.sha256(raw_candidate).hexdigest() == expected_candidate_revision,
+                     "Candidate exceeds its bound or differs from expected revision")
+            described = self._policies[policy]
+            raw = run_cli(self._binary, ["project", "review-candidate", self._manifest, policy,
+                "--candidate-file", "-", "--expected-candidate", expected_candidate_revision,
+                "--expected-manifest", self._manifest_hash, "--expected-revision", described["report"]["revision"],
+                "--expected-suite", described["suite_file_hash"], "--expected-compiler", described["report"]["compiler"]],
+                input_text=candidate, semantic_exit=True, timeout=self._timeout)
+            response = decode_json(raw); validate_json(response)
+            return self._review_response(response, policy, "review-candidate", "reviewed", expected_candidate_revision)
+        except ClientError:
+            raise
+        except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as error:
+            raise ClientError("Invalid candidate request or malformed native review report") from error
+
+    def _review_response(self, response, policy, mode, phase, candidate_revision):
+        described = self._policies[policy]
+        _require(isinstance(response, dict), "Expected native saved-policy verification report")
+        project = response["project"]; report = response["report"]
+        self._pins(project)
+        _require(project["mode"] == mode and project["phase"] == phase
+                 and project["guard_status"] == "matched" and project["policy_id"] == policy
+                 and project["source_revision"] == described["report"]["revision"]
+                 and project["suite_file_hash"] == described["suite_file_hash"], "Unmatched saved-policy snapshot")
+        if mode == "review-candidate":
+            _require(project["candidate_revision"] == candidate_revision, "Unmatched candidate snapshot")
+        _require(isinstance(report, dict) and response["status"] == report["status"]
+                 and report["status"] in ["Pass", "Fail", "Error", "Unknown"]
+                 and report["compiler"] == described["report"]["compiler"]
+                 and report["revision"] == described["report"]["revision"]
+                 and report["probes"] == [] and report["output"] == "" and "usage" not in report
+                 and "invocation" not in report and "result" not in report
+                 and response["output"] == "" and response["diagnostics"] == []
+                 and isinstance(report["diagnostics"], list), "Unexpected saved-policy verification report")
+        review = report["review"]
+        _require(_version(review["contract_version"]) and review["approval"] == "not_granted"
+                 and review["baseline_revision"] == described["report"]["revision"]
+                 and review["candidate_revision"] == candidate_revision
+                 and _hash(review["suite_hash"]) and _hash(review["query_key"])
+                 and type(review["new_execution"]) is bool and type(project["new_execution"]) is bool
+                 and project["new_execution"] == review["new_execution"]
+                 and isinstance(review["cases"], list), "Unrecognized saved-suite evidence")
+        if review["phase"] == "preflight":
+            _require(report["status"] in ["Error", "Unknown"] and not review["new_execution"]
+                     and review["cases"] == [] and "summary" not in review, "Invalid verification preflight")
+        else:
+            summary = review["summary"]
+            _require(review["phase"] == "executed" and review["new_execution"]
+                     and type(summary["total"]) is int and 1 <= summary["total"] <= 16
+                     and summary["total"] == len(review["cases"])
+                     and type(summary["attempted_invocations"]) is int
+                     and summary["attempted_invocations"] == 2 * summary["total"], "Invalid finite-suite execution ledger")
+            if report["status"] == "Pass":
+                _require(type(summary["expectation_pass"]) is int and summary["expectation_pass"] == summary["total"]
+                         and all(isinstance(case, dict) and case["expectation"] == "Pass" for case in review["cases"]),
+                         "Pass requires passing finite expectations")
+        return response
 
     def prepare_edit(self, policy, function, expected_body_hash, replacement):
         """Prepare a guarded saved body without applying or executing it.

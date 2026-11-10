@@ -412,6 +412,75 @@ pub(super) fn verify_policy(
     Ok(outer)
 }
 
+pub(super) fn review_candidate(
+    manifest: &str,
+    policy_id: &str,
+    options: &[&str],
+) -> Result<Value, String> {
+    if manifest.is_empty()
+        || manifest == "-"
+        || manifest.starts_with("--")
+        || !adapter_id(policy_id)
+    {
+        return Err(super::HELP.into());
+    }
+    let (mut candidate_file, mut expected_candidate) = (None, None);
+    let mut guards = Vec::new();
+    for pair in options.chunks(2) {
+        if pair.len() != 2 || pair[1].is_empty() || pair[1].starts_with("--") {
+            return Err(super::HELP.into());
+        }
+        match pair[0] {
+            "--candidate-file" if candidate_file.is_none() => candidate_file = Some(pair[1]),
+            "--expected-candidate" if expected_candidate.is_none() => {
+                if pair[1].len() != 64
+                    || !pair[1]
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                {
+                    return Err(super::HELP.into());
+                }
+                expected_candidate = Some(pair[1]);
+            }
+            _ => guards.extend_from_slice(pair),
+        }
+    }
+    let candidate_file = candidate_file.ok_or(super::HELP)?;
+    let expected_candidate = expected_candidate.ok_or(super::HELP)?;
+    let (_, expected) = selection_options(&guards, false)?;
+    let project = load(manifest)?;
+    let (mut outer, policy) = select(&project, policy_id, "review-candidate", expected);
+    outer["project"]["candidate_revision"] = Value::Null;
+    let Some(policy) = policy else {
+        return Ok(outer);
+    };
+    // Project guards precede candidate IO, including stdin. Bind exact bounded
+    // UTF-8 bytes before handing any source or saved cases to the core.
+    let candidate = super::source(candidate_file)?;
+    let candidate_revision = hash(&candidate);
+    outer["project"]["candidate_revision"] = json!(candidate_revision);
+    if candidate_revision != expected_candidate {
+        outer["project"]["phase"] = json!("candidate");
+        outer["diagnostics"] = json!([{"code":"PROJECT_CANDIDATE_DRIFT","kind":"Project",
+            "message":"candidate bytes do not match expected revision"}]);
+        return Ok(outer);
+    }
+    // Retain the owner-saved baseline and raw suite; review is finite evidence,
+    // never application, expectation replacement or approval.
+    let request = format!(
+        "{{\"op\":\"review\",\"source\":{},\"candidate\":{},\"suite\":{}}}",
+        json!(policy.source),
+        json!(candidate),
+        policy.suite_raw
+    );
+    let report: Value = serde_json::from_str(&wisp::dispatch(&request)).expect("core emits JSON");
+    outer["status"] = report["status"].clone();
+    outer["project"]["phase"] = json!("reviewed");
+    outer["project"]["new_execution"] = json!(report["review"]["new_execution"] == true);
+    outer["report"] = report;
+    Ok(outer)
+}
+
 pub(super) fn describe(manifest: &str) -> Result<Value, String> {
     let project = load(manifest)?;
     let mut rows = Vec::new();

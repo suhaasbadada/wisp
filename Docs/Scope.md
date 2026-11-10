@@ -14,9 +14,9 @@ owner-configured MCP project tools shipped via PR #22 and caller-owned snapshot
 guards via PR #23; saved-project context via PR #24; bounded native collection via
 PR #25; saved-policy finite-suite verification via PR #26; required pinned SDK CI
 via PR #27; real-SDK failure/reconnect regressions via PR #28; historical-status
-clarification via PR #29; inline guarded MCP preparation via PR #30. Saved-project
-body preparation (ADR 0030) is under verification/publication, reusing existing
-Rust without writes or evaluation.
+clarification via PR #29; inline preparation via PR #30; saved preparation via
+PR #31. Saved exact-candidate review (ADR 0031) is under verification/publication,
+reusing existing Rust review without expectation changes or Apply.
 No approval, automatic application,
 new language syntax or core host permissions. See [Workbench](Workbench.md),
 [Projects](Projects.md) and [Adapter](Adapter.md).
@@ -34,7 +34,7 @@ permission changes. See [Evaluation](Evaluation.md).
 
 Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger and guarded edits are shipped.
 
-Status: shipped through inline MCP preparation via PR #30; release acceptance is recorded on each corresponding PR. Saved-project preparation is under publication. Continued tested development is authorized. Experimental; not production-ready. No license selected (owner decision pending).
+Status: shipped through saved preparation via PR #31; release acceptance is recorded on each corresponding PR. Saved exact-candidate review is under publication. Continued tested development is authorized. Experimental; not production-ready. No license selected (owner decision pending).
 
 Wisp is function-oriented and statically typed. The first slice is a real Rust lexer, parser, checker and bounded interpreter, shared by the native CLI and browser WebAssembly. Its first domain is agent-generated sandboxed CLI/data transformations, later maintained business logic.
 

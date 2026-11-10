@@ -1,6 +1,7 @@
 """Experimental local MCP stdio transport; every language operation is native Rust."""
 import argparse
 import copy
+import hashlib
 import pathlib
 import re
 import shutil
@@ -69,8 +70,12 @@ PROJECT_TOOLS = [
                             "expected_body_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
                             "replacement": {"type": "string", "description": "Replacement body block; maximum 65536 UTF-8 bytes."},
                             "expected": EXPECTED_GUARD}, ["policy", "function", "expected_body_hash", "replacement"])},
+    {"name": "wisp_project_review_candidate", "description": "Review an exact candidate against the owner-configured retained baseline and saved case suite. No baseline/source-path/suite/expectation override or Apply. Candidate revision must match its full UTF-8 source. Copy call_guards into expected for caller binding. Pass/Fail/Error/Unknown are finite evidence, never approval.",
+     "inputSchema": schema({"policy": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"}, "candidate": SOURCE,
+                            "expected_candidate_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                            "expected": EXPECTED_GUARD}, ["policy", "candidate", "expected_candidate_revision"])},
 ]
-GUARDED_PROJECT_TOOLS = {"wisp_project_invoke", "wisp_project_focus", "wisp_project_verify", "wisp_project_prepare_edit"}
+GUARDED_PROJECT_TOOLS = {"wisp_project_invoke", "wisp_project_focus", "wisp_project_verify", "wisp_project_prepare_edit", "wisp_project_review_candidate"}
 for tool in TOOLS + PROJECT_TOOLS:
     tool["annotations"] = {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}
     tool["execution"] = {"taskSupport": "forbidden"}
@@ -177,7 +182,7 @@ class Server:
                     raise ClientError("Tool argument has the wrong JSON boundary type")
                 pattern = definition["properties"][key].get("pattern")
                 if pattern is not None and re.fullmatch(pattern, value) is None:
-                    if key in {"expected_revision", "expected_body_hash"}:
+                    if key in {"expected_revision", "expected_body_hash", "expected_candidate_revision"}:
                         raise ClientError("Edit guards must be 64 lowercase hexadecimal characters")
                     raise ClientError("Project and request IDs must be bounded ASCII identities")
                 if kind == "integer" and (not isinstance(value, JsonNumber)
@@ -187,8 +192,13 @@ class Server:
                 raise ClientError("Session tool-call quota exhausted; start a new session explicitly")
             if name == "wisp_project_prepare_edit" and len(arguments["replacement"].encode("utf-8")) > 65536:
                 raise ClientError("Replacement exceeds 65536 UTF-8 bytes")
+            if name == "wisp_project_review_candidate":
+                candidate = arguments["candidate"].encode("utf-8")
+                if len(candidate) > 65536 or hashlib.sha256(candidate).hexdigest() != arguments["expected_candidate_revision"]:
+                    raise ClientError("Candidate exceeds its bound or differs from expected revision")
             if name in GUARDED_PROJECT_TOOLS and (arguments["policy"] not in self.project_targets
-                    or (name != "wisp_project_verify" and arguments["function"] not in self.project_targets[arguments["policy"]])):
+                    or (name not in {"wisp_project_verify", "wisp_project_review_candidate"}
+                        and arguments["function"] not in self.project_targets[arguments["policy"]])):
                 raise ClientError("Unknown described project policy/function")
             if name in GUARDED_PROJECT_TOOLS:
                 guard_status = "not_requested"
@@ -222,6 +232,9 @@ class Server:
                 elif name == "wisp_project_prepare_edit":
                     report = self.project.prepare_edit(arguments["policy"], arguments["function"],
                                                        arguments["expected_body_hash"], arguments["replacement"])
+                    execution = "see_native_report"
+                elif name == "wisp_project_review_candidate":
+                    report = self.project.review_candidate(arguments["policy"], arguments["candidate"], arguments["expected_candidate_revision"])
                     execution = "see_native_report"
                 else:
                     report = self.project.call(arguments["policy"], arguments["function"], arguments["args"], arguments["id"])
@@ -327,7 +340,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wisp", default="target/debug/wisp")
     parser.add_argument("--project", type=pathlib.Path, help="Owner-configured saved project; agents cannot select or change this path")
-    parser.add_argument("--require-project-guard", action="store_true", help="Require caller-supplied expected snapshot on saved-project focus, invocation, verification and preparation")
+    parser.add_argument("--require-project-guard", action="store_true", help="Require caller-supplied expected snapshot for saved policy operations except discovery")
     args = parser.parse_args()
     if args.require_project_guard and args.project is None:
         parser.error("--require-project-guard requires --project")

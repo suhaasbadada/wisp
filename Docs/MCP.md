@@ -14,7 +14,7 @@ compatibility or authenticated model-reasoning evidence.
 `scripts/mcp_sdk_failures.py` uses owner-created disposable projects, not edits to
 user policies. It checks finite Pass/Fail, runtime Error/Unknown and preflight
 Error/Unknown through the real SDK, preserving `isError`, execution phase and
-no-approval markers. All four strict saved operations reject missing/old guards;
+no-approval markers. All five strict saved operations reject missing/old guards;
 a reconnect after changed behavior refuses the old guard. Explicit fresh adoption
 can produce invocation Complete while unchanged saved expectations Fail. Matching
 initialization guards still cannot bypass same-session suite drift; transport
@@ -106,7 +106,7 @@ project guard flag only governs saved-project tools. See
 
 ### Optional owner-configured saved project
 
-Start with one explicit manifest to add five tools, avoiding repeated source in
+Start with one explicit manifest to add six tools, avoiding repeated source in
 invocations:
 
 ```sh
@@ -116,7 +116,7 @@ python3 -B integrations/mcp/server.py --wisp target/debug/wisp \
 
 Only the owner/startup configuration chooses this path. The agent cannot choose
 another manifest, pass a path/source override or browse files. Without `--project`,
-these five tools are absent and project discovery does not occur:
+these six tools are absent and project discovery does not occur:
 
 - `wisp_project_describe {}` returns the checked interface/pins loaded during
   initialization. Bridge execution is `initialization_metadata`: **not a live
@@ -153,6 +153,17 @@ discovery and adapter provenance add their own output and startup costs.
 
 ### Bind the caller's reasoning across reconnects
 
+`wisp_project_review_candidate {policy,candidate,expected_candidate_revision,expected?}`
+reviews exact candidate bytes against retained saved baseline and unchanged saved
+cases. Pass `edit.source` and `edit.candidate_revision` from preparation, plus the
+same caller guard. Strict mode requires `expected`. Candidate Unicode/byte/hash
+checks precede dispatch; native project guards precede candidate reads/attempts.
+The agent cannot supply a different baseline, suite, path or expected decisions.
+Native Pass/Fail/Error/Unknown and both revision identities are retained; Fail is
+`isError:true` even when bridge transport completed. This does not Apply the
+candidate or establish independent preservation, requirements sufficiency or
+approval. Other-policy drift and lost results remain conservatively unresolved.
+
 `wisp_project_prepare_edit {policy,function,expected_body_hash,replacement,expected?}`
 uses the owner-selected saved source, without a source/path override. Copy the
 body hash from guarded `wisp_project_focus` graph metadata and the policy's
@@ -171,7 +182,7 @@ token-saving or source-confidentiality mechanism. See [Projects](Projects.md).
 `wisp_project_focus {policy,function,budget?,expected?}` reads compiler-derived
 Agent View context from the saved snapshot without source input or execution.
 It uses the same caller guard as invocation; strict owner mode requires `expected`
-for focus, invocation, verification and saved preparation. Default budget is 4096 UTF-8 text bytes, range 0–65536. Its
+for focus, invocation, verification, preparation and candidate review. Default budget is 4096 UTF-8 text bytes, range 0–65536. Its
 native report wraps the unchanged core report under `report.report`; inspect
 `report.project.new_execution:false`, inner status, omissions and overflow. Graph
 and identity JSON are outside the text budget, so this is not a total-output cap.
@@ -220,7 +231,7 @@ python3 -B integrations/mcp/server.py --wisp target/debug/wisp \
 
 The flag requires a project at startup, advertises `expected` as required in this
 session's tool schema, and refuses unguarded saved-project focus, invocation,
-verification and preparation. Project
+verification, preparation and candidate review. Project
 metadata exposes `bridge.caller_guard_required`. It does not alter other server
 instances or the seven independent inline-source tools. Default mode stays backward
 compatible; omission is not silently claimed to be caller-pinned.
@@ -309,7 +320,7 @@ execution capability from this transport.
 
 ## Verification
 
-`npm run test:workflow` includes forty authored MCP/native tests covering lifecycle,
+`npm run test:workflow` includes forty-three authored MCP/native tests covering lifecycle,
 tool discovery, exact i64 transport, native Error/Unknown/continuation, review
 Pass/Fail, nonexecuting context/interface operations, invalid schemas/IDs/frames,
 quotas/compiler drift, malformed/oversized native reports, real stdio EOF and
@@ -337,17 +348,21 @@ not a runtime requirement or package publication. One local SDK 2.3.0 smoke pass
 initialize/list/call with exact i64 and native Complete/Error/Unknown, with no
 top-level execution. This is measured interoperability with one client, not all
 clients, external adoption, benchmark superiority or production readiness. The
-optional configured-project SDK smoke also passes twelve-tool discovery and a
+optional configured-project SDK smoke also passes thirteen-tool discovery and a
 pinned reservation decision without source in the tool arguments.
 Guarded/strict modes also exercise rejected stale guards and required-guard
 enforcement without fabricating native outcomes.
 
-Current configured modes discover twelve tools and exercise guarded bounded focus,
+Current configured modes discover thirteen tools and exercise guarded bounded focus,
 nonexecution and stale-context refusal. Default discovery has seven tools; the six
 existing source tools retain their request behavior, with edit preparation added.
 All three SDK modes check real guarded preparation, a separate finite review and
 stale-body refusal. Five new local tests cover exact native parity, Unicode/trivia
 preservation, guard conflicts, diagnostic ownership, schema boundaries and caps.
+Saved modes also review the prepared proposal against unchanged saved expectations:
+the typed Ready proposal fails all seven reservation cases, while original
+verification/invocation remain unchanged. Preparation, acceptance and Apply are
+therefore separate observations, not interchangeable success markers.
 An optional internal driver uses the official SDK to fetch bounded `decide`
 context, verify its saved finite cases, then invoke the same pinned policy against saved historical repository CI
 evidence:

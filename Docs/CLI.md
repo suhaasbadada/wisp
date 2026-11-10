@@ -1,5 +1,10 @@
 # Native CLI
 
+Saved candidate review: `wisp project review-candidate MANIFEST POLICY
+--candidate-file CANDIDATE --expected-candidate HASH`, plus optional all-or-none
+project pins. Candidate `-` reads stdin; review uses the unchanged owner-saved
+suite and retained baseline, never Apply. See [Projects](Projects.md).
+
 Saved preparation: `wisp project prepare-edit MANIFEST POLICY FUNCTION
 --expected-body HASH --replacement-file BODY` (BODY `-` reads stdin), plus the
 optional all-or-none project pins used by focus. Returns a pure proposed source,

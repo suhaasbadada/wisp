@@ -1,5 +1,6 @@
 """MCP stdio/native integration tests, without an external SDK dependency."""
 import copy
+import hashlib
 import importlib.util
 import io
 import json
@@ -74,6 +75,59 @@ class MCP(unittest.TestCase):
         function = next(f for f in checked["graph"]["functions"] if f["name"] == "identity")
         return server, checked, function, {"source": source, "function": "identity", "expected_revision": checked["revision"],
                                            "expected_body_hash": function["body_hash"], "replacement": "{ n + 1 }"}
+
+    def test_saved_candidate_review_all_outcomes_and_original_preservation(self):
+        with tempfile.TemporaryDirectory(prefix="wisp-mcp-candidate-") as temp:
+            folder = pathlib.Path(temp); source = 'fn f(n:Int)->Int{n+1}'
+            (folder / "s.wisp").write_text(source)
+            (folder / "c.json").write_text('{"version":1,"target":"f","cases":[{"id":"one","args":["2"],"expect":{"result":{"type":"Int","value":"2"},"output":""}}]}')
+            manifest = folder / "p.json"; manifest.write_text('{"version":1,"policies":[{"id":"p","source":"s.wisp","suite":"c.json"}]}')
+            before = {p.name: p.read_bytes() for p in folder.iterdir()}
+            server = HOST.Server(BINARY, manifest=manifest, require_project_guard=True)
+            server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+            guard = copy.deepcopy(server.project_guards["p"])
+            for body, status in [("n", "Pass"), ("n+2", "Fail"), ("n/0", "Error"), ("f(n)", "Unknown")]:
+                candidate = 'fn f(n:Int)->Int{' + body + '}'
+                revision = hashlib.sha256(candidate.encode()).hexdigest()
+                result = server.call({"name": "wisp_project_review_candidate", "arguments": {
+                    "policy": "p", "candidate": candidate, "expected_candidate_revision": revision, "expected": guard}})
+                data = result["structuredContent"]
+                self.assertEqual(result["isError"], status != "Pass")
+                self.assertEqual(data["bridge"]["status"], "Complete")
+                self.assertEqual(data["report"]["status"], status)
+                self.assertEqual(data["report"]["project"]["candidate_revision"], revision)
+                self.assertEqual(data["report"]["report"]["review"]["baseline_revision"], guard["source_revision"])
+                self.assertEqual(data["bridge"]["approval"], "not_granted")
+                self.assertEqual(json.loads(result["content"][0]["text"]), data)
+            self.assertEqual(before, {p.name: p.read_bytes() for p in folder.iterdir()})
+            self.assertEqual(server.project.verify("p")["status"], "Fail")
+
+    def test_saved_candidate_boundary_rejects_hash_guard_and_suite_overrides(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples/policies/project.json", require_project_guard=True)
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        guard = copy.deepcopy(server.project_guards["reservations"]); candidate = "fn f()->Int{0}"
+        args = {"policy": "reservations", "candidate": candidate, "expected_candidate_revision": hashlib.sha256(candidate.encode()).hexdigest()}
+        self.assertIn("expected", server.definitions()["wisp_project_review_candidate"]["inputSchema"]["required"])
+        for changes in [{}, {"expected": {**guard, "suite_file_hash": "0" * 64}},
+                {"expected": guard, "suite": {}}, {"expected": guard, "source": "override"},
+                {"expected": guard, "path": "override"}, {"expected": guard, "expected_candidate_revision": "0" * 64},
+                {"expected": guard, "candidate": True}]:
+            with mock.patch.object(server.project, "review_candidate", side_effect=AssertionError("No review")):
+                result = server.call({"name": "wisp_project_review_candidate", "arguments": {**args, **changes}})
+            self.assertTrue(result["isError"])
+            self.assertIsNone(result["structuredContent"]["report"])
+            self.assertEqual(result["structuredContent"]["bridge"]["execution"], "not_submitted")
+
+    def test_saved_candidate_transport_failure_is_unresolved_not_zero_execution(self):
+        server = HOST.Server(BINARY, manifest=ROOT / "examples/policies/project.json")
+        server.handle(HOST.decode_json(json.dumps(initialize()[0]), input_numbers=True)); server.handle(initialize()[1])
+        candidate = "fn f()->Int{0}"
+        with mock.patch.object(server.project, "review_candidate", side_effect=HOST.ClientError("transport failure")):
+            result = server.call({"name": "wisp_project_review_candidate", "arguments": {"policy": "reservations", "candidate": candidate,
+                "expected_candidate_revision": hashlib.sha256(candidate.encode()).hexdigest()}})
+        self.assertTrue(result["isError"])
+        self.assertEqual(result["structuredContent"]["bridge"]["execution"], "unresolved")
+        self.assertIsNone(result["structuredContent"]["report"])
 
     def test_prepare_edit_schema_exact_native_parity_and_byte_preservation(self):
         server, checked, function, args = self.edit_fixture()
@@ -350,7 +404,7 @@ class MCP(unittest.TestCase):
                             request(3, "tools/call", {"name": "wisp_project_describe", "arguments": {}}),
                             request(4, "tools/call", {"name": "wisp_project_invoke", "arguments": {
                                 "id": "reservation", "policy": "reservations", "function": "decide", "args": args}})], manifest=manifest)
-        self.assertEqual(len(rows[1]["result"]["tools"]), 12)
+        self.assertEqual(len(rows[1]["result"]["tools"]), 13)
         described = rows[2]["result"]["structuredContent"]
         self.assertEqual(described["bridge"]["execution"], "initialization_metadata")
         self.assertFalse(described["report"]["project"]["new_execution"])

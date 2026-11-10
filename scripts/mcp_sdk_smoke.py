@@ -20,7 +20,7 @@ async def smoke(binary, project=None, require_guard=False):
         async with ClientSession(read, write) as session:
             initialized = await session.initialize()
             tools = await session.list_tools()
-            assert len(tools.tools) == (12 if project is not None else 7)
+            assert len(tools.tools) == (13 if project is not None else 7)
             source = 'print("must not run"); fn identity(n: Int) -> Int { n } fn loop(n: Int) -> Int { loop(n) }'
             results = []
             for function, args, status in [("identity", ["9223372036854775807"], "Complete"),
@@ -68,6 +68,7 @@ async def smoke(binary, project=None, require_guard=False):
             assert "edit" not in refusal and stale_edit.structured_content["bridge"]["approval"] == "not_granted"
             project_status = None
             saved_edit_status = None
+            saved_candidate_status = None
             if project is not None:
                 # The optional project smoke targets the shipped reservations demo.
                 described = await session.call_tool("wisp_project_describe", arguments={})
@@ -90,6 +91,15 @@ async def smoke(binary, project=None, require_guard=False):
                 assert proposed["project"]["source_revision"] == guard["source_revision"]
                 assert "proposal_only" in proposed["report"]["edit"]["source"]
                 saved_edit_status = proposed["status"]
+                candidate_review = await session.call_tool("wisp_project_review_candidate", arguments={"policy": "reservations",
+                    "candidate": proposed["report"]["edit"]["source"], "expected_candidate_revision": proposed["report"]["edit"]["candidate_revision"], "expected": guard})
+                candidate_evidence = candidate_review.structured_content["report"]
+                assert candidate_review.is_error and candidate_evidence["status"] == "Fail"
+                assert candidate_evidence["project"]["candidate_revision"] == proposed["report"]["edit"]["candidate_revision"]
+                assert candidate_evidence["report"]["review"]["summary"]["expectation_fail"] == 7
+                assert candidate_evidence["report"]["review"]["baseline_revision"] == guard["source_revision"]
+                assert candidate_evidence["report"]["review"]["approval"] == "not_granted"
+                saved_candidate_status = candidate_evidence["status"]
                 verified = await session.call_tool("wisp_project_verify", arguments={"policy": "reservations", "expected": guard})
                 verification = verified.structured_content["report"]
                 assert not verified.is_error and verification["status"] == "Pass"
@@ -125,6 +135,7 @@ async def smoke(binary, project=None, require_guard=False):
                               "stale_edit": refusal["status"],
                               "saved_project": project_status,
                               "saved_edit_preparation": saved_edit_status,
+                              "saved_candidate_review": saved_candidate_status,
                               "caller_guard_required": require_guard,
                               "i64": "exact decimal string", "top_level_execution": False,
                               "scope": "one local SDK interoperability smoke, not universal client compatibility"}))

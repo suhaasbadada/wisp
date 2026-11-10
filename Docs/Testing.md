@@ -12,7 +12,29 @@ primary check into independent review or erase an earlier failure. Current run
 state must be checked at its exact revision; an old green release is not evidence
 for a new head.
 
-## Saved-project body preparation (under publication)
+## Saved exact-candidate review (under publication)
+
+Bob's native unit passed ten new CLI tests and the 180-test Rust suite. Five
+Python candidate-review tests and 43 MCP tests passed; workflow totals 147 Python
+tests. Strict SDK checks retained Ready preparation, seven failed saved candidate
+expectations and original behavior unchanged. Five-operation missing/old/drift
+guards passed. The initial parity test re-serialized the saved suite and changed
+its identities; correcting the test to preserve exact raw suite tokens restored
+full parity without changing the saved expectations or runtime. Full prescribed
+checks passed: 180 Rust, 41 Node, 147 Python, 326 native/WASM comparisons,
+36 Chromium, fmt/Clippy/npm ci/WASM/check/build. The exact hash-locked SDK step
+passed all five reports with 7/13 tools, saved candidate Fail and original behavior
+unchanged. Joffrey independently reviewed with no substantive findings and passed
+53 candidate-client/existing verification/MCP tests; native and SDK changes were
+inspected, not independently executed. Exact-head Linux CI/publication pending.
+
+PR #31 shipped at `1c1fa2603902d0099c29b07ffd559e88855348e8`: PR Checks
+`42875245223`, merge Checks `42876131419`, Pages `42876131577`, deployment
+`7690804516` passed. Actual PR/merge saved-preparation SDK reports, equal package
+inventories, adverse evidence, immutable strict SDK and five public contracts are
+[accepted](https://github.com/suhaasbadada/wisp/pull/31#issuecomment-6775936341).
+
+## Saved-project body preparation
 
 Bob's native implementation passed 13 new CLI tests and the 170-test Rust suite.
 Five Python client preparation tests and 40 MCP tests passed; Python workflow

@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-10: ADR 0031 reviews exact candidate bytes against a retained saved baseline and unchanged owner suite. Candidate hash and project guards precede attempts; no suite override, automatic repair or Apply. Core review preserves finite outcomes and both identities; review is not a separate preservation/intent proof. Configured tools become13, defaults remain7.
+
 - 2026-11-10: ADR 0030 prepares saved-policy bodies using retained project snapshots and unchanged Rust edit. Body guards remain mandatory; project guards refuse before replacement reads, and strict caller guards cover all four saved operations. No writes, Apply, case execution or approval. The returned full candidate is not a total token-saving/confidentiality claim; configured tools become12 while defaults stay7.
 
 - 2026-11-10: ADR 0029 adds `wisp_prepare_edit` as an inline MCP transport for unchanged pure Rust body preparation. Both revision/body guards are mandatory; Ready is a preservation-audited candidate, not Apply, execution, finite Pass or approval. Default/configured discovery becomes 7/11 tools; existing tool requests retain behavior. No host write, path selection, runtime SDK dependency or core semantics change.
