@@ -2,13 +2,25 @@
 
 GitHub's existing read-only `verify` job now requires the official Python SDK
 interoperability checks: source tools, configured project, strict caller guards
-and internal historical CI triage. A Python 3.12 test-only virtual environment
+and internal historical CI triage, plus saved-policy failure/reconnect regressions.
+A Python 3.12 test-only virtual environment
 installs the fully pinned `requirements-test.txt` with required distribution
 hashes and wheels only, then checks dependency consistency. SDK reports and the
 installed package list are retained with `policy-project-evidence`; a five-minute
 step limit applies. This adds no deployment privileges or server runtime
 dependency. It is one pinned client/runner configuration, not universal MCP
 compatibility or authenticated model-reasoning evidence.
+
+`scripts/mcp_sdk_failures.py` uses owner-created disposable projects, not edits to
+user policies. It checks finite Pass/Fail, runtime Error/Unknown and preflight
+Error/Unknown through the real SDK, preserving `isError`, execution phase and
+no-approval markers. All three strict saved operations reject missing/old guards;
+a reconnect after changed behavior refuses the old guard. Explicit fresh adoption
+can produce invocation Complete while unchanged saved expectations Fail. Matching
+initialization guards still cannot bypass same-session suite drift; transport
+failures stay unresolved. CI retains this fifth report as `mcp-sdk-failures.json`.
+These authored regressions do not measure agent reasoning or prove universal
+compatibility, safety or absence of execution on unreceived outcomes.
 
 Regenerate the test lock intentionally (review dependency/hash changes):
 

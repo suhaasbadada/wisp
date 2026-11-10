@@ -62,6 +62,7 @@ jobs:
           .venv-mcp-sdk/bin/python -B scripts/mcp_sdk_smoke.py > mcp-sdk-source.json
           .venv-mcp-sdk/bin/python -B scripts/mcp_sdk_smoke.py --project examples/policies/project.json > mcp-sdk-project.json
           .venv-mcp-sdk/bin/python -B scripts/mcp_sdk_smoke.py --project examples/policies/project.json --require-project-guard > mcp-sdk-strict.json
+          .venv-mcp-sdk/bin/python -B scripts/mcp_sdk_failures.py > mcp-sdk-failures.json
           .venv-mcp-sdk/bin/python -B scripts/mcp_internal_triage.py --budget 2048 > mcp-sdk-internal-triage.json
       - uses: actions/upload-artifact@v4
         if: always()
