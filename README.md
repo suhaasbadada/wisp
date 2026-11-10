@@ -9,6 +9,11 @@ policy cases, exercise positive/negative end-to-end gates, and observe/replay sa
 repository workflow evidence. Narrowly usable and experimental—not production
 readiness, proven superiority or automatic approval.
 
+For an agent client, the experimental [local MCP bridge](Docs/MCP.md) exposes
+compiler discovery, checking, typed calls, finite review and bounded context as
+tools. The Rust core still implements the language; no shell, file-writing or
+network tool is added. One official client SDK has been interoperability-tested.
+
 ## Review a real policy change
 
 For an agent or CI job working with saved repository policies:

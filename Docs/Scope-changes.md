@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0021 adds a local MCP stdio bridge exposing existing native discovery/check/interface/invocation/review/context operations as six fixed agent tools. No agent-controlled command/path, file writes, networking, core semantics, automatic approval or global client configuration. Focused protocol/native checks and one official SDK interoperability smoke keep compatibility claims bounded.
+
 - 2026-11-09: ADR 0020 completes offline receipt validation/replay and operator handoff. Exact snapshot/fact/native checks and current policy/compiler pins guard a new execution; full report comparison keeps reproduced Error/Unknown and blocked/pending outcomes non-successful. No GitHub requests, mutation, cache, permissions or core semantics change. The owner superseded the earlier PR #20 pause and authorized continued tested development.
 
 - 2026-11-09: ADR 0019 joins explicit-attempt capture and native triage in one read-only operator command, with a no-network saved-file mode. Self-contained receipts retain exact input bytes/hash and separate collection, runtime and business outcomes. No retry, cache, mutation, new core syntax or permission; receipts remain forgeable evidence, not approval.
