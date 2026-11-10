@@ -8,6 +8,10 @@ payment charged, order persisted or network request made.
 
 Requirements: the native Wisp CLI and Python 3.8+ (standard library only).
 
+To enforce explicit composed outcomes in CI, add [`--expect FILE`](Workflow-gates.md).
+The matching recorded snapshot passes; the separately named proposed free-shipping
+requirements deliberately fail, without changing policies or recorded history.
+
 ```sh
 cargo build --locked
 target/debug/wisp project describe examples/order-gate/project.json
@@ -83,6 +87,8 @@ transport, never converted to binary floats or accepted Int strings. Rust can
 therefore reject an invalid numeric business field for that order while other
 orders finish. NaN/Infinity tokens are not JSON and are rejected while loading.
 Host parser/encoding/resource failures remain host errors, not partial acceptance.
+The host also bounds JSON nesting to 64 containers and rejects non-scalar Unicode
+in keys/values before policy commands; Rust argument/type depth remains separate.
 
 Ordinary plan output has `status`, `approval:"not_granted"`, `side_effects:"none"`,
 manifest hash, every policy's source/suite hashes, summary and ordered `orders`.

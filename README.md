@@ -33,6 +33,11 @@ decisions end to end—including a discount/free-shipping interaction that makes
 one final total **higher**. See [Order workflow](Docs/Order-workflow.md); it is a
 read-only reference application, not a checkout service or automatic approval.
 
+Use `--expect examples/order-gate/observed.expect.json` to gate those exact
+composed outcomes in CI. [Workflow gates](Docs/Workflow-gates.md) also include a
+deliberately failing proposed requirement, demonstrating that component Pass
+cannot silently override unmet end-to-end expectations.
+
 The policy-change workbench compares two checked revisions against explicit typed
 cases and shows before/after decisions, mismatches, faults and limits. Try the
 reservation walkthrough in the playground, or:

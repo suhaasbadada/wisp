@@ -33,6 +33,15 @@ jobs:
           target/debug/wisp project verify examples/order-gate/project.json > order-gate-verify.json
           python3 -B examples/order-gate/run.py > order-gate-plan.json
           python3 -B examples/order-gate/run.py --baseline examples/order-gate/project-before.json > order-gate-review.json
+          python3 -B examples/order-gate/run.py --baseline examples/order-gate/project-before.json --expect examples/order-gate/observed.expect.json > order-gate-gated.json
+          if python3 -B examples/order-gate/run.py --baseline examples/order-gate/project-before.json --orders examples/order-gate/bulk-orders.json --expect examples/order-gate/proposed-free-shipping.expect.json > order-gate-proposal.json; then
+            echo "Proposed requirements unexpectedly passed"
+            exit 1
+          else
+            exit_code=$?
+            test "$exit_code" -eq 1
+          fi
+          python3 -c 'import json; r=json.load(open("order-gate-proposal.json")); assert r["status"] == "Fail" and r["expectation"]["summary"]["fail"] == 2'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

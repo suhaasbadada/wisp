@@ -1,5 +1,6 @@
 """Read-only order decision planner. All arithmetic/rules execute in Wisp."""
 import argparse
+import hashlib
 import json
 import pathlib
 import re
@@ -52,16 +53,37 @@ def decode(text, input_numbers=False):
     return json.loads(text, object_pairs_hook=unique, parse_constant=non_json_number, **options)
 
 
-def transport_json(value):
+def validate_tree(value):
+    # Bound report/transport serialization before any policy execution. This is
+    # a host JSON resource/Unicode boundary, not a Wisp business type decoder.
+    stack = [(value, 0)]
+    while stack:
+        item, depth = stack.pop()
+        if isinstance(item, str):
+            try:
+                item.encode("utf-8")
+            except UnicodeError as error:
+                raise HostError("JSON strings must contain valid Unicode scalars") from error
+        elif isinstance(item, (dict, list)):
+            if depth >= 64:
+                raise HostError("Host JSON nesting exceeds 64 containers")
+            if isinstance(item, dict):
+                stack.extend((k, depth + 1) for k in item)
+                stack.extend((v, depth + 1) for v in item.values())
+            else:
+                stack.extend((v, depth + 1) for v in item)
+
+
+def transport_json(value, ascii_strings=False):
     # JSON transport only: emit validated numeric lexemes as numbers, including
     # huge exponents/integers and -0. Never coerce them into accepted Int strings.
     if isinstance(value, JsonNumber):
         return value.token
     if isinstance(value, dict):
-        return "{" + ",".join(json.dumps(k, ensure_ascii=False) + ":" + transport_json(v) for k, v in value.items()) + "}"
+        return "{" + ",".join(json.dumps(k, ensure_ascii=ascii_strings) + ":" + transport_json(v, ascii_strings) for k, v in value.items()) + "}"
     if isinstance(value, list):
-        return "[" + ",".join(transport_json(v) for v in value) + "]"
-    return json.dumps(value, ensure_ascii=False, allow_nan=False)
+        return "[" + ",".join(transport_json(v, ascii_strings) for v in value) + "]"
+    return json.dumps(value, ensure_ascii=ascii_strings, allow_nan=False)
 
 
 def invoke(binary, args, input_text=None, semantic_exit=False):
@@ -73,12 +95,13 @@ def invoke(binary, args, input_text=None, semantic_exit=False):
     return process.stdout
 
 
-def load_orders(path):
+def load_orders(path, with_hash=False):
     with open(path, "rb") as stream:
         raw = stream.read(65537)
     if len(raw) > 65536:
         raise HostError("Order input exceeds 65536 bytes")
     orders = decode(raw.decode("utf-8"), input_numbers=True)
+    validate_tree(orders)
     if not isinstance(orders, list) or not 1 <= len(orders) <= 32:
         raise HostError("Expected 1–32 order objects")
     ids = set()
@@ -90,7 +113,102 @@ def load_orders(path):
             raise HostError("Expected exact order fields and unique ASCII IDs")
         ids.add(order["id"])
     # Typed business fields deliberately remain Rust's responsibility.
-    return orders
+    return (orders, hashlib.sha256(raw).hexdigest()) if with_hash else orders
+
+
+def load_expectations(path, orders):
+    with open(path, "rb") as stream:
+        raw = stream.read(65537)
+    if len(raw) > 65536:
+        raise HostError("Expectation input exceeds 65536 bytes")
+    data = decode(raw.decode("utf-8"), input_numbers=True)
+    validate_tree(data)
+    if (not isinstance(data, dict) or set(data) != {"version", "orders"}
+            or not isinstance(data["version"], JsonNumber) or data["version"].token != "1"
+            or not isinstance(data["orders"], list) or not 1 <= len(data["orders"]) <= 32):
+        raise HostError("Expected strict version-1 workflow expectations")
+    expected = {}
+    stages = ["eligibility", "pricing", "shipping"]
+    for case in data["orders"]:
+        if (not isinstance(case, dict) or set(case) != {"id", "expect"}
+                or not isinstance(case["id"], str)
+                or re.fullmatch(r"[A-Za-z0-9_-]{1,64}", case["id"]) is None
+                or case["id"] in expected or not isinstance(case["expect"], dict)):
+            raise HostError("Expected unique workflow expectation IDs and objects")
+        value = case["expect"]
+        if (set(value) != {"status", "stage", "decisions", "outputs"}
+                or not isinstance(value["status"], str) or value["status"] not in {"Accepted", "Rejected"}
+                or not isinstance(value["stage"], str) or value["stage"] not in stages
+                or (value["status"] == "Accepted" and value["stage"] != "shipping")):
+            raise HostError("Expectations require a completed Accepted/Rejected workflow")
+        prefix = stages[:stages.index(value["stage"]) + 1]
+        if (not isinstance(value["decisions"], dict) or set(value["decisions"]) != set(prefix)
+                or any(not isinstance(v, dict) for v in value["decisions"].values())
+                or not isinstance(value["outputs"], list) or len(value["outputs"]) != len(prefix)):
+            raise HostError("Expected every completed stage's decision and captured output")
+        for stage, output in zip(prefix, value["outputs"]):
+            if (not isinstance(output, dict) or set(output) != {"policy", "output"}
+                    or output["policy"] != stage or not isinstance(output["output"], str)
+                    or len(output["output"].encode("utf-8")) > 8192):
+                raise HostError("Expected exact per-stage captured output strings")
+        expected[case["id"]] = value
+    if set(expected) != {order["id"] for order in orders}:
+        raise HostError("Expectation IDs must exactly match input order IDs")
+    return expected, hashlib.sha256(raw).hexdigest()
+
+
+def observed_order(row):
+    return {"status": row["status"], "stage": row["stage"], "decisions": row["decisions"],
+            "outputs": [{"policy": e["adapter"]["policy_id"], "output": e["report"]["output"]}
+                        for e in row["evidence"]]}
+
+
+def differences(expected, observed, path="", found=None):
+    found = [] if found is None else found
+    if len(found) >= 32 or expected == observed:
+        return found
+    if isinstance(expected, dict) and isinstance(observed, dict):
+        for key in sorted(set(expected) | set(observed)):
+            child = path + "/" + key.replace("~", "~0").replace("/", "~1")
+            if key not in expected or key not in observed:
+                if len(found) < 32:
+                    found.append(child)
+            else:
+                differences(expected[key], observed[key], child, found)
+    elif isinstance(expected, list) and isinstance(observed, list) and len(expected) == len(observed):
+        for index, (left, right) in enumerate(zip(expected, observed)):
+            differences(left, right, path + f"/{index}", found)
+    else:
+        found.append(path or "/")
+    return found
+
+
+def check_expectations(workflow, expected, expected_hash, orders_hash):
+    gate = {"contract_version": 1, "phase": "not_evaluated", "document": "candidate" if "component_review" in workflow else "plan",
+            "expected_hash": expected_hash, "orders_hash": orders_hash, "new_execution": False,
+            "scope": "exact completed status/stage/typed decisions/captured output; finite inputs, not approval", "cases": []}
+    result = {"status": workflow["status"], "approval": "not_granted", "side_effects": "none",
+              "expectation": gate, "workflow": workflow}
+    if workflow.get("phase") == "component_gate":
+        return result
+    plan_result = workflow["after"] if workflow.get("phase") == "observed" else workflow
+    rows = plan_result["orders"]
+    if len(rows) != len(expected) or {r["id"] for r in rows} != set(expected):
+        raise HostError("Observed order IDs do not match expectation inputs")
+    cases = []
+    for row in rows:
+        observation = observed_order(row)
+        paths = differences(expected[row["id"]], observation)
+        verdict = row["status"] if row["status"] in {"Error", "Unknown"} else "Fail" if paths else "Pass"
+        cases.append({"id": row["id"], "status": verdict, "expected": expected[row["id"]],
+                      "observed": observation, "mismatch_paths": paths})
+    gate["phase"] = "checked"
+    gate["cases"] = cases
+    gate["summary"] = {"total": len(cases), **{name.lower(): sum(c["status"] == name for c in cases)
+                                              for name in ["Pass", "Fail", "Error", "Unknown"]}}
+    verdicts = {c["status"] for c in cases} | {workflow["status"]}
+    result["status"] = "Error" if "Error" in verdicts else "Unknown" if "Unknown" in verdicts else "Fail" if "Fail" in verdicts else "Pass"
+    return result
 
 
 def discover(binary, manifest):
@@ -264,15 +382,26 @@ def main():
     parser.add_argument("--project", type=pathlib.Path, default=HERE / "project.json")
     parser.add_argument("--orders", type=pathlib.Path, default=HERE / "orders.json")
     parser.add_argument("--baseline", type=pathlib.Path, help="Review unchanged component specifications, then observe both workflows")
+    parser.add_argument("--expect", type=pathlib.Path, help="Caller-owned exact composed expectations; never rewritten")
     args = parser.parse_args()
     try:
-        orders = load_orders(args.orders)
+        orders, orders_hash = load_orders(args.orders, with_hash=True)
+        expected, expected_hash = load_expectations(args.expect, orders) if args.expect else (None, None)
         report = (review(args.wisp, args.baseline, args.project, orders) if args.baseline
                   else plan(args.wisp, args.project, orders))
+        report["orders_hash"] = orders_hash
+        if expected is not None:
+            report = check_expectations(report, expected, expected_hash, orders_hash)
+        serialized = transport_json(report, ascii_strings=True)
+        print(serialized, flush=True)
     except (HostError, OSError, ValueError, KeyError, TypeError, StopIteration, RecursionError, subprocess.TimeoutExpired) as error:
+        if isinstance(error, BrokenPipeError):
+            try:
+                sys.stdout.close()
+            except OSError:
+                pass
         print(f"Host error: {error}", file=sys.stderr)
         return 2
-    print(json.dumps(report, ensure_ascii=False, allow_nan=False))
     return 1 if report["status"] in {"Error", "Fail"} else 3 if report["status"] == "Unknown" else 0
 
 

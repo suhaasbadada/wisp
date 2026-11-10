@@ -1,5 +1,33 @@
 # Verification
 
+## Composed expectation gates
+
+Opt-in caller-owned end-to-end snapshots add strict preflight coverage/schema,
+exact completed-decision/output matching, preserved Error/Unknown and component
+not-evaluated outcomes, retained file hashes and bounded mismatch pointers.
+Focused tests cover matching recorded outcomes, the unchanged adverse shipping
+trace, a deliberately failing proposed requirement, no expectation rewriting,
+opaque numeric-vs-string mismatch, output differences, full-case coverage, malformed
+input before Wisp, exact UTF-8 caps, 32 cases, snapshot identity and CLI exits.
+Primary full pre-repair verification passed 149 Rust, 41 Node, 25 Python workflow,
+326 native/WASM and 36 Chromium checks, plus fmt, strict Clippy, npm ci, WASM,
+TypeScript and static build. Joffrey passed focused tests and found deep expected
+data and lone-surrogate strings could break evidence serialization after runtime
+calls. Primary added iterative 64-container/Unicode-scalar preflight on both input
+files, ASCII-safe report output (without inflating UTF-8 adapter args), guarded
+render/write, and real-CLI exact-depth/surrogate/ASCII-output regressions. Post-repair
+primary full verification passed 149 Rust, 41 Node, 27 Python workflow, 326 exact
+native/WASM and 36 Chromium checks, plus fmt, strict Clippy, TypeScript and static
+build. npm ci/WASM passed before the host-only repair; Rust sources are unchanged.
+This is primary repair verification, not a claimed independent re-review.
+Exact-head CI/publication remain separate gates; old Wisp sources/traces unchanged.
+
+PR #14 shipped at `fdcc0605144c32ec75c61ec495cac821d6de42c9`; PR Checks
+`42758661450`, merge Checks `42759315694`, Pages `42759315752` and deployment
+`7674034776` passed. Native release, numeric-error continuation, actual CI artifacts,
+published guide bytes and pricing cases in published WASM are
+[recorded on the PR](https://github.com/suhaasbadada/wisp/pull/14#issuecomment-6759686441).
+
 ## Composed order workflow
 
 The read-only reference host and three saved policies add 16 Python regression

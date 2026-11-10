@@ -1,0 +1,4 @@
+{"version":1,"orders":[
+  {"id":"member-ten","expect":{"status":"Accepted","stage":"shipping","decisions":{"eligibility":{"accepted":true,"packs":"2","reason":"reserved"},"pricing":{"accepted":true,"subtotal_cents":"1000","total_cents":"900","reason":"quoted"},"shipping":{"accepted":true,"fee_cents":"0","grand_total_cents":"900","reason":"local"}},"outputs":[{"policy":"eligibility","output":""},{"policy":"pricing","output":""},{"policy":"shipping","output":""}]}},
+  {"id":"member-eleven","expect":{"status":"Accepted","stage":"shipping","decisions":{"eligibility":{"accepted":true,"packs":"3","reason":"reserved"},"pricing":{"accepted":true,"subtotal_cents":"1100","total_cents":"990","reason":"quoted"},"shipping":{"accepted":true,"fee_cents":"0","grand_total_cents":"990","reason":"local"}},"outputs":[{"policy":"eligibility","output":""},{"policy":"pricing","output":""},{"policy":"shipping","output":""}]}}
+]}

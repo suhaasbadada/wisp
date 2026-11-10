@@ -1,5 +1,7 @@
 # Scope change log
 
+- 2026-11-09: ADR 0015 adds opt-in caller-owned composed expectations with complete case coverage, exact decision/output snapshots, root Error/Unknown preservation and immutable retained requirement/input hashes. A deliberately failing proposed requirement demonstrates blocking despite component Pass; it does not authorize or implement a shipping-rule change. Generic host JSON nesting/Unicode bounds prevent late evidence loss. No new core semantics, permission or automatic intent repair.
+
 - 2026-11-09: ADR 0014 exercises the shipped interfaces/projects/adapter in a read-only three-policy order host. Component gates and composed observations remain separate; Error/Unknown never become acceptance or fabricated unchanged data. Retains the observed discount/free-shipping cliff and both traces, with no automatic business-intent repair, checkout effects or new language/core permissions.
 
 - 2026-11-09: ADR 0013 adds checked, structured callable types and native project discovery without executing policies/cases. Applications enforce expected boundaries and match discovery/startup hashes before consuming decisions. No signature parsing in clients, new language syntax, export authorization, context-completeness or suite-approval claim; existing graph/context evidence remains unchanged.

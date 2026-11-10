@@ -3,9 +3,10 @@
 Shipped: policy-change workbench v1 (PR #10) and saved repository projects
 (PR #11), and native JSON-lines decision adapter/application host (PR #12), with
 release acceptance recorded on their PRs. Checked callable interfaces shipped via
-PR #13. Current increment: a composed three-policy reference application and
-before/after workflow observations, retaining an adverse discount/shipping effect;
-publication pending. No automatic approval or new core host permissions.
+PR #13; composed three-policy application/workflow observations shipped via PR #14,
+retaining the adverse discount/shipping effect. Current increment: caller-owned
+end-to-end expectation gates that can block unmet requirements despite component
+Pass; publication pending. No automatic approval or new core host permissions.
 Next exercise a recurring policy-maintenance/application workflow and address
 its demonstrated gaps, rather than treating a merged PR as the product's finish
 line. The repeated study established no Wisp advantage. See [Adapter](Adapter.md),
@@ -32,7 +33,8 @@ published acceptance is recorded in Testing.
 9. Policy-change workbench shipped via PR #10; repository manifests and CI evidence shipped via PR #11.
 10. Application integration: pinned native decision sessions shipped via PR #12 (ADR 0012).
 11. Checked interface discovery shipped via PR #13 (ADR 0013).
-12. Composed order workflow (ADR 0014), under verification/publication.
+12. Composed order workflow shipped via PR #14 (ADR 0014).
+13. Caller-owned composed expectation gates (ADR 0015), under verification/publication.
 
 Longer-term research: deeper property-specific context boundaries with explicit
 unknowns/omissions, and strong repository-scale comparisons with actual task

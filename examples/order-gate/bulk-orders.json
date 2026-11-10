@@ -1,0 +1,4 @@
+[
+  {"id":"member-ten","quantity":"10","unit_cents":"100","member":true,"pack_size":"5","expires_at":"101","available":"10","now":"100","zone":"local"},
+  {"id":"member-eleven","quantity":"11","unit_cents":"100","member":true,"pack_size":"5","expires_at":"101","available":"11","now":"100","zone":"local"}
+]

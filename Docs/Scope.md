@@ -5,7 +5,8 @@ typed cases, shared Rust before/after execution, candidate expectations and
 revision-linked evidence. Native review/verify and browser review shipped via
 PR #10; saved repository projects shipped via PR #11; native decision adapter
 shipped via PR #12; checked interface discovery shipped via PR #13. A composed
-order reference workflow (ADR 0014) is under verification/publication. No approval, automatic application,
+order reference workflow shipped via PR #14. Caller-owned composed gates
+(ADR 0015) are under verification/publication. No approval, automatic application,
 new language syntax or core host permissions. See [Workbench](Workbench.md),
 [Projects](Projects.md) and [Adapter](Adapter.md).
 
@@ -22,7 +23,7 @@ permission changes. See [Evaluation](Evaluation.md).
 
 Guarded edit v1 adds explicit single-body preparation from a checked baseline with source/body guards and preservation audit. Native hosts can write a new file; the browser offers explicit one-use Apply. No automatic execution, repair, solver, persistent IDs or intent proof. Invalid-baseline repair is deferred. Prior evidence remains historical. Context ledger and guarded edits are shipped.
 
-Status: first playable through checked interfaces shipped via PRs #1–#13. Release acceptance is recorded on each PR. Composed workflow publication is pending. Experimental; not production-ready. No license selected (owner decision pending).
+Status: first playable through composed application workflow shipped via PRs #1–#14. Release acceptance is recorded on each PR. Composed expectation gates are under publication. Experimental; not production-ready. No license selected (owner decision pending).
 
 Wisp is function-oriented and statically typed. The first slice is a real Rust lexer, parser, checker and bounded interpreter, shared by the native CLI and browser WebAssembly. Its first domain is agent-generated sandboxed CLI/data transformations, later maintained business logic.
 
