@@ -6,8 +6,8 @@ release acceptance recorded on their PRs. Checked callable interfaces shipped vi
 PR #13; composed three-policy application/workflow observations shipped via PR #14,
 retaining the adverse discount/shipping effect. Caller-owned end-to-end gates
 shipped via PR #15, blocking unmet requirements despite component Pass. Current
-increment: offline receipt replay and operator handoff. Observation receipts
-shipped via PR #19; capture via PR #18;
+increment: local MCP tools over the shared Rust core for direct agent integration.
+Offline replay/handoff shipped via PR #20; observation receipts via PR #19; capture via PR #18;
 CI triage via PR #17; Python client via
 PR #16. No automatic
 approval or new core host permissions.
@@ -43,7 +43,8 @@ published acceptance is recorded in Testing.
 15. Read-only repository workflow triage shipped via PR #17 (ADR 0017).
 16. Explicit-attempt GitHub capture shipped via PR #18 (ADR 0018).
 17. One-command workflow observation receipts shipped via PR #19 (ADR 0019).
-18. Offline receipt replay and operator handoff implemented (ADR 0020); see PR #20 for release acceptance.
+18. Offline receipt replay and operator handoff shipped via PR #20 (ADR 0020).
+19. Local MCP tools (ADR 0021), under verification/publication.
 
 Continue in tested increments focused on recurring agent/application workflows
 and demonstrated gaps. Benchmark concrete claims before promoting them; neither

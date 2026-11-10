@@ -69,6 +69,11 @@ transport. Rust owns semantics/checking/invocation; Python orchestrates data and
 provider facts. Keep native Error/Unknown and business Blocked/Pending/Unknown
 explicit. See [replay](Workflow-replay.md) for guards and conservative exits.
 
+An MCP-capable agent client can launch the [local MCP bridge](MCP.md) to discover
+and invoke six Wisp tools directly. Configure the trusted server/binary paths in
+that client; no global harness configuration is installed automatically. This
+adds a tested agent transport, not production authority or universal compatibility.
+
 Separately verify exact PR/head/checks/review; authorized merge; merged CI;
 actual deployment revision/status; actual artifacts; public content and
 representative behavior. Observed workflows are not those other gates. Preserve

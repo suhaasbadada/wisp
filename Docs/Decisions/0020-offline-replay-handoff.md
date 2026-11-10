@@ -1,7 +1,8 @@
 # ADR 0020: Offline receipt replay and operator handoff
 
-Status: implemented; full local checks and independent review passed. Consult
-PR #20 for exact-head CI and final release acceptance.
+Status: accepted; shipped via PR #20 at
+`5ee6f094d1610a665e728d88bb5b9ab84170bd6e`. Exact-head CI, actual artifact/native
+replay and published contract acceptance are recorded on that PR.
 
 Complete the bounded operator workflow by validating and replaying exact-input
 receipts without GitHub. Check hashes, envelope/fact/native consistency and current

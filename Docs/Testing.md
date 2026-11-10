@@ -1,5 +1,25 @@
 # Verification
 
+## Local MCP bridge (under publication)
+
+Primary full checks passed 139 Rust, 41 Node, 78 Python tests (including 11 new
+MCP/native tests), 326 native/WASM comparisons and 36 Chromium tests, plus
+fmt/Clippy/npm ci/WASM/TypeScript/build. Tests cover fixed schemas/routes,
+initialization/notifications/IDs, raw numeric i64 boundaries, native Error/Unknown/
+continuation, review/context separation, malformed frames/results, quotas/compiler
+drift, real EOF and SIGTERM reaping an in-flight owned native child.
+Official Python MCP SDK 2.3.0 interoperability passed initialize/list/six tools,
+exact i64 and Complete/Error/Unknown with no top-level execution. This optional
+smoke is separate from the standard-library CI tests, not universal client proof.
+Joffrey independently reviewed and found no substantive issues; 11 focused tests
+and diff checks passed. Exact-head CI/publication remain separate gates.
+
+PR #20 shipped at `5ee6f094d1610a665e728d88bb5b9ab84170bd6e`: latest-head
+Checks `42775773681`, merge Checks `42777387199`, Pages `42777386684` and
+deployment `7676429837` passed. Actual PR/merged receipts and replays, cross-platform
+native reproduction and public quickstart/replay contracts are
+[accepted](https://github.com/suhaasbadada/wisp/pull/20#issuecomment-6761975339).
+
 ## Offline replay and handoff
 
 Count correction: earlier summaries below/on prior PRs quoted 149 Rust tests.
