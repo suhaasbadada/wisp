@@ -221,3 +221,31 @@ Unsupported/duplicate/noncanonical JSON remains unchanged in the advanced editor
 these UI limits are not a judgment of semantic validity. Only the explicitly
 loaded bundled example is automatically formatted. Obsolete form callbacks cannot
 overwrite raw edits or a replaced workspace.
+
+### Read mismatches without inspecting JSON
+
+The decision table shows each submitted scenario's inputs, before/proposed typed
+results and outputs, owner-required result/output, and native expectation and
+comparison statuses. Empty output and escaped newlines remain explicit, so an
+output-only mismatch is visible. Required values come from native review evidence,
+not a guess based on observed behavior. Inputs are matched by native index and ID
+to the accepted submission snapshot; unmatched inputs display `unavailable` rather
+than being borrowed from live edited cases. Full native JSON and exports are
+unchanged.
+
+**All scenarios** shows the entire review. **Needs attention** shows a scenario
+when its candidate expectation is not Pass or either observation is not Complete.
+That includes baseline faults repaired by a passing candidate, native Error and
+Unknown; it is not a proof or an authorization judgment. The caption gives the
+displayed/total count and explicitly says when no scenarios need attention. The
+native whole-review summary remains visible. Filters only alter the view: no
+case execution, input mutation, status rewriting or expectation repair occurs.
+New reviews start with all scenarios visible; filtering historical results does
+not make them current or re-enable downloads.
+
+Native diagnostic code/kind/message, document ownership, JSON input path and
+owned source offsets appear above the full JSON. Paths are not interpreted as
+source spans; candidate causes retain their own document label. At most 20 root
+diagnostics are shown in this list, with an explicit truncation note; the complete
+JSON keeps all entries. Request/source/preflight rejection is not a passing case
+review, and imported history never populates the current decision table.

@@ -34,7 +34,10 @@ test('custom scalar forms preserve full i64 strings and owner requirements acros
   const report = JSON.parse(await page.locator('#review-json').textContent());
   expect(report.review.summary).toMatchObject({ total: 1, attempted_invocations: 2, expectation_pass: 1 });
   await card.getByLabel('Scenario ID', { exact: true }).click();
-  await card.getByLabel('Scenario ID', { exact: true }).press('End');
+  // This checks per-key editing/focus retention, not the platform End key.
+  // Establish and verify the intended append position explicitly.
+  await card.getByLabel('Scenario ID', { exact: true }).evaluate(input => input.setSelectionRange(input.value.length, input.value.length));
+  await expect.poll(() => card.getByLabel('Scenario ID', { exact: true }).evaluate(input => input.selectionStart)).toBe(5);
   await card.getByLabel('Scenario ID', { exact: true }).pressSequentially('-renamed');
   await expect(card.getByLabel('Scenario ID', { exact: true })).toBeFocused();
   expect((await data(page)).cases[0].id).toBe('owner-renamed');
