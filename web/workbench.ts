@@ -1,4 +1,5 @@
 import { reviewMarkup, setupReview } from './review';
+import { policyFilesMarkup, setupPolicyFiles } from './policy-files';
 import './workbench.css';
 import exampleSuite from '../examples/policies/cases.json?raw';
 
@@ -9,6 +10,7 @@ export function workbenchMarkup() {
     <p class="intro">Check reservation decisions before you ship a policy change.</p>
     <p>The sample fixes pack rounding and expired stock. Seven saved scenarios cover boundaries and rejection rules. Edit the candidate, compare decisions, then download your code and review. Nothing is uploaded or automatically saved.</p>
     <ol class="workbench-steps"><li>Edit the proposed policy</li><li>Review saved scenarios</li><li>Download code + evidence</li></ol>
+    ${policyFilesMarkup()}
     <section class="code-panel"><div class="panel-head"><h2>1. Proposed policy</h2><span>Wisp source · editable</span></div>
     <label class="sr-only" for="source">Proposed policy source</label><textarea id="source" spellcheck="false"></textarea></section>
     ${reviewMarkup()}
@@ -18,7 +20,8 @@ export function workbenchMarkup() {
 
 export function setupWorkbench() {
   const source = document.querySelector<HTMLTextAreaElement>('#source')!;
-  setupReview(source, () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
+  const workspace = setupReview(source, () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
+  setupPolicyFiles(workspace);
   document.getElementById('review-example')!.click();
   const suite = document.querySelector<HTMLTextAreaElement>('#review-suite')!;
   const editor = document.createElement('div'); editor.id = 'scenario-editor';
