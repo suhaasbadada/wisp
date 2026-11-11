@@ -1,4 +1,6 @@
 import type { ReviewReport } from './review';
+import { renderSourceChanges } from './source-changes';
+import reviewStyles from './review.css?inline';
 
 export interface ReadableReviewSnapshot {
   readonly baseline: string;
@@ -45,7 +47,7 @@ export function readableReview(snapshot: ReadableReviewSnapshot, document: Docum
   csp.content = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'";
   const viewport = element('meta'); viewport.name = 'viewport'; viewport.content = 'width=device-width, initial-scale=1';
   doc.head.prepend(charset, csp, viewport);
-  doc.head.append(element('style', stylesheet));
+  doc.head.append(element('style', stylesheet + reviewStyles));
   doc.documentElement.lang = 'en';
   const report = snapshot.report; const review = report.review;
   doc.body.append(element('h1', `Wisp policy review — native outcome: ${report.status}`));
@@ -65,6 +67,7 @@ export function readableReview(snapshot: ReadableReviewSnapshot, document: Docum
     doc.body.append(counters);
   } else doc.body.append(element('p', 'No native counters available.'));
 
+  doc.body.append(renderSourceChanges(doc, snapshot.baseline, snapshot.candidate));
   const cases = review?.cases ?? [];
   doc.body.append(element('h2', 'All saved scenarios'));
   if (!cases.length) doc.body.append(element('p', 'Preflight: no case observations or case invocations. See native diagnostics below.'));
