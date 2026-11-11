@@ -4,6 +4,10 @@
 .workbench-steps { display: flex; flex-wrap: wrap; gap: 32px; padding: 20px; color: var(--muted); }
 .product-workbench #source { width: 100%; min-height: 440px; padding: 20px; border: 0; background: transparent; color: inherit; font: 13px/1.7 monospace; resize: vertical; }
 .product-workbench .review-panel { margin-top: 28px; }
+.workbench-actions { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px; margin-block: 18px; background: #f5f2e9; border: 1px solid var(--line); border-radius: 4px; }
+#workbench-review-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.workbench-actions a { padding: 10px 2px; font-size: 13px; }
+.product-workbench :is(#source, #scenario-editor, #review-status) { scroll-margin-top: 150px; }
 .decision-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
 .decision-table th, .decision-table td { text-align: left; padding: 12px; border-bottom: 1px solid #363638; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere; }
 .decision-scroll { overflow-x: auto; }
