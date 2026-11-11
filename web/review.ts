@@ -1,4 +1,5 @@
 import './review.css';
+import { setupWorkspace, workspaceMarkup } from './workspace';
 import beforeExample from '../examples/policies/reservations-before.wisp?raw';
 import afterExample from '../examples/policies/reservations-after.wisp?raw';
 import casesExample from '../examples/policies/cases.json?raw';
@@ -9,6 +10,7 @@ export function reviewMarkup() {
   <div class="review-controls"><button id="review-capture">Capture editor as baseline</button><button id="review-example">Load reservation walkthrough (replaces editor)</button><button id="review-run" disabled>Review cases</button><button id="review-stop" disabled>Stop review</button></div>
    <div class="review-controls"><button id="review-download-source" disabled>Download reviewed candidate</button><button id="review-download-evidence" disabled>Download review + both sources</button></div>
    <p>Downloads include policy data; the review bundle contains both complete sources and all cases. Nothing is uploaded. A failed review can be downloaded too—export is not acceptance or Apply.</p>
+   ${workspaceMarkup()}
    <details><summary>Captured baseline — unchanged until explicit recapture</summary><label class="sr-only" for="review-baseline">Captured review baseline</label><textarea id="review-baseline" readonly spellcheck="false" placeholder="Capture the editor or load the walkthrough first."></textarea></details>
   <label for="review-suite">Case suite JSON <span>1–16 named cases · 64 KiB · canonical Int strings · exact expected output</span></label><textarea id="review-suite" spellcheck="false"></textarea>
    <p id="review-status" role="status" aria-live="polite">No review. Capture a baseline or load the walkthrough. Nothing is applied or approved.</p><p id="review-identity" class="mono"></p><p id="review-summary" class="mono"></p><div id="review-decisions" class="decision-scroll"></div><div id="review-cases"></div>
@@ -30,11 +32,20 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   let accepted: { report: ReviewReport; historical: boolean; baseline: string; candidate: string; suite: string } | undefined;
   const downloadSource = get<HTMLButtonElement>('review-download-source');
   const downloadEvidence = get<HTMLButtonElement>('review-download-evidence');
+  const workspace = setupWorkspace(() => baseline === undefined ? undefined : { baseline, candidate: source.value, suite_json: suite.value }, value => {
+    invalidate('Workspace replaced'); accepted = undefined;
+    baseline = value.baseline; baselineView.value = baseline; source.value = value.candidate; suite.value = value.suite_json;
+    for (const id of ['review-json', 'review-identity', 'review-summary']) put(id, '');
+    get('review-cases').replaceChildren(); get('review-decisions').replaceChildren();
+    source.dispatchEvent(new Event('input')); suite.dispatchEvent(new Event('change'));
+    put('review-status', 'Workspace opened — no current review. Select Review cases; nothing applied or approved.'); controls();
+  });
   suite.value = JSON.stringify({ version: 1, target: 'bill', cases: [
     { id: 'nine', args: ['9'], expect: { result: { type: 'Int', value: '900' }, output: '' } },
     { id: 'ten', args: ['10'], expect: { result: { type: 'Int', value: '980' }, output: '' } }
   ] }, null, 2);
   function controls() {
+    workspace.refresh();
     run.disabled = baseline === undefined || Boolean(worker); stop.disabled = !worker;
     downloadSource.disabled = downloadEvidence.disabled = !accepted || accepted.historical || Boolean(worker);
   }
