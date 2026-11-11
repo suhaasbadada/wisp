@@ -4,6 +4,7 @@ import './invocation.css';
 import './context.css';
 import './editing.css';
 import { reviewMarkup, setupReview } from './review';
+import { workbenchMarkup, setupWorkbench } from './workbench';
 import snacks from '../examples/snacks.wisp?raw';
 import repaired from '../examples/snacks-repaired.wisp?raw';
 import inventory from '../examples/inventory.wisp?raw';
@@ -16,6 +17,7 @@ import errors from '../Docs/Errors.md?raw';
 const base = import.meta.env.BASE_URL;
 const repo = 'https://github.com/suhaasbadada/wisp';
 const isDocs = /\/documentation\/?(?:index\.html)?$/.test(location.pathname);
+const isWorkbench = !isDocs && new URLSearchParams(location.search).has('workbench');
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
   <a class="skip" href="#main">Skip to content</a>
@@ -23,14 +25,14 @@ app.innerHTML = `
     <nav aria-label="Main"><a href="${base}#playground">Playground</a><a href="${base}documentation/" ${isDocs ? 'aria-current="page"' : ''}>Documentation</a><a href="${repo}">GitHub <span aria-hidden="true">↗</span></a></nav>
     <span class="experimental"><span aria-hidden="true">●</span> Experimental / v0.1</span>
   </header>
-  <main id="main">${isDocs ? docsMarkup() : homeMarkup()}</main>
+  <main id="main">${isDocs ? docsMarkup() : isWorkbench ? workbenchMarkup() : homeMarkup()}</main>
   <footer><a class="brand" href="${base}">wisp<span class="orange">.</span></a><span>A small language. A visible trail of evidence.</span><a href="${repo}/tree/main/Docs">Engineering notes ↗</a><span>Experimental · License pending</span></footer>`;
 
 function homeMarkup() {
-  return `<section class="hero wrap"><div class="eyebrow"><span class="dash"></span> AN EXPERIMENT IN AGENT-FIRST PROGRAMMING</div>
-    <div class="hero-grid"><div><h1>Built for agents.<br><span>By agents.</span></h1><p class="intro">Small functions. Concrete counterexamples.<br>Context you can inspect—not just trust.</p>
-      <p class="subintro">Wisp pairs a statically typed language with finite probes and revision-aware evidence. Find a ghost, try a repair, or review a policy change against explicit structured cases.</p>
-      <div class="hero-actions"><a class="button primary" href="#playground">Try the playground <span aria-hidden="true">↘</span></a><a class="text-link" href="#policy-review">Review a policy change ↘</a><a class="text-link" href="${base}documentation/">Read the agent protocol ↗</a></div></div>
+  return `<section class="hero wrap"><div class="eyebrow"><span class="dash"></span> A LOCAL POLICY CHANGE WORKBENCH</div>
+    <div class="hero-grid"><div><h1>Change a policy.<br><span>See what changes.</span></h1><p class="intro">Review decisions, not just diffs.<br>Run locally in your browser.</p>
+      <p class="subintro">Edit a reservation policy, check saved scenarios and compare before/after decisions. Download your candidate and its review. No account, API key or installation.</p>
+      <div class="hero-actions"><a class="button primary" href="?workbench">Open policy workbench <span aria-hidden="true">↗</span></a><a class="text-link" href="#playground">Explore the language ↘</a><a class="text-link" href="${base}documentation/">Read the agent protocol ↗</a></div></div>
       <aside class="specimen" aria-label="Example counterexample"><div class="specimen-head"><span>01 / GOBLIN SNACK BUREAU</span><span class="dot"></span></div><pre><span class="muted">// More snacks. A smaller bill?</span>
 <span class="code-accent">probe</span> n in 1..=11 {
   bill(n + 1) &gt;= bill(n)
@@ -131,6 +133,8 @@ cargo run -- archive examples/snacks.wisp --out snacks.wisp-ghost.json</pre><p><
   setMode(choice);
   el('agent-mode').onclick = () => setMode('agent', true);
   el('human-mode').onclick = () => setMode('human', true);
+} else if (isWorkbench) {
+  setupWorkbench();
 } else {
   setupPlayground();
 }

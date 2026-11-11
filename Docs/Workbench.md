@@ -107,3 +107,30 @@ readiness, superiority or intent correctness. Modules, collections, richer types
 and host adapters may still be needed by broader policy workflows. See
 [ADR 0010](Decisions/0010-policy-change-workbench.md) and the exact
 [protocol](Protocol.md#policy-review-contract-v1).
+## Focused browser product
+
+Open [`?workbench`](https://suhaasbadada.github.io/wisp/?workbench) for the focused
+policy workflow: a preloaded reservation candidate, seven editable scenario forms,
+before/proposed decision table, and explicit downloads. No installation or account
+is required. The primary homepage action opens this workbench; the full language
+playground remains available separately.
+
+Select **Review cases** to execute both revisions through the existing Rust/WASM
+worker. Expand a scenario to edit its inputs or required accepted/packs/reason
+values without writing JSON. Integers remain strings, including full i64 values.
+Changing requirements is an explicit user action, never automatic repair. Custom
+suites use the advanced raw JSON editor and the same Rust validation. Forms are
+only exposed for the bundled example or losslessly round-trippable formatted
+JSON; duplicate-member or differently formatted suites remain raw, never normalized
+by form edits. The browser does not implement policy evaluation or claim to
+explain human intent.
+
+After a received valid review, download the exact reviewed candidate or a JSON
+bundle containing both full sources, raw suite text and native report. Downloads
+are available for failures too: downloading is not acceptance or Apply. Any source,
+suite or baseline change disables both downloads until another review, even on
+edit-and-revert. Nothing is uploaded or saved automatically. Download bundles may
+contain sensitive source/case data and are not Python proposal/replay records.
+Closing the tab discards unsaved edits. Review remains finite evidence, not proof
+or authorization. Existing worker cancellation, limits and stale-response handling
+apply unchanged.
