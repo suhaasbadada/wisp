@@ -55,10 +55,17 @@ test('source and suite edit-and-revert never revive accepted review', async ({ p
 });
 
 test('preflight failure keeps zero observations and document-owned diagnostics', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.reviewClicks = 0;
+    document.addEventListener('click', event => { if (event.target instanceof Element && event.target.closest('#review-run')) window.reviewClicks++; }, true);
+  });
   await walkthrough(page);
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe('auto');
+  expect(await page.evaluate(() => window.reviewClicks)).toBe(1);
   const suite = JSON.parse(await page.locator('#review-suite').inputValue());
   suite.cases.at(-1).expect.result.value.packs = 0;
   await page.locator('#review-suite').fill(JSON.stringify(suite)); await page.locator('#review-run').click();
+  expect(await page.evaluate(() => window.reviewClicks)).toBe(2);
   await expect(page.locator('#review-status')).toContainText('Submitted inputs · Error');
   let r = JSON.parse(await page.locator('#review-json').textContent());
   expect(r.review.phase).toBe('preflight'); expect(r.review.new_execution).toBe(false); expect(r.review.cases).toEqual([]);

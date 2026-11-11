@@ -528,3 +528,36 @@ restore clears them, and retained old callbacks recheck freshness. Filtering a
 historical result does not revive navigation. Imported history cannot enable it.
 Selecting a range changes neither policy nor suite, executes no code, performs no
 automatic repair and does not alter native evidence or download permissions.
+
+### Try an expense-policy change
+
+The workbench still opens the reservation walkthrough. **Load expense walkthrough
+(replaces all three inputs)** explicitly replaces baseline, candidate and scenarios
+with a smaller, illustrative reimbursement example. It uses the existing complete
+workspace replacement path: old inputs remain in this tab for **Restore previous
+inputs**, current evidence is cleared, and no review is requested. Repeating the
+load while all three inputs already match is a no-op, retaining both previous
+inputs and any current evidence. This does not assert that earlier review attempts
+did not execute. Neither loading nor a passing review applies or approves a policy.
+
+The example's declared requirements use whole cents: reject negative amounts,
+allow nonnegative amounts up to 10000 inclusive, and require a receipt only above
+2500. Its baseline mistakenly rejects 10000 and requires a receipt at exactly
+2500; its candidate corrects those boundaries. Seven manually specified cases
+cover -1, 0, 2499, 2500, 2501, 10000 and 10001, with explicit receipt choices and
+required Decision records. A fresh native review completes 14 before/after
+invocations: seven candidate expectations Pass, two decisions Changed and five
+Unchanged. These finite cases are not exhaustive proof, a real company policy or
+finance/tax advice. Amounts are exact Int strings, not floating-point currency.
+
+The existing nested-record forms edit its values and requirements without raw
+JSON. An intentionally wrong requirement stays Fail; it is never repaired from an
+observation. Workspace/source/evidence downloads and reopen use the same generic
+formats as custom policies; reopening still requires fresh execution for current
+results. Fixtures are `examples/policies/expenses-before.wisp`,
+`expenses-after.wisp` and `expenses-cases.json`.
+
+Both the focused workbench and full playground use immediate page scrolling.
+Controls must not continue moving across click coordinates after an editor gains
+focus or a navigation action scrolls the page. Color transitions remain optional
+under the existing reduced-motion preference; page scrolling is not animated.
