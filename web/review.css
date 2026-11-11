@@ -22,3 +22,15 @@
 .review-panel pre { max-height: 350px; overflow: auto; padding: 12px; background: #f9faf5; border: 1px solid var(--line); }
 .review-observations h4 { font-size: 11px; margin: 8px 0; }
 @media(max-width: 700px) { .review-observations { grid-template-columns: 1fr; } .review-controls button { max-width: 100%; } }
+#review-source-host { margin: 14px 18px; min-width: 0; }
+.source-changes { font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
+.source-changes > p { line-height: 1.7; }
+.source-change-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.source-change-side { min-width: 0; overflow: auto; }
+.source-line { display: grid; grid-template-columns: 4rem minmax(0, 1fr) auto; align-items: start; gap: 6px; border-bottom: 1px solid #d4dacf; }
+.source-line-number, .source-line-ending { font: 11px/1.6 monospace; padding: 4px 0; white-space: nowrap; }
+.source-line-ending { color: #4a5547; }
+.source-changes .source-line pre { margin: 0; padding: 4px; border: 0; max-height: none; overflow: auto; white-space: pre; font: 12px/1.5 monospace; }
+.source-before { background: #fcebea; } .source-after { background: #e5f2e4; }
+.source-omission { font-weight: bold; border: 1px dashed #6f7969; padding: 6px; }
+@media(max-width: 700px) { .source-change-grid { grid-template-columns: minmax(0, 1fr); } }

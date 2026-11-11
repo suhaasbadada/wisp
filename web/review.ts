@@ -1,5 +1,6 @@
 import './review.css';
 import { readableReview } from './readable-review';
+import { renderSourceChanges } from './source-changes';
 import { setupWorkspace, workspaceMarkup } from './workspace';
 import type { Workspace } from './workspace';
 import beforeExample from '../examples/policies/reservations-before.wisp?raw';
@@ -18,7 +19,7 @@ export function reviewMarkup() {
   <button id="review-format-suite" disabled>Format validated case JSON for editing</button><p>For compact or differently formatted files: review first, then explicitly format. Rust must accept suite preflight; this never repairs invalid or duplicate fields. Formatting changes suite bytes, makes the review historical and requires another review for current downloads. Supported shapes then open as forms.</p>
     <p id="review-status" role="status" aria-live="polite">No review. Capture a baseline or load the walkthrough. Nothing is applied or approved.</p><p id="review-identity" class="mono"></p><p id="review-summary" class="mono"></p>
    <div id="review-filters" class="review-controls" hidden><button id="review-filter-all" aria-pressed="true">All scenarios</button><button id="review-filter-attention" aria-pressed="false">Needs attention</button></div>
-   <div id="review-decisions" class="decision-scroll"></div><div id="review-cases"></div>
+    <div id="review-source-host"></div><div id="review-decisions" class="decision-scroll"></div><div id="review-cases"></div>
    <div id="review-diagnostics"></div><details><summary>Inspect review JSON and document-owned diagnostics</summary><pre id="review-json"></pre></details>
   <p>Pass means only these candidate examples matched under their limits. Changed is not approved intent; Unknown is incomplete. Baseline/candidate faults remain visible. Every edit, recapture or case change—including edit-and-revert—makes prior results historical. Stop discards the worker; it does not guess how many cases executed. Existing Run output and ghosts stay separate.</p></section>`;
 }
@@ -45,7 +46,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   function clearResults() {
     accepted = undefined; attentionOnly = false;
     for (const id of ['review-json', 'review-identity', 'review-summary']) put(id, '');
-    for (const id of ['review-cases', 'review-decisions', 'review-diagnostics']) get(id).replaceChildren();
+    for (const id of ['review-cases', 'review-decisions', 'review-diagnostics', 'review-source-host']) get(id).replaceChildren();
     get('review-filters').hidden = true;
     get('review-filter-all').setAttribute('aria-pressed', 'true');
     get('review-filter-attention').setAttribute('aria-pressed', 'false');
@@ -104,6 +105,8 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     if (!accepted) return;
     const r = accepted.report;
     put('review-status', `${accepted.historical ? 'Historical review — inputs changed' : 'Submitted inputs'} · ${r.status}. Finite cases only; approval not granted.`);
+    const title = get('review-source-host').querySelector('summary');
+    if (title) title.textContent = `Source changes — ${accepted.historical ? 'Historical review; saved inputs, not live editor' : 'saved submitted inputs'}`;
   }
   function cancel(reason: string) {
     if (!worker) return;
@@ -161,7 +164,9 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     if (review.contract_version !== 1 || review.approval !== 'not_granted' || !hash(review.baseline_revision) || !Array.isArray(review.cases) || !['Pass', 'Fail', 'Unknown', 'Error'].includes(report.status) || !(executedShape || preflightShape)) {
       put('review-status', 'Error — unexpected review response. No review accepted.'); return;
     }
-    accepted = { report, historical: false, baseline: snapshot.baseline, candidate: snapshot.candidate, suite: snapshot.suite }; attentionOnly = false; renderStatus(); controls();
+    accepted = { report, historical: false, baseline: snapshot.baseline, candidate: snapshot.candidate, suite: snapshot.suite }; attentionOnly = false;
+    get('review-source-host').replaceChildren(renderSourceChanges(document, accepted.baseline, accepted.candidate));
+    renderStatus(); controls();
     put('review-identity', `baseline ${review.baseline_revision.slice(0, 12)} → candidate ${review.candidate_revision?.slice(0, 12) ?? 'unavailable'} · suite ${review.suite_hash?.slice(0, 12) ?? 'unavailable'} · query ${review.query_key?.slice(0, 12) ?? 'unavailable'}`);
     put('review-summary', count ? `${count.total} cases · ${count.changed} Changed · ${count.unchanged} Unchanged · ${count.faulted} Faulted · ${count.unknown} Unknown · candidate expectations ${count.expectation_pass} Pass / ${count.expectation_fail} Fail / ${count.expectation_error} Error / ${count.expectation_unknown} Unknown · ${count.attempted_invocations} fresh invocations` : 'Preflight rejected — no case invocations executed. Diagnostics retain their document/data-path ownership.');
     renderCases();

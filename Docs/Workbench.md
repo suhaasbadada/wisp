@@ -346,3 +346,32 @@ while inspecting decisions or editing. Navigation alone neither executes cases
 nor changes inputs, and sticky Stop retains cancellation/late-response rejection.
 The full language playground keeps its original layout. Source/scenario/result
 anchor offsets leave room for the sticky bar on phone-sized screens.
+
+### Inspect the submitted source changes
+
+After a received native review, expand **Source changes — saved submitted inputs**
+to compare the accepted baseline/candidate text alongside the decision evidence.
+This is a textual comparison, not semantic diff, preservation proof or approval.
+It finds common exact line-token prefixes/suffixes and displays one conservative
+middle region with up to three context lines at either edge. Unchanged interior
+lines can therefore appear in the middle; this is not a minimal edit script.
+
+Both sides show original line numbers, UTF-8 byte/token counts, final-LF state,
+`−`/`+` changed-region labels and `=` context labels. A terminal LF belongs to its
+line token; no extra synthetic line is added. Blank lines, no-LF endings and empty
+sources are explicit. Controls, NUL and bidirectional formatting characters are
+visibly escaped, while literal backslashes remain literal: this display is not a
+lossless encoding. Full sources and the exact escaped input JSON remain available
+in downloads.
+
+Presentation is capped at 200 lines per side (400 combined); omitted counts,
+original line ranges and the display-cap/context reason are explicit. No hidden
+trimming, whitespace repair or source rewriting occurs. The line scan is bounded
+by the existing 64 KiB source input limit, without an LCS/diff dependency; this is
+not a performance comparison with other tools.
+
+Edits/reverts keep the old comparison as clearly labelled historical saved inputs,
+never substituting current editor text. Restart, import and restore clear the old
+view; filters do not change its snapshot or execute code. Readable offline HTML
+includes the same bounded comparison and retains full source/exact JSON sections.
+Phone layout stacks the two sides; long lines scroll within the source view.
