@@ -8,6 +8,8 @@ export function workspaceMarkup() {
     <button id="workspace-save" disabled>Download workspace draft</button>
     <label>Open downloaded workspace or review <input id="workspace-file" type="file" accept=".json,application/json"></label>
     <button id="workspace-replace" disabled>Replace current workspace with opened file</button>
+    <button id="workspace-restore-previous" disabled>Restore previous inputs (replaces current)</button>
+    <p>Opening files, a workspace or browser recovery keeps one previous complete set of inputs in this tab only, including its captured baseline. Restore replaces all current inputs, clears review results and keeps the replaced inputs so you can switch back, including edits since opening. This is not edit undo; without a captured baseline there is no complete workspace to keep. The previous-input buffer is not exported or browser-saved and is lost on reload or close. Download the workspace you want to keep. If browser saving is enabled, it saves the current restored inputs, not the previous buffer.</p>
     <p id="workspace-status" role="status" aria-live="polite">No file opened. Import is limited to 8 MiB; each source and suite is limited to 64 KiB.</p>
     <details id="workspace-history" hidden><summary>Imported review — historical, unverified, not current acceptance</summary><pre id="workspace-recorded"></pre></details>
     ${draftRecoveryMarkup()}
