@@ -38,6 +38,9 @@ test('native candidate cause selects exact UTF-16 substring after Unicode, retai
   expect(report.diagnostics[0].path).toBe('/candidate');
   expect(span.start).toBe(Buffer.byteLength(bad.slice(0, bad.indexOf('missing'))));
   await expect(buttons(page)).toHaveText(`Select candidate error (line 2, bytes ${span.start}–${span.end})`);
+  // The full playground independently debounces source analysis by 250 ms.
+  // Settle that already-requested work before comparing all worker counts.
+  await expect(page.locator('#diagnostics')).toContainText('unknown variable missing');
   const counters = await page.evaluate(() => [window.workers, window.inputEvents]);
   await buttons(page).click();
   expect(await selection(page)).toEqual({ start: bad.indexOf('missing'), end: bad.indexOf('missing') + 7, text: 'missing', focused: true });
@@ -47,6 +50,32 @@ test('native candidate cause selects exact UTF-16 substring after Unicode, retai
   await expect(page.locator('#review-download-evidence')).toBeEnabled();
   expect(await page.evaluate(() => [window.workers, window.inputEvents])).toEqual(counters);
   await expect(page.locator('#review-diagnostics svg')).toHaveCount(0);
+});
+
+test('selection does not execute while independently scheduled playground analysis is pending', async ({ page }) => {
+  await page.addInitScript(() => {
+    const Native = window.Worker; window.requests = []; window.inputEvents = 0;
+    window.Worker = class extends Native {
+      postMessage(message, ...rest) {
+        window.requests.push(message.requestJson ? JSON.parse(message.requestJson) : message.request);
+        super.postMessage(message, ...rest);
+      }
+    };
+    document.addEventListener('input', () => window.inputEvents++);
+  });
+  await page.clock.install(); await page.clock.pauseAt(new Date());
+  await setup(page);
+  await expect(page.locator('#diagnostics')).toHaveText('Checking current source…');
+  const before = await page.evaluate(() => ({ operations: window.requests.map(r => r.op), inputs: window.inputEvents }));
+  const evidence = await page.locator('#review-json').textContent();
+  await buttons(page).click(); expect((await selection(page)).text).toBe('missing');
+  expect(await page.evaluate(() => ({ operations: window.requests.map(r => r.op), inputs: window.inputEvents }))).toEqual(before);
+  await page.clock.fastForward(251);
+  await expect(page.locator('#diagnostics')).toContainText('unknown variable missing');
+  expect(await page.evaluate(start => window.requests.slice(start), before.operations.length)).toMatchObject([{ op: 'analyze', source: bad }]);
+  expect(await page.evaluate(() => window.inputEvents)).toBe(before.inputs);
+  await expect(page.locator('#review-json')).toHaveText(evidence);
+  await expect(page.locator('#review-download-evidence')).toBeEnabled();
 });
 
 test('baseline native source error opens readonly baseline and never selects or changes candidate', async ({ page }) => {
