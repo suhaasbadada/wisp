@@ -418,3 +418,21 @@ The final tar is capped at 16 MiB before aggregate Blob allocation. Generating
 HTML and encoding entries still allocate; this is not an absolute memory bound.
 Failure reports a generic package error and downloads no archive. Web packaging
 does not add a language implementation or change native evaluation.
+
+### Leaving with changed inputs
+
+The focused workbench requests the browser's native leave-page warning when the
+current baseline, candidate or raw suite differs from the initially loaded
+example. It attaches the handler only while inputs differ; unchanged examples,
+review execution and navigation within the page do not trigger it. Reverting all
+three strings exactly removes the input warning but does not revive historical
+review/download eligibility.
+
+Cancel keeps the current page; confirming Leave permits navigation without
+implicitly saving, downloading or approving anything. The prompt also applies
+after a download request or opt-in browser recovery: neither proves a durable
+copy was retained. It is an input-change warning, not a lost-results detector or
+a saved/unsaved certification. Browser-controlled wording, user-activation rules
+and platform limitations apply; app termination/mobile closure may not prompt at
+all. Keep deliberate file copies and use recovery only with its stated limits.
+The full language playground retains its existing behavior.

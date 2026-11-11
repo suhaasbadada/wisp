@@ -1,6 +1,7 @@
 import { reviewMarkup, setupReview } from './review';
 import { policyFilesMarkup, setupPolicyFiles } from './policy-files';
 import { setupScenarioEditor } from './scenarios';
+import { setupLeaveWarning } from './leave-warning';
 import './workbench.css';
 import exampleSuite from '../examples/policies/cases.json?raw';
 
@@ -10,7 +11,7 @@ export function workbenchMarkup() {
     <h1>Change a rule.<br>See the consequences.</h1>
     <p class="intro">Check reservation decisions before you ship a policy change.</p>
     <nav class="workbench-actions" aria-label="Policy workbench actions"><div id="workbench-review-actions"></div><a href="#source">Policy</a><a href="#scenario-editor">Scenarios</a><a href="#review-status">Results</a></nav>
-    <p>The sample fixes pack rounding and expired stock. Seven saved scenarios cover boundaries and rejection rules. Edit the candidate, compare decisions, then download your code and review. Nothing is uploaded. Browser draft saving is off unless you opt in under Save or reopen your workspace.</p>
+    <p>The sample fixes pack rounding and expired stock. Seven saved scenarios cover boundaries and rejection rules. Edit the candidate, compare decisions, then download your code and review. Nothing is uploaded. Browser draft saving is off unless you opt in under Save or reopen your workspace. Browsers may warn before leaving with changed inputs; this does not save them.</p>
     <ol class="workbench-steps"><li>Edit the proposed policy</li><li>Review saved scenarios</li><li>Download code + evidence</li></ol>
     ${policyFilesMarkup()}
     <section class="code-panel"><div class="panel-head"><h2>1. Proposed policy</h2><span>Wisp source · editable</span></div>
@@ -39,4 +40,5 @@ export function setupWorkbench() {
   }
   loadedExample(); suite.addEventListener('change', scenarios);
   document.getElementById('review-example')!.addEventListener('click', loadedExample);
+  setupLeaveWarning(workspace);
 }
