@@ -1,0 +1,9 @@
+{"version":1,"target":"decide","cases":[
+  {"id":"negative-amount","args":[{"amount_cents":"-1","receipt":false}],"expect":{"result":{"type":"Decision","value":{"reimbursable":false,"reason":"negative amount"}},"output":""}},
+  {"id":"zero-no-receipt","args":[{"amount_cents":"0","receipt":false}],"expect":{"result":{"type":"Decision","value":{"reimbursable":true,"reason":"allowed"}},"output":""}},
+  {"id":"below-receipt-boundary","args":[{"amount_cents":"2499","receipt":false}],"expect":{"result":{"type":"Decision","value":{"reimbursable":true,"reason":"allowed"}},"output":""}},
+  {"id":"receipt-boundary","args":[{"amount_cents":"2500","receipt":false}],"expect":{"result":{"type":"Decision","value":{"reimbursable":true,"reason":"allowed"}},"output":""}},
+  {"id":"above-receipt-boundary","args":[{"amount_cents":"2501","receipt":false}],"expect":{"result":{"type":"Decision","value":{"reimbursable":false,"reason":"receipt required"}},"output":""}},
+  {"id":"cap-boundary","args":[{"amount_cents":"10000","receipt":true}],"expect":{"result":{"type":"Decision","value":{"reimbursable":true,"reason":"allowed"}},"output":""}},
+  {"id":"over-cap","args":[{"amount_cents":"10001","receipt":true}],"expect":{"result":{"type":"Decision","value":{"reimbursable":false,"reason":"over cap"}},"output":""}}
+]}
