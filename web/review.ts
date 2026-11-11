@@ -14,6 +14,7 @@ export function reviewMarkup() {
    ${workspaceMarkup()}
    <details><summary>Captured baseline — unchanged until explicit recapture</summary><label class="sr-only" for="review-baseline">Captured review baseline</label><textarea id="review-baseline" readonly spellcheck="false" placeholder="Capture the editor or load the walkthrough first."></textarea></details>
   <label for="review-suite">Case suite JSON <span>1–16 named cases · 64 KiB · canonical Int strings · exact expected output</span></label><textarea id="review-suite" spellcheck="false"></textarea>
+  <button id="review-format-suite" disabled>Format validated case JSON for editing</button><p>For compact or differently formatted files: review first, then explicitly format. Rust must accept suite preflight; this never repairs invalid or duplicate fields. Formatting changes suite bytes, makes the review historical and requires another review for current downloads. Supported shapes then open as forms.</p>
     <p id="review-status" role="status" aria-live="polite">No review. Capture a baseline or load the walkthrough. Nothing is applied or approved.</p><p id="review-identity" class="mono"></p><p id="review-summary" class="mono"></p>
    <div id="review-filters" class="review-controls" hidden><button id="review-filter-all" aria-pressed="true">All scenarios</button><button id="review-filter-attention" aria-pressed="false">Needs attention</button></div>
    <div id="review-decisions" class="decision-scroll"></div><div id="review-cases"></div>
@@ -50,6 +51,20 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   }
   const downloadSource = get<HTMLButtonElement>('review-download-source');
   const downloadEvidence = get<HTMLButtonElement>('review-download-evidence');
+  const formatSuite = get<HTMLButtonElement>('review-format-suite');
+  function formattedSuite() {
+    if (!accepted || accepted.historical || worker || accepted.report.review?.phase !== 'executed' ||
+        accepted.suite !== suite.value || accepted.candidate !== source.value || accepted.baseline !== baseline) return;
+    // Native executed-phase evidence means all suite/typed inputs passed Rust
+    // preflight, including duplicate-member checks. Never format rejected input.
+    const formatted = JSON.stringify(JSON.parse(accepted.suite), null, 2);
+    if (formatted !== accepted.suite && new TextEncoder().encode(formatted).length <= 65536) return formatted;
+  }
+  formatSuite.onclick = () => {
+    const formatted = formattedSuite();
+    if (formatted === undefined) return;
+    suite.value = formatted; suite.dispatchEvent(new Event('input')); suite.dispatchEvent(new Event('change'));
+  };
   const readWorkspace = () => baseline === undefined ? undefined : Object.freeze({ baseline, candidate: source.value, suite_json: suite.value });
   const replaceWorkspace = (value: Readonly<Workspace>) => {
     invalidate('Workspace replaced'); clearResults();
@@ -66,6 +81,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     workspace.refresh();
     run.disabled = baseline === undefined || Boolean(worker); stop.disabled = !worker;
     downloadSource.disabled = downloadEvidence.disabled = !accepted || accepted.historical || Boolean(worker);
+    formatSuite.disabled = formattedSuite() === undefined;
   }
   function download(value: string, name: string, type: string) {
     const url = URL.createObjectURL(new Blob([value], { type }));

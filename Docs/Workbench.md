@@ -249,3 +249,22 @@ source spans; candidate causes retain their own document label. At most 20 root
 diagnostics are shown in this list, with an explicit truncation note; the complete
 JSON keeps all entries. Request/source/preflight rejection is not a passing case
 review, and imported history never populates the current decision table.
+
+### Enable forms for compact or differently formatted suites
+
+Imported case files are never silently reformatted. For a supported compact
+suite, first select **Review cases**, then **Format validated case JSON for
+editing**. Formatting is enabled only by a current received native review in
+`executed` phase: every suite/typed input passed Rust preflight, including
+duplicate-member checks. Runtime Fail/Error/Unknown does not imply a malformed
+suite, so formatting can still be available for those outcomes. Rejected,
+duplicate, typed-invalid, historical and imported-only reports cannot enable it.
+
+The explicit action pretty-prints the accepted raw suite without changing its
+JSON values; requirements are not inferred from observations or repaired. The
+new text must still fit 64 KiB. Supported form shapes become editable; other UI
+limits still apply. Because formatting changes suite bytes and its hash, the
+old review becomes historical and downloads stay disabled until another review.
+Formatting itself never executes cases. Source/suite/baseline edits, replacement,
+or edit-and-revert revoke permission; the action is disabled if text is already
+in the required format. Full native review evidence remains unchanged history.
