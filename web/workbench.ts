@@ -2,6 +2,7 @@ import { reviewMarkup, setupReview } from './review';
 import { policyFilesMarkup, setupPolicyFiles } from './policy-files';
 import { setupScenarioEditor } from './scenarios';
 import { setupLeaveWarning } from './leave-warning';
+import { newScenarioMarkup, setupNewScenario } from './new-scenario';
 import './workbench.css';
 import exampleSuite from '../examples/policies/cases.json?raw';
 
@@ -17,14 +18,16 @@ export function workbenchMarkup() {
     <section class="code-panel"><div class="panel-head"><h2>1. Proposed policy</h2><span>Wisp source · editable</span></div>
     <label class="sr-only" for="source">Proposed policy source</label><textarea id="source" spellcheck="false"></textarea></section>
     ${reviewMarkup()}
-    <p>New to the example? Expand a case to compare the old decision, proposed decision and required result. To use your own policy, paste its source, capture it as the baseline, then edit the candidate and supply its case suite. <a href="?playground#playground">Open the full language playground</a>.</p>
+    ${newScenarioMarkup()}
+    <p>New to the example? Expand a case to compare the old decision, proposed decision and required result. To use your own policy, paste its source, capture it as the baseline, then edit the candidate and create scenarios from its function inputs or import a case suite. <a href="?playground#playground">Open the full language playground</a>.</p>
   </div>`;
 }
 
 export function setupWorkbench() {
   document.documentElement.classList.add('workbench-page');
   const source = document.querySelector<HTMLTextAreaElement>('#source')!;
-  const workspace = setupReview(source, () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
+  const makeWorker = () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+  const workspace = setupReview(source, makeWorker);
   // Move the real controls: retain their existing worker, cancellation and
   // disabled-state lifecycle rather than introducing proxy execution buttons.
   const run = document.getElementById('review-run')!; const stop = document.getElementById('review-stop')!;
@@ -34,6 +37,7 @@ export function setupWorkbench() {
   document.getElementById('review-example')!.click();
   const suite = document.querySelector<HTMLTextAreaElement>('#review-suite')!;
   const scenarios = setupScenarioEditor(suite);
+  document.getElementById('scenario-editor')!.before(document.getElementById('new-scenario')!);
   function loadedExample() {
     // Only the bundled, explicitly loaded fixture may be formatted here.
     if (suite.value === exampleSuite) suite.value = JSON.stringify(JSON.parse(exampleSuite), null, 2);
@@ -42,4 +46,5 @@ export function setupWorkbench() {
   loadedExample(); suite.addEventListener('change', scenarios);
   document.getElementById('review-example')!.addEventListener('click', loadedExample);
   setupLeaveWarning(workspace);
+  setupNewScenario(workspace, source, makeWorker);
 }
