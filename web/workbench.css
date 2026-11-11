@@ -10,5 +10,9 @@
 .scenario-card { border-bottom: 1px solid #363638; padding: 12px 0; }
 .scenario-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 16px 0; }
 .scenario-fields label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-.scenario-fields input { background: #19191c; color: #eee; border: 1px solid #555; padding: 8px; border-radius: 4px; min-width: 0; }
+.scenario-fields input, .scenario-fields textarea { background: #19191c; color: #eee; border: 1px solid #555; padding: 8px; border-radius: 4px; min-width: 0; }
 .scenario-fields input[type=checkbox] { align-self: start; }
+.scenario-fields fieldset { min-width: 0; border: 1px solid #555; display: grid; gap: 12px; }
+.scenario-fields legend { font-size: 13px; overflow-wrap: anywhere; }
+.scenario-fields textarea { resize: vertical; }
+.scenario-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
