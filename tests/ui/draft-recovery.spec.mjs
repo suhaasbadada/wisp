@@ -95,6 +95,15 @@ test('quota and blocked storage fail visibly without leaking inputs or breaking 
 });
 
 test('invalid, duplicate, extra, oversize and non-scalar/LF records are forget-only and never overwritten', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.forgetClicks = 0; window.draftRemovals = 0;
+    document.addEventListener('click', event => { if (event.target?.id === 'draft-forget') window.forgetClicks++; }, true);
+    const remove = Storage.prototype.removeItem;
+    Storage.prototype.removeItem = function (...args) {
+      if (args[0] === 'wisp-browser-draft-v1') window.draftRemovals++;
+      return remove.apply(this, args);
+    };
+  });
   await open(page);
   for (const raw of [
     '{broken', envelope().replace('"applied": false', '"applied": true, "applied": false'),
@@ -109,6 +118,7 @@ test('invalid, duplicate, extra, oversize and non-scalar/LF records are forget-o
     await page.locator('#source').fill('fn f()->Int{9}');
     expect(await stored(page)).toBe(raw);
     await page.locator('#draft-forget').click();
+    expect(await page.evaluate(() => ({ clicks: window.forgetClicks, removals: window.draftRemovals }))).toEqual({ clicks: 1, removals: 1 });
     expect(await stored(page)).toBeNull();
   }
 });

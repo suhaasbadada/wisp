@@ -22,6 +22,7 @@ export function workbenchMarkup() {
 }
 
 export function setupWorkbench() {
+  document.documentElement.classList.add('workbench-page');
   const source = document.querySelector<HTMLTextAreaElement>('#source')!;
   const workspace = setupReview(source, () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
   // Move the real controls: retain their existing worker, cancellation and

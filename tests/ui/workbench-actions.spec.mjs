@@ -6,6 +6,7 @@ test('first-screen actions use one real review worker and keep Stop reachable at
     window.Worker = class extends Native { constructor(...args) { super(...args); window.reviewCount++; } };
   });
   await page.goto('?workbench');
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe('auto');
   await expect(page.locator('#workbench-review-actions #review-run')).toHaveCount(1);
   await expect(page.locator('#workbench-review-actions #review-stop')).toHaveCount(1);
   expect(await page.evaluate(() => window.reviewCount)).toBe(0);

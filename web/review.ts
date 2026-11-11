@@ -57,6 +57,8 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   const downloadReadable = get<HTMLButtonElement>('review-download-readable');
   const downloadPackage = get<HTMLButtonElement>('review-download-package');
   const formatSuite = get<HTMLButtonElement>('review-format-suite');
+  const restoreInputs = get<HTMLButtonElement>('workspace-restore-previous');
+  let previousInputs: Readonly<Workspace> | undefined;
   function formattedSuite() {
     if (!accepted || accepted.historical || worker || accepted.report.review?.phase !== 'executed' ||
         accepted.suite !== suite.value || accepted.candidate !== source.value || accepted.baseline !== baseline) return;
@@ -72,17 +74,21 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   };
   const readWorkspace = () => baseline === undefined ? undefined : Object.freeze({ baseline, candidate: source.value, suite_json: suite.value });
   const replaceWorkspace = (value: Readonly<Workspace>) => {
+    previousInputs = readWorkspace();
     invalidate('Workspace replaced'); clearResults();
+    put('workspace-recorded', ''); get('workspace-history').hidden = true;
     baseline = value.baseline; baselineView.value = baseline; source.value = value.candidate; suite.value = value.suite_json;
     source.dispatchEvent(new Event('input')); suite.dispatchEvent(new Event('change'));
     put('review-status', 'Workspace opened — no current review. Select Review cases; nothing applied or approved.'); controls();
   };
+  restoreInputs.onclick = () => { if (previousInputs) replaceWorkspace(previousInputs); };
   const workspace = setupWorkspace(readWorkspace, replaceWorkspace);
   suite.value = JSON.stringify({ version: 1, target: 'bill', cases: [
     { id: 'nine', args: ['9'], expect: { result: { type: 'Int', value: '900' }, output: '' } },
     { id: 'ten', args: ['10'], expect: { result: { type: 'Int', value: '980' }, output: '' } }
   ] }, null, 2);
   function controls() {
+    restoreInputs.disabled = previousInputs === undefined;
     workspace.refresh();
     run.disabled = baseline === undefined || Boolean(worker); stop.disabled = !worker;
     downloadSource.disabled = downloadEvidence.disabled = downloadReadable.disabled = downloadPackage.disabled = !accepted || accepted.historical || Boolean(worker);

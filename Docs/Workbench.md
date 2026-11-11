@@ -436,3 +436,26 @@ a saved/unsaved certification. Browser-controlled wording, user-activation rules
 and platform limitations apply; app termination/mobile closure may not prompt at
 all. Keep deliberate file copies and use recovery only with its stated limits.
 The full language playground retains its existing behavior.
+
+### Recover from opening the wrong workspace
+
+**Restore previous inputs (replaces current)** keeps one complete prior workspace
+in tab memory when opening policy files, a JSON workspace/review bundle or browser
+recovery. A complete set includes a captured baseline, candidate and raw suite.
+The button is disabled before such a replacement, or when the previous editor had
+no captured baseline. This is not general edit undo or a multi-step history.
+
+The explicit action replaces all current inputs with that prior set, clearing
+current native results, diagnostics, source comparison, imported history and all
+review download/format permissions. It cancels any pending worker and ignores
+late replies; prior attempts may already have occurred. Restoration executes no
+cases and never revives an old Pass or approval. Run a fresh review separately.
+
+Current inputs—including edits made after opening—become the new previous set,
+so you can switch back. Each new replacement keeps only the immediately replaced
+complete inputs. The buffer is neither exported nor stored in browser recovery;
+reload/close loses it. If saving was opted in, the restored **current** inputs can
+be saved under the existing consent, not the prior buffer. Download whichever
+workspace you need to keep; no durable or secure-erasure guarantee is implied.
+The focused workbench uses immediate page scrolling rather than smooth animation
+so sticky actions do not continue moving across click targets during recovery.
