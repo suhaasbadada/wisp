@@ -4,7 +4,7 @@ import { validWorkspace } from './workspace';
 export function policyFilesMarkup() {
   return `<section class="workspace-files" aria-labelledby="policy-files-heading">
     <h2 id="policy-files-heading">Open your policy files</h2>
-    <p>Select a baseline .wisp and scenario JSON, plus an optional candidate .wisp (defaults to the exact baseline). Open files replaces all current unsaved inputs. Selection alone changes nothing; no cases run on import, nothing is uploaded or automatically saved.</p>
+    <p>Select a baseline .wisp and scenario JSON, plus an optional candidate .wisp (defaults to the exact baseline). Open files replaces all current unsaved inputs. Selection alone changes nothing; no cases run on import and nothing is uploaded. Browser draft saving occurs only if you opted in.</p>
     <p>Each file must be at most 64 KiB, valid UTF-8 without a BOM, with LF-only line endings. Sources and scenario text are kept unchanged; Rust validates them when you review.</p>
     <label>Baseline policy (required) <input id="policy-files-baseline" type="file" accept=".wisp,text/plain" required></label>
     <label>Candidate policy (optional) <input id="policy-files-candidate" type="file" accept=".wisp,text/plain"></label>

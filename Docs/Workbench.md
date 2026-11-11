@@ -129,10 +129,12 @@ After a received valid review, download the exact reviewed candidate or a JSON
 bundle containing both full sources, raw suite text and native report. Downloads
 are available for failures too: downloading is not acceptance or Apply. Any source,
 suite or baseline change disables both downloads until another review, even on
-edit-and-revert. Nothing is uploaded or saved automatically. Download bundles may
+edit-and-revert. Nothing is uploaded; automatic browser draft saving is off unless
+you explicitly opt in. Download bundles may
 contain sensitive source/case data and are not Python proposal/replay records.
 Closing the tab discards edits unless explicitly downloaded as a workspace draft
-or review bundle. Review remains finite evidence, not proof
+or review bundle, or kept through opted-in browser recovery. Browser storage can
+be cleared or unavailable; retain downloaded files for durable copies. Review remains finite evidence, not proof
 or authorization. Existing worker cancellation, limits and stale-response handling
 apply unchanged.
 
@@ -140,7 +142,7 @@ apply unchanged.
 
 Expand **Save or reopen your workspace**, then **Download workspace draft** to
 save baseline, candidate and exact raw suite text even before a review, or with
-invalid/failed inputs. No local storage or automatic saving occurs. Source/suite
+invalid/failed inputs. File downloads do not enable browser saving. Source/suite
 strings must each fit 64 KiB of well-formed Unicode and use LF-only line endings:
 source/suite strings containing CR or CRLF are rejected unchanged rather
 than silently normalized by browser textareas. Workbench-produced files use LF.
@@ -268,3 +270,37 @@ old review becomes historical and downloads stay disabled until another review.
 Formatting itself never executes cases. Source/suite/baseline edits, replacement,
 or edit-and-revert revoke permission; the action is disabled if text is already
 in the required format. Full native review evidence remains unchanged history.
+
+### Optional browser draft recovery
+
+**Keep draft on this browser** is off by default. Enabling it stores complete
+baseline/candidate/scenario inputs, not review results, on the current origin in
+the dedicated `wisp-browser-draft-v1` local-storage key. Data is unencrypted and
+available to other users of that browser and scripts on the same origin. Do not
+enable this on a shared browser or for sensitive policies. No upload occurs.
+Explicitly captured baselines, source/scenario edits and imported inputs can then
+update the saved draft; invalid/oversized inputs do not replace a valid copy.
+
+After reopening, saved inputs are neither restored nor overwritten by the default
+example. Saving remains paused until explicit **Restore saved draft** or **Forget
+saved draft**. Restore replaces current unsaved inputs through the existing
+replacement path, cancels pending review, clears results/history/download
+eligibility and resumes opted-in saving. It executes no cases. Forget removes
+only this dedicated key, leaves current editors and documentation preferences
+unchanged, and turns recovery off. Unchecking Keep pauses saving without deleting
+the existing copy; Restore or Forget resolves it before saving resumes.
+
+Records use the exact known canonical input-only workspace envelope, at most
+1 MiB encoded, with each source/suite at most 64 KiB of scalar Unicode/LF text.
+Malformed/duplicate/noncanonical records cannot restore. Storage denial or quota
+failure is visibly reported without a saved-copy guarantee; file downloads remain
+available. Failed writes are not retried until an input change or explicit user
+action. Browser storage can be cleared externally: downloaded files remain the
+durable-copy option, and no recovery guarantee is claimed.
+
+Another tab changing or removing this key pauses saving and leaves current
+editors untouched. The newest valid copy can only restore explicitly. A pre-write
+comparison also detects missed events; Forget discovering a changed copy first
+offers that copy rather than deleting it in the same click. Web Storage is not
+transactional: truly simultaneous writes can still race. This is conservative
+loss prevention, not atomic compare-and-swap, authentication or a sandbox.

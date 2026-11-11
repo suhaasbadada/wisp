@@ -1,13 +1,16 @@
+import { draftRecoveryMarkup, setupDraftRecovery } from './draft-recovery';
+
 export interface Workspace { baseline: string; candidate: string; suite_json: string }
 
 export function workspaceMarkup() {
   return `<details class="workspace-files"><summary>Save or reopen your workspace</summary>
-    <p>Download a draft before closing the tab, even without a passing review. Files include both full policies and scenario data. Nothing is uploaded or saved automatically.</p>
+    <p>Download a draft before closing the tab, even without a passing review. Files include both full policies and scenario data. Nothing is uploaded. Automatic browser draft saving is off unless explicitly enabled below.</p>
     <button id="workspace-save" disabled>Download workspace draft</button>
     <label>Open downloaded workspace or review <input id="workspace-file" type="file" accept=".json,application/json"></label>
     <button id="workspace-replace" disabled>Replace current workspace with opened file</button>
     <p id="workspace-status" role="status" aria-live="polite">No file opened. Import is limited to 8 MiB; each source and suite is limited to 64 KiB.</p>
     <details id="workspace-history" hidden><summary>Imported review — historical, unverified, not current acceptance</summary><pre id="workspace-recorded"></pre></details>
+    ${draftRecoveryMarkup()}
   </details>`;
 }
 
@@ -74,5 +77,10 @@ export function setupWorkspace(read: () => Workspace | undefined, replace: (valu
     status.textContent = 'Workspace opened. No cases executed. Imported review, if present, is unverified history. Select Review cases for fresh results.';
     staged = undefined; open.disabled = true;
   };
-  return { refresh: () => { save.disabled = read() === undefined; } };
+  const recovery = setupDraftRecovery(read, value => {
+    replace(value);
+    document.getElementById('workspace-recorded')!.textContent = '';
+    document.getElementById('workspace-history')!.hidden = true;
+  });
+  return { refresh: () => { save.disabled = read() === undefined; recovery.refresh(); } };
 }
