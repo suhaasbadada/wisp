@@ -1,5 +1,6 @@
 import './review.css';
 import { readableReview } from './readable-review';
+import { reviewPackage } from './review-package';
 import { renderSourceChanges } from './source-changes';
 import { setupWorkspace, workspaceMarkup } from './workspace';
 import type { Workspace } from './workspace';
@@ -11,8 +12,8 @@ export function reviewMarkup() {
   return `<section id="policy-review" class="review-panel"><div class="panel-head"><h3><span class="orange">08</span> Policy change workbench</h3><span class="tag">EXPLICIT CASES · NOT APPROVAL</span></div>
   <p>Capture a baseline, edit the candidate in Code above, then compare explicit typed cases. Rust executes both versions with fresh limits per invocation. No top-level statements or probes run. Expectations are your specification—not automatically repaired.</p>
   <div class="review-controls"><button id="review-capture">Capture editor as baseline</button><button id="review-example">Load reservation walkthrough (replaces editor)</button><button id="review-run" disabled>Review cases</button><button id="review-stop" disabled>Stop review</button></div>
-   <div class="review-controls"><button id="review-download-source" disabled>Download reviewed candidate</button><button id="review-download-evidence" disabled>Download review + both sources</button><button id="review-download-readable" disabled>Download readable review</button></div>
-   <p>Downloads include policy data; the JSON bundle and readable HTML contain both complete sources and all cases. Nothing is uploaded. A failed review can be downloaded too—export is not acceptance or Apply.</p>
+   <div class="review-controls"><button id="review-download-source" disabled>Download reviewed candidate</button><button id="review-download-evidence" disabled>Download review + both sources</button><button id="review-download-readable" disabled>Download readable review</button><button id="review-download-package" disabled>Download runnable review package</button></div>
+   <p>Downloads include policy data; the JSON bundle, readable HTML and runnable package contain both complete sources and all cases. Nothing is uploaded. A failed review can be downloaded too—export is not acceptance or Apply.</p>
    ${workspaceMarkup()}
    <details><summary>Captured baseline — unchanged until explicit recapture</summary><label class="sr-only" for="review-baseline">Captured review baseline</label><textarea id="review-baseline" readonly spellcheck="false" placeholder="Capture the editor or load the walkthrough first."></textarea></details>
   <label for="review-suite">Case suite JSON <span>1–16 named cases · 64 KiB · canonical Int strings · exact expected output</span></label><textarea id="review-suite" spellcheck="false"></textarea>
@@ -54,6 +55,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   const downloadSource = get<HTMLButtonElement>('review-download-source');
   const downloadEvidence = get<HTMLButtonElement>('review-download-evidence');
   const downloadReadable = get<HTMLButtonElement>('review-download-readable');
+  const downloadPackage = get<HTMLButtonElement>('review-download-package');
   const formatSuite = get<HTMLButtonElement>('review-format-suite');
   function formattedSuite() {
     if (!accepted || accepted.historical || worker || accepted.report.review?.phase !== 'executed' ||
@@ -83,10 +85,10 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   function controls() {
     workspace.refresh();
     run.disabled = baseline === undefined || Boolean(worker); stop.disabled = !worker;
-    downloadSource.disabled = downloadEvidence.disabled = downloadReadable.disabled = !accepted || accepted.historical || Boolean(worker);
+    downloadSource.disabled = downloadEvidence.disabled = downloadReadable.disabled = downloadPackage.disabled = !accepted || accepted.historical || Boolean(worker);
     formatSuite.disabled = formattedSuite() === undefined;
   }
-  function download(value: string, name: string, type: string) {
+  function download(value: string | Blob, name: string, type: string) {
     const url = URL.createObjectURL(new Blob([value], { type }));
     const link = document.createElement('a'); link.href = url; link.download = name; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -100,6 +102,11 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   };
   downloadReadable.onclick = () => {
     if (accepted && !accepted.historical && !worker) download(readableReview(accepted, document), 'policy-review.html', 'text/html;charset=utf-8');
+  };
+  downloadPackage.onclick = () => {
+    if (!accepted || accepted.historical || worker) return;
+    try { download(reviewPackage(accepted, document), 'policy-review.tar', 'application/x-tar'); }
+    catch { put('review-status', 'Review package could not be created. No package downloaded; nothing applied or approved.'); }
   };
   function renderStatus() {
     if (!accepted) return;
