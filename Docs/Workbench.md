@@ -304,3 +304,34 @@ comparison also detects missed events; Forget discovering a changed copy first
 offers that copy rather than deleting it in the same click. Web Storage is not
 transactional: truly simultaneous writes can still race. This is conservative
 loss prevention, not atomic compare-and-swap, authentication or a sandbox.
+
+### Share a readable review offline
+
+After a current received native review, **Download readable review** produces
+`policy-review.html`, a self-contained file that opens without Wisp, a server,
+account or network access. It includes outcome, compiler/revision/suite identities,
+native counters and **all cases**, even when Needs attention hides passing cases
+on screen. Saved inputs, before/proposed typed decisions, explicit outputs,
+owner-required values and native statuses remain side by side. Inputs match the
+accepted suite snapshot by count/index/ID or say unavailable; they never come
+from live edited cases. Observation diagnostics remain visible; complete sources,
+raw case text and full native JSON are retained in expandable sections.
+Leading source/suite newlines survive HTML parsing. NUL source characters are
+displayed explicitly as `\u0000` rather than silently converted by HTML; an
+additional exact input snapshot JSON retains all three strings losslessly through
+JSON escaping. This snapshot is data, not executable markup.
+
+The HTML uses the same current-review permission as existing downloads, including
+received Fail/Error/Unknown and preflight Error evidence. Edits, edit-and-revert,
+formatting or replacement disable export; imported historical claims cannot enable
+it. Export neither executes policies nor changes source, suite, status or native
+JSON. The saved file explicitly identifies itself as a historical snapshot, not
+current acceptance, approval, proof, authentication or permission to apply/deploy.
+
+Both full policies and scenario/requirement data are present: review sensitivity
+before sharing. Data is inserted as literal text, not markup. The document contains
+no scripts, external resources or policy-derived URLs, and carries a restrictive
+Content Security Policy with only a fixed inline stylesheet allowed. These controls
+and finite browser tests are not a universal hostile-file security guarantee. The
+HTML is for reading/printing; reopen the JSON workspace/review bundle to resume
+editing or rerun. Browser recovery does not store this report.

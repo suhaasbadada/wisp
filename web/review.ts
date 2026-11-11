@@ -1,4 +1,5 @@
 import './review.css';
+import { readableReview } from './readable-review';
 import { setupWorkspace, workspaceMarkup } from './workspace';
 import type { Workspace } from './workspace';
 import beforeExample from '../examples/policies/reservations-before.wisp?raw';
@@ -9,8 +10,8 @@ export function reviewMarkup() {
   return `<section id="policy-review" class="review-panel"><div class="panel-head"><h3><span class="orange">08</span> Policy change workbench</h3><span class="tag">EXPLICIT CASES · NOT APPROVAL</span></div>
   <p>Capture a baseline, edit the candidate in Code above, then compare explicit typed cases. Rust executes both versions with fresh limits per invocation. No top-level statements or probes run. Expectations are your specification—not automatically repaired.</p>
   <div class="review-controls"><button id="review-capture">Capture editor as baseline</button><button id="review-example">Load reservation walkthrough (replaces editor)</button><button id="review-run" disabled>Review cases</button><button id="review-stop" disabled>Stop review</button></div>
-   <div class="review-controls"><button id="review-download-source" disabled>Download reviewed candidate</button><button id="review-download-evidence" disabled>Download review + both sources</button></div>
-   <p>Downloads include policy data; the review bundle contains both complete sources and all cases. Nothing is uploaded. A failed review can be downloaded too—export is not acceptance or Apply.</p>
+   <div class="review-controls"><button id="review-download-source" disabled>Download reviewed candidate</button><button id="review-download-evidence" disabled>Download review + both sources</button><button id="review-download-readable" disabled>Download readable review</button></div>
+   <p>Downloads include policy data; the JSON bundle and readable HTML contain both complete sources and all cases. Nothing is uploaded. A failed review can be downloaded too—export is not acceptance or Apply.</p>
    ${workspaceMarkup()}
    <details><summary>Captured baseline — unchanged until explicit recapture</summary><label class="sr-only" for="review-baseline">Captured review baseline</label><textarea id="review-baseline" readonly spellcheck="false" placeholder="Capture the editor or load the walkthrough first."></textarea></details>
   <label for="review-suite">Case suite JSON <span>1–16 named cases · 64 KiB · canonical Int strings · exact expected output</span></label><textarea id="review-suite" spellcheck="false"></textarea>
@@ -24,7 +25,7 @@ export function reviewMarkup() {
 
 interface Observation { document: string; status: string; revision: string; new_execution: boolean; output: string; result?: unknown; diagnostics: unknown[]; usage?: unknown }
 interface ReviewCase { id: string; index: number; comparison: string; comparison_reason: string; expectation: string; expected: unknown; before: Observation; after: Observation }
-interface ReviewReport { status: string; diagnostics: unknown[]; review?: { contract_version: number; phase: string; approval: string; new_execution: boolean; baseline_revision: string; candidate_revision: string | null; suite_hash: string | null; query_key?: string; diagnostic_document?: unknown; cause?: unknown; cases: ReviewCase[]; summary?: { total: number; changed: number; unchanged: number; faulted: number; unknown: number; expectation_pass: number; expectation_fail: number; expectation_error: number; expectation_unknown: number; attempted_invocations: number } } }
+export interface ReviewReport { compiler?: string; revision?: string; status: string; diagnostics: unknown[]; review?: { contract_version: number; phase: string; approval: string; new_execution: boolean; baseline_revision: string; candidate_revision: string | null; suite_hash: string | null; query_key?: string; diagnostic_document?: unknown; cause?: unknown; cases: ReviewCase[]; summary?: { total: number; changed: number; unchanged: number; faulted: number; unknown: number; expectation_pass: number; expectation_fail: number; expectation_error: number; expectation_unknown: number; attempted_invocations: number } } }
 
 export interface ReviewWorkspace {
   read: () => Readonly<Workspace> | undefined;
@@ -51,6 +52,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   }
   const downloadSource = get<HTMLButtonElement>('review-download-source');
   const downloadEvidence = get<HTMLButtonElement>('review-download-evidence');
+  const downloadReadable = get<HTMLButtonElement>('review-download-readable');
   const formatSuite = get<HTMLButtonElement>('review-format-suite');
   function formattedSuite() {
     if (!accepted || accepted.historical || worker || accepted.report.review?.phase !== 'executed' ||
@@ -80,7 +82,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   function controls() {
     workspace.refresh();
     run.disabled = baseline === undefined || Boolean(worker); stop.disabled = !worker;
-    downloadSource.disabled = downloadEvidence.disabled = !accepted || accepted.historical || Boolean(worker);
+    downloadSource.disabled = downloadEvidence.disabled = downloadReadable.disabled = !accepted || accepted.historical || Boolean(worker);
     formatSuite.disabled = formattedSuite() === undefined;
   }
   function download(value: string, name: string, type: string) {
@@ -94,6 +96,9 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
       format: 'wisp-browser-review-v1', approval: 'not_granted', applied: false,
       baseline: accepted.baseline, candidate: accepted.candidate, suite_json: accepted.suite, report: accepted.report
     }, null, 2), 'policy-review.json', 'application/json');
+  };
+  downloadReadable.onclick = () => {
+    if (accepted && !accepted.historical && !worker) download(readableReview(accepted, document), 'policy-review.html', 'text/html;charset=utf-8');
   };
   function renderStatus() {
     if (!accepted) return;
