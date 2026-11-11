@@ -315,7 +315,8 @@ console.log(`Object-only protocol: ${objectInputs.length} additional non-executi
 let interfaceComparisons=0;
 function compareInterface(request){
   const raw=typeof request==='string'?request:JSON.stringify(request);
-  const native=spawnSync('./target/debug/wisp',['--json'],{input:raw,encoding:'utf8'});
+  const native=spawnSync('./target/debug/wisp',['--json'],{input:raw,encoding:'utf8',timeout:30000});
+  assert.ifError(native.error);
   assert.equal(native.status,0,native.stderr);const wasm=dispatch(raw);assert.equal(wasm,native.stdout.trimEnd());interfaceComparisons++;
   const r=JSON.parse(wasm),q=typeof request==='string'?JSON.parse(request):request;
   assert.equal(r.output,'');assert.deepEqual(r.probes,[]);assert.equal(r.usage,undefined);assert.equal(r.invocation,undefined);
