@@ -9,6 +9,7 @@
 #review-filters button[aria-pressed="true"] { outline: 2px solid currentColor; outline-offset: 2px; }
 #review-diagnostics { margin: 14px 18px; font-size: 12px; overflow-wrap: anywhere; }
 #review-diagnostics li, .review-case > p { white-space: pre-wrap; }
+.diagnostic-select { display: block; margin: 8px 0; font-size: 11px; max-width: 100%; }
 .decision-table td { min-width: 160px; overflow-wrap: anywhere; }
 .review-panel .panel-head { flex-wrap: wrap; gap: 8px; }
 .review-panel .tag { font-size: 9px; }

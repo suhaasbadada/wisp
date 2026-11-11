@@ -2,6 +2,7 @@ import './review.css';
 import { readableReview } from './readable-review';
 import { reviewPackage } from './review-package';
 import { renderSourceChanges } from './source-changes';
+import { diagnosticLocation } from './diagnostic-location';
 import { setupWorkspace, workspaceMarkup } from './workspace';
 import type { Workspace } from './workspace';
 import beforeExample from '../examples/policies/reservations-before.wisp?raw';
@@ -42,10 +43,12 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   const run = get<HTMLButtonElement>('review-run'); const stop = get<HTMLButtonElement>('review-stop');
   let baseline: string | undefined; let generation = 0; let serial = 0; let worker: Worker | undefined;
   let deadline: ReturnType<typeof setTimeout>;
-  let accepted: { report: ReviewReport; historical: boolean; baseline: string; candidate: string; suite: string } | undefined;
+  let accepted: { report: ReviewReport; historical: boolean; baseline: string; candidate: string; suite: string; generation: number } | undefined;
+  let diagnosticButtons: { button: HTMLButtonElement; current: () => boolean }[] = [];
   let attentionOnly = false;
   function clearResults() {
     accepted = undefined; attentionOnly = false;
+    diagnosticButtons = [];
     for (const id of ['review-json', 'review-identity', 'review-summary']) put(id, '');
     for (const id of ['review-cases', 'review-decisions', 'review-diagnostics', 'review-source-host']) get(id).replaceChildren();
     get('review-filters').hidden = true;
@@ -93,6 +96,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     run.disabled = baseline === undefined || Boolean(worker); stop.disabled = !worker;
     downloadSource.disabled = downloadEvidence.disabled = downloadReadable.disabled = downloadPackage.disabled = !accepted || accepted.historical || Boolean(worker);
     formatSuite.disabled = formattedSuite() === undefined;
+    for (const { button, current } of diagnosticButtons) button.disabled = !current();
   }
   function download(value: string | Blob, name: string, type: string) {
     const url = URL.createObjectURL(new Blob([value], { type }));
@@ -136,6 +140,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   }
   function renderDiagnostics(report: ReviewReport) {
     const host = get('review-diagnostics'); host.replaceChildren();
+    diagnosticButtons = [];
     const value: unknown = report.diagnostics;
     if (!Array.isArray(value) || value.length === 0) return;
     const owner = report.review?.diagnostic_document;
@@ -146,23 +151,61 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
       if (item && typeof item === 'object') {
         const fields = item as Record<string, unknown>;
         const parts = ['code', 'kind', 'message', 'document', 'path'].flatMap(key => typeof fields[key] === 'string' ? [`${key}: ${fields[key]}`] : []);
-        const document = typeof fields.document === 'string' ? fields.document : typeof owner === 'string' ? owner : undefined;
-        if (document && typeof fields.document !== 'string') parts.push(`document: ${document}`);
+        const diagnosticDocument = typeof fields.document === 'string' ? fields.document : typeof owner === 'string' ? owner : undefined;
+        if (diagnosticDocument && typeof fields.document !== 'string') parts.push(`document: ${diagnosticDocument}`);
         const span = fields.span as { start?: unknown; end?: unknown } | undefined;
         // JSON paths are not source offsets. Candidate remapping can carry a
         // placeholder span; only display its separately owned native cause.
-        if (span && !fields.path && ['baseline', 'candidate'].includes(document ?? '') && Number.isSafeInteger(span.start) && Number.isSafeInteger(span.end)) parts.push(`${document} source offsets: ${span.start}–${span.end}`);
+        if (span && !fields.path && ['baseline', 'candidate'].includes(diagnosticDocument ?? '') && Number.isSafeInteger(span.start) && Number.isSafeInteger(span.end)) parts.push(`${diagnosticDocument} source offsets: ${span.start}–${span.end}`);
         const cause = report.review?.cause as { document?: unknown; diagnostic?: { span?: { start?: unknown; end?: unknown } } } | undefined;
         const causeSpan = cause?.diagnostic?.span;
-        if (causeSpan && ['baseline', 'candidate'].includes(String(cause?.document)) && Number.isSafeInteger(causeSpan.start) && Number.isSafeInteger(causeSpan.end)) parts.push(`${cause?.document} cause source offsets: ${causeSpan.start}–${causeSpan.end}`);
+        const causeFields = cause?.diagnostic as Record<string, unknown> | undefined;
+        if (causeSpan && cause?.document === owner && ['baseline', 'candidate'].includes(String(owner)) &&
+            ['code', 'kind', 'message'].every(key => typeof fields[key] === 'string' && fields[key] === causeFields?.[key]) &&
+            Number.isSafeInteger(causeSpan.start) && Number.isSafeInteger(causeSpan.end)) parts.push(`${cause?.document} cause source offsets: ${causeSpan.start}–${causeSpan.end}`);
         entry.textContent = parts.join('\n') || 'Diagnostic details unavailable; inspect full JSON.';
+        const held = accepted;
+        // Only accepted native preflight source errors own source coordinates.
+        // Candidate root spans are remapped placeholders; use the matching cause.
+        const review = report.review;
+        const record = (value: unknown): Record<string, unknown> | undefined => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+        const ownedCause = record(review?.cause);
+        const original = record(ownedCause?.diagnostic);
+        const sourceOwner = owner === 'baseline' || owner === 'candidate' ? owner : undefined;
+        const owned = sourceOwner && (fields.document === undefined || fields.document === sourceOwner) &&
+          (sourceOwner === 'baseline'
+            ? fields.path === undefined && review?.cause === undefined
+            : fields.path === '/candidate' && ownedCause?.document === 'candidate' && original?.path === undefined &&
+              (original?.document === undefined || original.document === 'candidate') &&
+              ['code', 'kind', 'message'].every(key => typeof fields[key] === 'string' && fields[key] === original?.[key]));
+        const diagnostic = sourceOwner === 'candidate' ? original : fields;
+        const sourceSpan = record(diagnostic?.span);
+        const text = sourceOwner === 'baseline' ? held?.baseline : held?.candidate;
+        const sourceDiagnostic = diagnostic && ['code', 'kind', 'message'].every(key => typeof diagnostic[key] === 'string') &&
+          ['Syntax', 'Type', 'Purity'].includes(String(diagnostic.kind));
+        const location = text !== undefined && owned && sourceDiagnostic ? diagnosticLocation(text, sourceSpan) : undefined;
+        if (held?.report === report && review?.phase === 'preflight' && location && sourceSpan && sourceOwner) {
+          const current = () => accepted === held && !held.historical && !worker && generation === held.generation &&
+            baseline === held.baseline && baselineView.value === held.baseline && source.value === held.candidate && suite.value === held.suite &&
+            diagnosticLocation(held.baseline, { start: 0, end: 0 }) !== undefined && diagnosticLocation(held.candidate, { start: 0, end: 0 }) !== undefined;
+          const button = document.createElement('button'); button.type = 'button'; button.className = 'diagnostic-select';
+          button.textContent = `Select ${sourceOwner} error (line ${location.line}, bytes ${sourceSpan.start}–${sourceSpan.end})`;
+          button.disabled = !current();
+          button.onclick = () => {
+            if (!current()) return;
+            const editor = sourceOwner === 'baseline' ? baselineView : source;
+            if (sourceOwner === 'baseline') { const details = baselineView.closest('details'); if (details) details.open = true; }
+            editor.focus(); editor.setSelectionRange(location.start, location.end); editor.scrollIntoView({ block: 'center' });
+          };
+          diagnosticButtons.push({ button, current }); entry.append(button);
+        }
       } else entry.textContent = 'Diagnostic details unavailable; inspect full JSON.';
       list.append(entry);
     }
     host.append(heading, list);
     if (value.length > 20) { const note = document.createElement('p'); note.textContent = `Showing 20 of ${value.length} diagnostics (truncated). Full JSON retains all entries.`; host.append(note); }
   }
-  function render(report: ReviewReport, snapshot: { baseline: string; candidate: string; suite: string }) {
+  function render(report: ReviewReport, snapshot: { baseline: string; candidate: string; suite: string; generation: number }) {
     put('review-json', JSON.stringify(report, null, 2));
     renderDiagnostics(report);
     const review = report.review;
@@ -177,7 +220,8 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     if (review.contract_version !== 1 || review.approval !== 'not_granted' || !hash(review.baseline_revision) || !Array.isArray(review.cases) || !['Pass', 'Fail', 'Unknown', 'Error'].includes(report.status) || !(executedShape || preflightShape)) {
       put('review-status', 'Error — unexpected review response. No review accepted.'); return;
     }
-    accepted = { report, historical: false, baseline: snapshot.baseline, candidate: snapshot.candidate, suite: snapshot.suite }; attentionOnly = false;
+    accepted = { report, historical: false, baseline: snapshot.baseline, candidate: snapshot.candidate, suite: snapshot.suite, generation: snapshot.generation }; attentionOnly = false;
+    renderDiagnostics(report);
     get('review-source-host').replaceChildren(renderSourceChanges(document, accepted.baseline, accepted.candidate));
     renderStatus(); controls();
     put('review-identity', `baseline ${review.baseline_revision.slice(0, 12)} → candidate ${review.candidate_revision?.slice(0, 12) ?? 'unavailable'} · suite ${review.suite_hash?.slice(0, 12) ?? 'unavailable'} · query ${review.query_key?.slice(0, 12) ?? 'unavailable'}`);
