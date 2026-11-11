@@ -459,3 +459,46 @@ be saved under the existing consent, not the prior buffer. Download whichever
 workspace you need to keep; no durable or secure-erasure guarantee is implied.
 The focused workbench uses immediate page scrolling rather than smooth animation
 so sticky actions do not continue moving across click targets during recovery.
+
+### Create a first custom scenario without raw JSON
+
+Open **Create a scenario from function inputs** beside the scenario editor. If
+starting a new policy, first capture its source as the baseline; the builder never
+captures or repairs it for you. **Read candidate function shapes** invokes the
+existing nonexecuting Rust `describe` operation in a disposable worker. It checks
+compiler semantics-5/interface-v1 encodings and independently matches the native
+revision to SHA-256 of the submitted source. Metadata Ready is not finite Pass or
+approval. Native Error/Unknown, unsupported interfaces and malformed shapes cannot
+enable Add; diagnostics remain literal text.
+
+Choose a native-described function, then fill its arguments, owner-required result
+and expected output. Int fields remain exact strings; Bool requires an explicit
+true/false choice; String fields permit multiline literal text. Nested record
+fields and required result type come only from Rust metadata. Values are yours:
+no result is guessed from execution or source conditions. Empty required output
+explicitly means no output; invalid Int strings can still receive native preflight
+errors when reviewed rather than being automatically corrected.
+
+Unchecked **Replace existing scenarios** appends only to an exact canonical,
+supported version-1 suite for the selected function with fewer than 16 cases and
+a unique ID. Other-target, compact, duplicate-member or unsupported suites remain
+unchanged unless you explicitly choose replacement. **Add scenario** preserves
+both policy strings, records the previous complete inputs through the existing
+replacement path, clears current evidence and creates no case execution. Select
+**Review cases** separately for native validation and finite outcomes.
+
+Each read has a five-second host deadline and explicit Stop. Source/suite/baseline
+changes, edit-and-revert, replacement and stale replies invalidate binding; Add
+checks freshness again before writing. A read is consumed by committing a case.
+Supported forms are capped at 16 record levels, 32 fields per record, 2,048 value
+fields and 256 KiB of generated label text, with existing 64 KiB input limits.
+These UI bounds are not a policy-validity or absolute-memory judgment. Record
+keys such as `__proto__` remain own data properties, not prototype assignments.
+Reading/adding requests no verification, but a separate or cancelled review may
+already have attempted cases; this is not a global zero-execution claim.
+New IDs must contain 1–64 ASCII letters, digits, underscores or hyphens. Appending
+also requires every existing ID to satisfy that rule and be unique; invalid or
+duplicate existing IDs are not repaired. Values still receive native validation
+on Review. Unadded form fields are not workspace inputs and are not persisted or
+recovered; rereading shapes or changing bound inputs resets them. Select Add before
+relying on workspace downloads or browser recovery to keep a scenario.

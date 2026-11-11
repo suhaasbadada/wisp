@@ -21,3 +21,7 @@
 .scenario-fields legend { font-size: 13px; overflow-wrap: anywhere; }
 .scenario-fields textarea { resize: vertical; }
 .scenario-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+#new-scenario { margin-top: 24px; padding: 16px; border: 1px solid #555; }
+#new-scenario p { line-height: 1.6; overflow-wrap: anywhere; }
+#new-scenario select { background: #19191c; color: #eee; border: 1px solid #555; padding: 8px; min-width: 0; }
+#new-scenario > label { display: block; margin-block: 12px; }
