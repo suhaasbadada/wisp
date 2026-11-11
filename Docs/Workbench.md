@@ -169,3 +169,28 @@ historical report. Import accepts the report object as opaque history, not as a
 validated native receipt. Exported files contain complete source and case data;
 protect them before sharing. Browser draft/review bundles are not native or Python
 proposal replay records.
+
+### Open your own policy and scenario files
+
+The focused workbench accepts a required baseline `.wisp`, optional candidate
+`.wisp`, and required scenario JSON through **Open your policy files**. Without
+a candidate, both revisions use the exact baseline. File selection alone neither
+reads contents nor changes inputs. Select **Open files — replace unsaved inputs**
+to read and replace all three strings; keep a draft first if needed. Import itself
+does not execute cases. Existing results/download eligibility clear, and pending
+reviews are cancelled before the new workspace is installed.
+
+Every file must fit 65,536 UTF-8 bytes, without a BOM, and use LF-only line endings.
+All selected sizes are checked before any content is read. Read/encoding/size
+failures leave current inputs and review evidence unchanged. Source text and raw
+case JSON are not reformatted or repaired. A standalone-JSON framing check stops
+malformed values or extra transport fields before review submission; Rust owns
+duplicate-member, schema, type and policy validation. Files may contain invalid
+Wisp or invalid cases so you can inspect and fix them; importing is not checking.
+
+If a selection or any workspace input changes during asynchronous reading—even
+edit-and-revert—the pending import cannot overwrite that work. Re-open explicitly
+if replacement is still intended. No JSON field can select a host path, executable
+or network operation. After import, review the native before/after results and
+download a workspace to keep the exact supported inputs across sessions. Custom
+suites use the advanced editor when they do not fit the reservation forms.

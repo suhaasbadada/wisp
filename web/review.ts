@@ -1,5 +1,6 @@
 import './review.css';
 import { setupWorkspace, workspaceMarkup } from './workspace';
+import type { Workspace } from './workspace';
 import beforeExample from '../examples/policies/reservations-before.wisp?raw';
 import afterExample from '../examples/policies/reservations-after.wisp?raw';
 import casesExample from '../examples/policies/cases.json?raw';
@@ -22,7 +23,13 @@ interface Observation { document: string; status: string; revision: string; new_
 interface ReviewCase { id: string; comparison: string; comparison_reason: string; expectation: string; expected: unknown; before: Observation; after: Observation }
 interface ReviewReport { status: string; diagnostics: unknown[]; review?: { contract_version: number; phase: string; approval: string; new_execution: boolean; baseline_revision: string; candidate_revision: string | null; suite_hash: string | null; query_key?: string; cases: ReviewCase[]; summary?: { total: number; changed: number; unchanged: number; faulted: number; unknown: number; expectation_pass: number; expectation_fail: number; expectation_error: number; expectation_unknown: number; attempted_invocations: number } } }
 
-export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worker) {
+export interface ReviewWorkspace {
+  read: () => Readonly<Workspace> | undefined;
+  replace: (value: Readonly<Workspace>) => void;
+  generation: () => number;
+}
+
+export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worker): ReviewWorkspace {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const put = (id: string, value: string) => { get(id).textContent = value; };
   const suite = get<HTMLTextAreaElement>('review-suite'); const baselineView = get<HTMLTextAreaElement>('review-baseline');
@@ -32,14 +39,16 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   let accepted: { report: ReviewReport; historical: boolean; baseline: string; candidate: string; suite: string } | undefined;
   const downloadSource = get<HTMLButtonElement>('review-download-source');
   const downloadEvidence = get<HTMLButtonElement>('review-download-evidence');
-  const workspace = setupWorkspace(() => baseline === undefined ? undefined : { baseline, candidate: source.value, suite_json: suite.value }, value => {
+  const readWorkspace = () => baseline === undefined ? undefined : Object.freeze({ baseline, candidate: source.value, suite_json: suite.value });
+  const replaceWorkspace = (value: Readonly<Workspace>) => {
     invalidate('Workspace replaced'); accepted = undefined;
     baseline = value.baseline; baselineView.value = baseline; source.value = value.candidate; suite.value = value.suite_json;
     for (const id of ['review-json', 'review-identity', 'review-summary']) put(id, '');
     get('review-cases').replaceChildren(); get('review-decisions').replaceChildren();
     source.dispatchEvent(new Event('input')); suite.dispatchEvent(new Event('change'));
     put('review-status', 'Workspace opened — no current review. Select Review cases; nothing applied or approved.'); controls();
-  });
+  };
+  const workspace = setupWorkspace(readWorkspace, replaceWorkspace);
   suite.value = JSON.stringify({ version: 1, target: 'bill', cases: [
     { id: 'nine', args: ['9'], expect: { result: { type: 'Int', value: '900' }, output: '' } },
     { id: 'ten', args: ['10'], expect: { result: { type: 'Int', value: '980' }, output: '' } }
@@ -139,8 +148,9 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     if ([snapshot.baseline, snapshot.candidate, snapshot.suite].some(value => new TextEncoder().encode(value).length > 65536)) {
       put('review-status', 'Host limit — each source and suite must fit 64 KiB. No review submitted.'); return;
     }
-    // Validate one standalone value, but retain its raw text for Rust duplicate,
-    // canonical integer and schema checks. Never rebuild it from JS numbers.
+    // Require exactly one standalone value before embedding raw suite text in
+    // the transport envelope. Keep the original bytes so Rust still rejects
+    // duplicate members and validates types/schema, without JS coercion.
     try { JSON.parse(snapshot.suite); }
     catch { put('review-status', 'Host input error — suite must be standalone JSON. No review submitted.'); return; }
     const id = ++serial; const current = makeWorker(); worker = current; controls();
@@ -170,4 +180,5 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     else put('review-status', notice);
   };
   run.onclick = start; stop.onclick = () => cancel('stopped; worker terminated'); controls();
+  return { read: readWorkspace, replace: replaceWorkspace, generation: () => generation };
 }
