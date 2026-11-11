@@ -14,14 +14,16 @@ export function reviewMarkup() {
    ${workspaceMarkup()}
    <details><summary>Captured baseline — unchanged until explicit recapture</summary><label class="sr-only" for="review-baseline">Captured review baseline</label><textarea id="review-baseline" readonly spellcheck="false" placeholder="Capture the editor or load the walkthrough first."></textarea></details>
   <label for="review-suite">Case suite JSON <span>1–16 named cases · 64 KiB · canonical Int strings · exact expected output</span></label><textarea id="review-suite" spellcheck="false"></textarea>
-   <p id="review-status" role="status" aria-live="polite">No review. Capture a baseline or load the walkthrough. Nothing is applied or approved.</p><p id="review-identity" class="mono"></p><p id="review-summary" class="mono"></p><div id="review-decisions" class="decision-scroll"></div><div id="review-cases"></div>
-  <details><summary>Inspect review JSON and document-owned diagnostics</summary><pre id="review-json"></pre></details>
+    <p id="review-status" role="status" aria-live="polite">No review. Capture a baseline or load the walkthrough. Nothing is applied or approved.</p><p id="review-identity" class="mono"></p><p id="review-summary" class="mono"></p>
+   <div id="review-filters" class="review-controls" hidden><button id="review-filter-all" aria-pressed="true">All scenarios</button><button id="review-filter-attention" aria-pressed="false">Needs attention</button></div>
+   <div id="review-decisions" class="decision-scroll"></div><div id="review-cases"></div>
+   <div id="review-diagnostics"></div><details><summary>Inspect review JSON and document-owned diagnostics</summary><pre id="review-json"></pre></details>
   <p>Pass means only these candidate examples matched under their limits. Changed is not approved intent; Unknown is incomplete. Baseline/candidate faults remain visible. Every edit, recapture or case change—including edit-and-revert—makes prior results historical. Stop discards the worker; it does not guess how many cases executed. Existing Run output and ghosts stay separate.</p></section>`;
 }
 
 interface Observation { document: string; status: string; revision: string; new_execution: boolean; output: string; result?: unknown; diagnostics: unknown[]; usage?: unknown }
-interface ReviewCase { id: string; comparison: string; comparison_reason: string; expectation: string; expected: unknown; before: Observation; after: Observation }
-interface ReviewReport { status: string; diagnostics: unknown[]; review?: { contract_version: number; phase: string; approval: string; new_execution: boolean; baseline_revision: string; candidate_revision: string | null; suite_hash: string | null; query_key?: string; cases: ReviewCase[]; summary?: { total: number; changed: number; unchanged: number; faulted: number; unknown: number; expectation_pass: number; expectation_fail: number; expectation_error: number; expectation_unknown: number; attempted_invocations: number } } }
+interface ReviewCase { id: string; index: number; comparison: string; comparison_reason: string; expectation: string; expected: unknown; before: Observation; after: Observation }
+interface ReviewReport { status: string; diagnostics: unknown[]; review?: { contract_version: number; phase: string; approval: string; new_execution: boolean; baseline_revision: string; candidate_revision: string | null; suite_hash: string | null; query_key?: string; diagnostic_document?: unknown; cause?: unknown; cases: ReviewCase[]; summary?: { total: number; changed: number; unchanged: number; faulted: number; unknown: number; expectation_pass: number; expectation_fail: number; expectation_error: number; expectation_unknown: number; attempted_invocations: number } } }
 
 export interface ReviewWorkspace {
   read: () => Readonly<Workspace> | undefined;
@@ -37,14 +39,21 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   let baseline: string | undefined; let generation = 0; let serial = 0; let worker: Worker | undefined;
   let deadline: ReturnType<typeof setTimeout>;
   let accepted: { report: ReviewReport; historical: boolean; baseline: string; candidate: string; suite: string } | undefined;
+  let attentionOnly = false;
+  function clearResults() {
+    accepted = undefined; attentionOnly = false;
+    for (const id of ['review-json', 'review-identity', 'review-summary']) put(id, '');
+    for (const id of ['review-cases', 'review-decisions', 'review-diagnostics']) get(id).replaceChildren();
+    get('review-filters').hidden = true;
+    get('review-filter-all').setAttribute('aria-pressed', 'true');
+    get('review-filter-attention').setAttribute('aria-pressed', 'false');
+  }
   const downloadSource = get<HTMLButtonElement>('review-download-source');
   const downloadEvidence = get<HTMLButtonElement>('review-download-evidence');
   const readWorkspace = () => baseline === undefined ? undefined : Object.freeze({ baseline, candidate: source.value, suite_json: suite.value });
   const replaceWorkspace = (value: Readonly<Workspace>) => {
-    invalidate('Workspace replaced'); accepted = undefined;
+    invalidate('Workspace replaced'); clearResults();
     baseline = value.baseline; baselineView.value = baseline; source.value = value.candidate; suite.value = value.suite_json;
-    for (const id of ['review-json', 'review-identity', 'review-summary']) put(id, '');
-    get('review-cases').replaceChildren(); get('review-decisions').replaceChildren();
     source.dispatchEvent(new Event('input')); suite.dispatchEvent(new Event('change'));
     put('review-status', 'Workspace opened — no current review. Select Review cases; nothing applied or approved.'); controls();
   };
@@ -84,14 +93,43 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     generation++;
     const pending = Boolean(worker);
     if (worker) cancel(`${reason}; request cancelled`);
-    if (accepted) { accepted.historical = true; renderStatus(); }
+    if (accepted) { accepted.historical = true; renderStatus(); renderCases(); }
     else if (!pending) put('review-status', `${reason}. No current review; nothing approved.`);
     controls();
   }
-  function render(report: ReviewReport) {
+  function renderDiagnostics(report: ReviewReport) {
+    const host = get('review-diagnostics'); host.replaceChildren();
+    const value: unknown = report.diagnostics;
+    if (!Array.isArray(value) || value.length === 0) return;
+    const owner = report.review?.diagnostic_document;
+    const heading = document.createElement('h4'); heading.textContent = 'Native diagnostics (document-owned)';
+    const list = document.createElement('ul');
+    for (const item of value.slice(0, 20)) {
+      const entry = document.createElement('li');
+      if (item && typeof item === 'object') {
+        const fields = item as Record<string, unknown>;
+        const parts = ['code', 'kind', 'message', 'document', 'path'].flatMap(key => typeof fields[key] === 'string' ? [`${key}: ${fields[key]}`] : []);
+        const document = typeof fields.document === 'string' ? fields.document : typeof owner === 'string' ? owner : undefined;
+        if (document && typeof fields.document !== 'string') parts.push(`document: ${document}`);
+        const span = fields.span as { start?: unknown; end?: unknown } | undefined;
+        // JSON paths are not source offsets. Candidate remapping can carry a
+        // placeholder span; only display its separately owned native cause.
+        if (span && !fields.path && ['baseline', 'candidate'].includes(document ?? '') && Number.isSafeInteger(span.start) && Number.isSafeInteger(span.end)) parts.push(`${document} source offsets: ${span.start}–${span.end}`);
+        const cause = report.review?.cause as { document?: unknown; diagnostic?: { span?: { start?: unknown; end?: unknown } } } | undefined;
+        const causeSpan = cause?.diagnostic?.span;
+        if (causeSpan && ['baseline', 'candidate'].includes(String(cause?.document)) && Number.isSafeInteger(causeSpan.start) && Number.isSafeInteger(causeSpan.end)) parts.push(`${cause?.document} cause source offsets: ${causeSpan.start}–${causeSpan.end}`);
+        entry.textContent = parts.join('\n') || 'Diagnostic details unavailable; inspect full JSON.';
+      } else entry.textContent = 'Diagnostic details unavailable; inspect full JSON.';
+      list.append(entry);
+    }
+    host.append(heading, list);
+    if (value.length > 20) { const note = document.createElement('p'); note.textContent = `Showing 20 of ${value.length} diagnostics (truncated). Full JSON retains all entries.`; host.append(note); }
+  }
+  function render(report: ReviewReport, snapshot: { baseline: string; candidate: string; suite: string }) {
     put('review-json', JSON.stringify(report, null, 2));
+    renderDiagnostics(report);
     const review = report.review;
-    if (!review) { put('review-status', `${report.status} — request rejected. See JSON diagnostics; no review accepted.`); return; }
+    if (!review) { put('review-status', `${report.status} — request rejected. See native diagnostics; no review accepted; no current review.`); return; }
     const hash = (value: unknown) => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
     const count = review.summary;
     const rows = Array.isArray(review.cases) ? review.cases : [];
@@ -102,32 +140,55 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     if (review.contract_version !== 1 || review.approval !== 'not_granted' || !hash(review.baseline_revision) || !Array.isArray(review.cases) || !['Pass', 'Fail', 'Unknown', 'Error'].includes(report.status) || !(executedShape || preflightShape)) {
       put('review-status', 'Error — unexpected review response. No review accepted.'); return;
     }
-    accepted = { report, historical: false, baseline: baseline!, candidate: source.value, suite: suite.value }; renderStatus(); controls();
+    accepted = { report, historical: false, baseline: snapshot.baseline, candidate: snapshot.candidate, suite: snapshot.suite }; attentionOnly = false; renderStatus(); controls();
     put('review-identity', `baseline ${review.baseline_revision.slice(0, 12)} → candidate ${review.candidate_revision?.slice(0, 12) ?? 'unavailable'} · suite ${review.suite_hash?.slice(0, 12) ?? 'unavailable'} · query ${review.query_key?.slice(0, 12) ?? 'unavailable'}`);
     put('review-summary', count ? `${count.total} cases · ${count.changed} Changed · ${count.unchanged} Unchanged · ${count.faulted} Faulted · ${count.unknown} Unknown · candidate expectations ${count.expectation_pass} Pass / ${count.expectation_fail} Fail / ${count.expectation_error} Error / ${count.expectation_unknown} Unknown · ${count.attempted_invocations} fresh invocations` : 'Preflight rejected — no case invocations executed. Diagnostics retain their document/data-path ownership.');
+    renderCases();
+  }
+  function renderCases() {
+    if (!accepted?.report.review) return;
+    const review = accepted.report.review;
+    // Display only, after native shape validation. Never use live edited inputs,
+    // coerce decimal strings, or derive caller requirements from observations.
+    let inputs: unknown[] = [];
+    try {
+      const parsed = review.cases.length ? JSON.parse(accepted.suite) : undefined;
+      if (Array.isArray(parsed?.cases) && parsed.cases.length === review.cases.length) inputs = parsed.cases;
+    } catch { /* Unmatched display data stays explicitly unavailable. */ }
+    const args = (row: ReviewCase, index: number) => {
+      const saved = inputs[index] as { id?: unknown; args?: unknown } | undefined;
+      return Number.isSafeInteger(row.index) && row.index === index && saved?.id === row.id && Array.isArray(saved.args) ? JSON.stringify(saved.args) : 'unavailable';
+    };
+    const visible = review.cases.map((row, index) => ({ row, index })).filter(({ row }) => !attentionOnly || row.expectation !== 'Pass' || row.before.status !== 'Complete' || row.after.status !== 'Complete');
+    get('review-filters').hidden = review.cases.length === 0;
+    get('review-filter-all').setAttribute('aria-pressed', String(!attentionOnly));
+    get('review-filter-attention').setAttribute('aria-pressed', String(attentionOnly));
     const table = document.createElement('table'); table.className = 'decision-table';
-    const caption = table.createCaption(); caption.textContent = 'Decisions across saved scenarios';
+    const caption = table.createCaption(); caption.textContent = `${accepted.historical ? 'Historical review · ' : ''}Decisions across saved scenarios · ${visible.length} displayed / ${review.cases.length} total · ${attentionOnly ? 'Needs attention' : 'All scenarios'}${attentionOnly && !visible.length ? ' · No scenarios need attention.' : ''}`;
     const header = table.createTHead().insertRow();
-    for (const title of ['Scenario', 'Before', 'Proposed', 'Requirement']) { const th = document.createElement('th'); th.scope = 'col'; th.textContent = title; header.append(th); }
+    for (const title of ['Scenario / inputs', 'Before observed', 'Proposed observed', 'Owner-required result + output', 'Native status']) { const th = document.createElement('th'); th.scope = 'col'; th.textContent = title; header.append(th); }
     const body = table.createTBody();
     const decision = (observation: Observation) => {
-      if (observation.status !== 'Complete') return `${observation.status} · ${JSON.stringify(observation.diagnostics)}`;
-      const result = observation.result as { type?: string; value?: unknown } | undefined;
+      return `${observation.status}\n${required({ result: observation.result, output: observation.output })}${observation.status !== 'Complete' ? `\nDiagnostics: ${JSON.stringify(observation.diagnostics)}` : ''}`;
+    };
+    const required = (expected: unknown) => {
+      const data = expected as { result?: { type?: string; value?: unknown }; output?: unknown } | undefined;
+      const result = data?.result;
       const value = result?.value;
       const resultText = value !== null && typeof value === 'object' && !Array.isArray(value)
         ? Object.entries(value).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join('\n')
-        : JSON.stringify(observation.result);
-      return `${resultText}${observation.output ? `\nOutput: ${observation.output}` : ''}`;
+        : JSON.stringify(value);
+      return `Result (${result?.type ?? 'unavailable'}): ${resultText ?? 'unavailable'}\nOutput: ${typeof data?.output === 'string' ? JSON.stringify(data.output) : 'unavailable'}`;
     };
-    for (const row of review.cases) {
+    for (const { row, index } of visible) {
       const tr = body.insertRow();
-      for (const value of [row.id, decision(row.before), decision(row.after), `${row.expectation} · ${row.comparison}`]) tr.insertCell().textContent = value;
+      for (const value of [`${row.id}\nInputs: ${args(row, index)}`, decision(row.before), decision(row.after), required(row.expected), `Expectation: ${row.expectation}\nComparison: ${row.comparison}\n${row.comparison_reason}`]) tr.insertCell().textContent = value;
     }
     get('review-decisions').replaceChildren(table);
-    get('review-cases').replaceChildren(...review.cases.map(row => {
+    get('review-cases').replaceChildren(...visible.map(({ row, index }) => {
       const card = document.createElement('details'); card.className = 'review-case';
       const title = document.createElement('summary'); title.textContent = `${row.id} · ${row.comparison} · candidate expectation ${row.expectation}`;
-      const note = document.createElement('p'); note.textContent = `Comparison reason: ${row.comparison_reason}. These observations do not authorize applying or deploying a change.`;
+      const note = document.createElement('p'); note.textContent = `Inputs: ${args(row, index)}\nComparison reason: ${row.comparison_reason}. These observations do not authorize applying or deploying a change.`;
       const grid = document.createElement('div'); grid.className = 'review-observations';
       for (const [label, observation] of [['Before / baseline', row.before], ['After / candidate', row.after]] as const) {
         const section = document.createElement('section'); const head = document.createElement('h4'); head.textContent = label;
@@ -139,11 +200,8 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   }
   function start() {
     if (worker || baseline === undefined) return;
-    accepted = undefined;
+    clearResults();
     controls();
-    for (const id of ['review-json', 'review-identity', 'review-summary']) put(id, '');
-    get('review-cases').replaceChildren();
-    get('review-decisions').replaceChildren();
     const snapshot = { baseline, candidate: source.value, suite: suite.value, generation };
     if ([snapshot.baseline, snapshot.candidate, snapshot.suite].some(value => new TextEncoder().encode(value).length > 65536)) {
       put('review-status', 'Host limit — each source and suite must fit 64 KiB. No review submitted.'); return;
@@ -165,7 +223,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
         put('review-status', 'Historical reply discarded — review inputs changed. No review accepted.'); return;
       }
       if (!event.data.report) { put('review-status', `Error — no review accepted. ${event.data.error ?? 'No report'}`); return; }
-      render(event.data.report);
+      render(event.data.report, snapshot);
     };
     current.postMessage({ id, requestJson: `{"op":"review","source":${JSON.stringify(snapshot.baseline)},"candidate":${JSON.stringify(snapshot.candidate)},"suite":${snapshot.suite}}` });
   }
@@ -179,6 +237,8 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     if (accepted) { renderStatus(); put('review-status', `${get('review-status').textContent} ${notice}`); }
     else put('review-status', notice);
   };
+  get('review-filter-all').onclick = () => { attentionOnly = false; renderCases(); };
+  get('review-filter-attention').onclick = () => { attentionOnly = true; renderCases(); };
   run.onclick = start; stop.onclick = () => cancel('stopped; worker terminated'); controls();
   return { read: readWorkspace, replace: replaceWorkspace, generation: () => generation };
 }
