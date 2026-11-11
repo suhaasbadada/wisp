@@ -375,3 +375,46 @@ never substituting current editor text. Restart, import and restore clear the ol
 view; filters do not change its snapshot or execute code. Readable offline HTML
 includes the same bounded comparison and retains full source/exact JSON sections.
 Phone layout stacks the two sides; long lines scroll within the source view.
+
+### Take a browser review to the native CLI
+
+**Download runnable review package** creates `policy-review.tar`, an uncompressed
+standard USTAR archive with seven fixed flat filenames, in this order:
+
+```text
+baseline.wisp    exact submitted baseline UTF-8
+candidate.wisp   exact submitted candidate UTF-8
+cases.json       exact raw submitted suite
+review.json      complete native report JSON
+workspace.json   browser-review-v1 inputs/evidence bundle
+review.html      self-contained readable review, including all cases
+README.txt       fixed trusted-compiler/reproduction instructions
+```
+
+No compiler, executable, script, symlink, directory entry or policy-supplied path
+is included. Entries are regular files with mode `0600`; ownership/time fields
+are fixed zero metadata for reproducibility, not authorship/time authentication.
+Extract into a new empty directory, not over existing sensitive files. Read the
+contents, then use a trusted installed compiler matching the recorded identity:
+
+```sh
+wisp review baseline.wisp candidate.wisp --suite cases.json
+wisp check candidate.wisp
+```
+
+The review command makes fresh attempts (0 Pass, 1 Fail/Error, 3 Unknown, 2 host
+failure); extraction and download run nothing. Reproduction is not approval,
+authentication of old history, requirements completeness or permission to apply.
+There is no automatic compiler installation or policy-generated shell command.
+
+The archive uses the same current-native-review permission as other downloads,
+including negative/preflight evidence. Edits/reverts, formatting, replacement and
+import-only history cannot enable a stale package. Active result filtering never
+omits passed cases. Original source/suite bytes—including supported Unicode, NUL
+and leading newlines—and full native JSON remain unchanged. Sources/cases and
+both JSON/HTML bundles may contain sensitive data; inspect before sharing.
+
+The final tar is capped at 16 MiB before aggregate Blob allocation. Generating
+HTML and encoding entries still allocate; this is not an absolute memory bound.
+Failure reports a generic package error and downloads no archive. Web packaging
+does not add a language implementation or change native evaluation.
