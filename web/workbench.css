@@ -1,0 +1,14 @@
+.product-workbench { padding-top: 48px; padding-bottom: 64px; max-width: 1100px; }
+.product-workbench h1 { font-size: clamp(36px, 6vw, 64px); margin: 20px 0; }
+.product-workbench > p { max-width: 780px; line-height: 1.7; }
+.workbench-steps { display: flex; flex-wrap: wrap; gap: 32px; padding: 20px; color: var(--muted); }
+.product-workbench #source { width: 100%; min-height: 440px; padding: 20px; border: 0; background: transparent; color: inherit; font: 13px/1.7 monospace; resize: vertical; }
+.product-workbench .review-panel { margin-top: 28px; }
+.decision-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+.decision-table th, .decision-table td { text-align: left; padding: 12px; border-bottom: 1px solid #363638; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere; }
+.decision-scroll { overflow-x: auto; }
+.scenario-card { border-bottom: 1px solid #363638; padding: 12px 0; }
+.scenario-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 16px 0; }
+.scenario-fields label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.scenario-fields input { background: #19191c; color: #eee; border: 1px solid #555; padding: 8px; border-radius: 4px; min-width: 0; }
+.scenario-fields input[type=checkbox] { align-self: start; }

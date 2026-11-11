@@ -7,9 +7,11 @@ export function reviewMarkup() {
   return `<section id="policy-review" class="review-panel"><div class="panel-head"><h3><span class="orange">08</span> Policy change workbench</h3><span class="tag">EXPLICIT CASES · NOT APPROVAL</span></div>
   <p>Capture a baseline, edit the candidate in Code above, then compare explicit typed cases. Rust executes both versions with fresh limits per invocation. No top-level statements or probes run. Expectations are your specification—not automatically repaired.</p>
   <div class="review-controls"><button id="review-capture">Capture editor as baseline</button><button id="review-example">Load reservation walkthrough (replaces editor)</button><button id="review-run" disabled>Review cases</button><button id="review-stop" disabled>Stop review</button></div>
-  <details><summary>Captured baseline — unchanged until explicit recapture</summary><label class="sr-only" for="review-baseline">Captured review baseline</label><textarea id="review-baseline" readonly spellcheck="false" placeholder="Capture the editor or load the walkthrough first."></textarea></details>
+   <div class="review-controls"><button id="review-download-source" disabled>Download reviewed candidate</button><button id="review-download-evidence" disabled>Download review + both sources</button></div>
+   <p>Downloads include policy data; the review bundle contains both complete sources and all cases. Nothing is uploaded. A failed review can be downloaded too—export is not acceptance or Apply.</p>
+   <details><summary>Captured baseline — unchanged until explicit recapture</summary><label class="sr-only" for="review-baseline">Captured review baseline</label><textarea id="review-baseline" readonly spellcheck="false" placeholder="Capture the editor or load the walkthrough first."></textarea></details>
   <label for="review-suite">Case suite JSON <span>1–16 named cases · 64 KiB · canonical Int strings · exact expected output</span></label><textarea id="review-suite" spellcheck="false"></textarea>
-  <p id="review-status" role="status" aria-live="polite">No review. Capture a baseline or load the walkthrough. Nothing is applied or approved.</p><p id="review-identity" class="mono"></p><p id="review-summary" class="mono"></p><div id="review-cases"></div>
+   <p id="review-status" role="status" aria-live="polite">No review. Capture a baseline or load the walkthrough. Nothing is applied or approved.</p><p id="review-identity" class="mono"></p><p id="review-summary" class="mono"></p><div id="review-decisions" class="decision-scroll"></div><div id="review-cases"></div>
   <details><summary>Inspect review JSON and document-owned diagnostics</summary><pre id="review-json"></pre></details>
   <p>Pass means only these candidate examples matched under their limits. Changed is not approved intent; Unknown is incomplete. Baseline/candidate faults remain visible. Every edit, recapture or case change—including edit-and-revert—makes prior results historical. Stop discards the worker; it does not guess how many cases executed. Existing Run output and ghosts stay separate.</p></section>`;
 }
@@ -25,12 +27,29 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   const run = get<HTMLButtonElement>('review-run'); const stop = get<HTMLButtonElement>('review-stop');
   let baseline: string | undefined; let generation = 0; let serial = 0; let worker: Worker | undefined;
   let deadline: ReturnType<typeof setTimeout>;
-  let accepted: { report: ReviewReport; historical: boolean } | undefined;
+  let accepted: { report: ReviewReport; historical: boolean; baseline: string; candidate: string; suite: string } | undefined;
+  const downloadSource = get<HTMLButtonElement>('review-download-source');
+  const downloadEvidence = get<HTMLButtonElement>('review-download-evidence');
   suite.value = JSON.stringify({ version: 1, target: 'bill', cases: [
     { id: 'nine', args: ['9'], expect: { result: { type: 'Int', value: '900' }, output: '' } },
     { id: 'ten', args: ['10'], expect: { result: { type: 'Int', value: '980' }, output: '' } }
   ] }, null, 2);
-  function controls() { run.disabled = baseline === undefined || Boolean(worker); stop.disabled = !worker; }
+  function controls() {
+    run.disabled = baseline === undefined || Boolean(worker); stop.disabled = !worker;
+    downloadSource.disabled = downloadEvidence.disabled = !accepted || accepted.historical || Boolean(worker);
+  }
+  function download(value: string, name: string, type: string) {
+    const url = URL.createObjectURL(new Blob([value], { type }));
+    const link = document.createElement('a'); link.href = url; link.download = name; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  downloadSource.onclick = () => { if (accepted && !accepted.historical && !worker) download(accepted.candidate, 'candidate.wisp', 'text/plain'); };
+  downloadEvidence.onclick = () => {
+    if (accepted && !accepted.historical && !worker) download(JSON.stringify({
+      format: 'wisp-browser-review-v1', approval: 'not_granted', applied: false,
+      baseline: accepted.baseline, candidate: accepted.candidate, suite_json: accepted.suite, report: accepted.report
+    }, null, 2), 'policy-review.json', 'application/json');
+  };
   function renderStatus() {
     if (!accepted) return;
     const r = accepted.report;
@@ -63,9 +82,28 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     if (review.contract_version !== 1 || review.approval !== 'not_granted' || !hash(review.baseline_revision) || !Array.isArray(review.cases) || !['Pass', 'Fail', 'Unknown', 'Error'].includes(report.status) || !(executedShape || preflightShape)) {
       put('review-status', 'Error — unexpected review response. No review accepted.'); return;
     }
-    accepted = { report, historical: false }; renderStatus();
+    accepted = { report, historical: false, baseline: baseline!, candidate: source.value, suite: suite.value }; renderStatus(); controls();
     put('review-identity', `baseline ${review.baseline_revision.slice(0, 12)} → candidate ${review.candidate_revision?.slice(0, 12) ?? 'unavailable'} · suite ${review.suite_hash?.slice(0, 12) ?? 'unavailable'} · query ${review.query_key?.slice(0, 12) ?? 'unavailable'}`);
     put('review-summary', count ? `${count.total} cases · ${count.changed} Changed · ${count.unchanged} Unchanged · ${count.faulted} Faulted · ${count.unknown} Unknown · candidate expectations ${count.expectation_pass} Pass / ${count.expectation_fail} Fail / ${count.expectation_error} Error / ${count.expectation_unknown} Unknown · ${count.attempted_invocations} fresh invocations` : 'Preflight rejected — no case invocations executed. Diagnostics retain their document/data-path ownership.');
+    const table = document.createElement('table'); table.className = 'decision-table';
+    const caption = table.createCaption(); caption.textContent = 'Decisions across saved scenarios';
+    const header = table.createTHead().insertRow();
+    for (const title of ['Scenario', 'Before', 'Proposed', 'Requirement']) { const th = document.createElement('th'); th.scope = 'col'; th.textContent = title; header.append(th); }
+    const body = table.createTBody();
+    const decision = (observation: Observation) => {
+      if (observation.status !== 'Complete') return `${observation.status} · ${JSON.stringify(observation.diagnostics)}`;
+      const result = observation.result as { type?: string; value?: unknown } | undefined;
+      const value = result?.value;
+      const resultText = value !== null && typeof value === 'object' && !Array.isArray(value)
+        ? Object.entries(value).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join('\n')
+        : JSON.stringify(observation.result);
+      return `${resultText}${observation.output ? `\nOutput: ${observation.output}` : ''}`;
+    };
+    for (const row of review.cases) {
+      const tr = body.insertRow();
+      for (const value of [row.id, decision(row.before), decision(row.after), `${row.expectation} · ${row.comparison}`]) tr.insertCell().textContent = value;
+    }
+    get('review-decisions').replaceChildren(table);
     get('review-cases').replaceChildren(...review.cases.map(row => {
       const card = document.createElement('details'); card.className = 'review-case';
       const title = document.createElement('summary'); title.textContent = `${row.id} · ${row.comparison} · candidate expectation ${row.expectation}`;
@@ -82,8 +120,10 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   function start() {
     if (worker || baseline === undefined) return;
     accepted = undefined;
+    controls();
     for (const id of ['review-json', 'review-identity', 'review-summary']) put(id, '');
     get('review-cases').replaceChildren();
+    get('review-decisions').replaceChildren();
     const snapshot = { baseline, candidate: source.value, suite: suite.value, generation };
     if ([snapshot.baseline, snapshot.candidate, snapshot.suite].some(value => new TextEncoder().encode(value).length > 65536)) {
       put('review-status', 'Host limit — each source and suite must fit 64 KiB. No review submitted.'); return;
