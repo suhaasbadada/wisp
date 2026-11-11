@@ -131,6 +131,41 @@ are available for failures too: downloading is not acceptance or Apply. Any sour
 suite or baseline change disables both downloads until another review, even on
 edit-and-revert. Nothing is uploaded or saved automatically. Download bundles may
 contain sensitive source/case data and are not Python proposal/replay records.
-Closing the tab discards unsaved edits. Review remains finite evidence, not proof
+Closing the tab discards edits unless explicitly downloaded as a workspace draft
+or review bundle. Review remains finite evidence, not proof
 or authorization. Existing worker cancellation, limits and stale-response handling
 apply unchanged.
+
+### Save and reopen without losing work
+
+Expand **Save or reopen your workspace**, then **Download workspace draft** to
+save baseline, candidate and exact raw suite text even before a review, or with
+invalid/failed inputs. No local storage or automatic saving occurs. Source/suite
+strings must each fit 64 KiB of well-formed Unicode and use LF-only line endings:
+source/suite strings containing CR or CRLF are rejected unchanged rather
+than silently normalized by browser textareas. Workbench-produced files use LF.
+The draft format is
+`wisp-browser-workspace-v1` with `approval:not_granted`, `applied:false`,
+`baseline`, `candidate` and `suite_json`; it contains no execution claim.
+
+Open a downloaded draft or `wisp-browser-review-v1` review bundle, then explicitly
+select **Replace current workspace with opened file**. Selecting a file alone
+does not modify inputs. Replacement discards current unsaved inputs, cancels any
+pending review, clears current decisions/download eligibility and restores all
+three input strings exactly. Reservation forms rebuild only for supported,
+lossless suites. Raw malformed/duplicate suite members remain unchanged for Rust
+validation on the next review; import does not interpret or repair requirements.
+
+Files are local, at most 8 MiB, strict UTF-8, with known envelope fields and the
+lossless pretty-printed representation emitted by the workbench. Duplicate or
+reformatted envelope JSON, unpaired source/suite surrogates, extra fields and
+oversized inputs are rejected without changing the workspace. This is an input
+limit, not an aggregate memory bound. No file-supplied executable or path is used.
+
+Imported reports are inert text labelled **historical, unverified**. Their Pass,
+execution or approval claims never become current results. Select Review cases
+to execute the restored inputs afresh; a new result does not authenticate the
+historical report. Import accepts the report object as opaque history, not as a
+validated native receipt. Exported files contain complete source and case data;
+protect them before sharing. Browser draft/review bundles are not native or Python
+proposal replay records.
