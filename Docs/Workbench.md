@@ -502,3 +502,29 @@ duplicate existing IDs are not repaired. Values still receive native validation
 on Review. Unadded form fields are not workspace inputs and are not persisted or
 recovered; rereading shapes or changing bound inputs resets them. Select Add before
 relying on workspace downloads or browser recovery to keep a scenario.
+
+### Select a current source error
+
+For an accepted current review's report-level source diagnostics, **Select
+candidate error** focuses the proposed editor and selects the owned native range.
+**Select baseline error** opens and focuses the read-only captured baseline instead.
+Labels give an LF-based line number and native UTF-8 byte range, not a visual
+column. UTF-8 offsets are converted to textarea UTF-16 positions without language
+parsing or source rewriting; malformed spans, split Unicode-scalar boundaries,
+non-scalar strings and sources over 64 KiB are rejected.
+
+Candidate review diagnostics can carry remapped placeholder offsets. Navigation
+uses only a matching original candidate cause with the correct document and no
+JSON data path; it never treats `/candidate` or a suite input pointer as a source
+span. Baseline uses its directly owned root span. Unknown/mismatched ownership,
+unsupported kinds, runtime observation cells, missing causes and data-path
+diagnostics remain text-only. This is deliberately narrower than every error
+displayed by the app, including the scenario builder's metadata errors.
+
+Only accepted native preflight Syntax/Type/Purity errors can offer navigation.
+Buttons bind the accepted object, generation and exact three current input
+strings. Any edit, recapture or edit-and-revert disables them; restart/import/
+restore clears them, and retained old callbacks recheck freshness. Filtering a
+historical result does not revive navigation. Imported history cannot enable it.
+Selecting a range changes neither policy nor suite, executes no code, performs no
+automatic repair and does not alter native evidence or download permissions.
