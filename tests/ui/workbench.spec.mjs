@@ -34,7 +34,7 @@ test('scenario forms preserve input strings and failed owner requirements', asyn
   await expect(page.locator('#review-status')).toContainText('Submitted inputs · Fail');
   expect(JSON.parse(await page.locator('#review-suite').inputValue()).cases[0].expect.result.value.packs).toBe('999');
   await expect(page.locator('#review-decisions tbody tr').first()).toContainText('Fail');
-  await card.getByLabel('quantity', { exact: true }).fill('9223372036854775807');
+  await card.getByLabel('Argument 1.quantity', { exact: true }).fill('9223372036854775807');
   await expect(page.locator('#review-download-source')).toBeDisabled();
   expect(JSON.parse(await page.locator('#review-suite').inputValue()).cases[0].args[0].quantity).toBe('9223372036854775807');
   await expect(page.locator('#review-status')).toContainText('Historical review');

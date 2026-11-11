@@ -119,7 +119,7 @@ Select **Review cases** to execute both revisions through the existing Rust/WASM
 worker. Expand a scenario to edit its inputs or required accepted/packs/reason
 values without writing JSON. Integers remain strings, including full i64 values.
 Changing requirements is an explicit user action, never automatic repair. Custom
-suites use the advanced raw JSON editor and the same Rust validation. Forms are
+suites use the same Rust validation. Forms are
 only exposed for the bundled example or losslessly round-trippable formatted
 JSON; duplicate-member or differently formatted suites remain raw, never normalized
 by form edits. The browser does not implement policy evaluation or claim to
@@ -152,7 +152,7 @@ Open a downloaded draft or `wisp-browser-review-v1` review bundle, then explicit
 select **Replace current workspace with opened file**. Selecting a file alone
 does not modify inputs. Replacement discards current unsaved inputs, cancels any
 pending review, clears current decisions/download eligibility and restores all
-three input strings exactly. Reservation forms rebuild only for supported,
+three input strings exactly. Scenario forms rebuild only for supported,
 lossless suites. Raw malformed/duplicate suite members remain unchanged for Rust
 validation on the next review; import does not interpret or repair requirements.
 
@@ -193,4 +193,31 @@ edit-and-revert—the pending import cannot overwrite that work. Re-open explici
 if replacement is still intended. No JSON field can select a host path, executable
 or network operation. After import, review the native before/after results and
 download a workspace to keep the exact supported inputs across sessions. Custom
-suites use the advanced editor when they do not fit the reservation forms.
+suites use the advanced editor when they do not fit the supported form shape.
+
+### Maintain custom scenarios through forms
+
+Forms support primitive String/Bool and nested record argument/expected values
+for custom policies, not only reservations. Edit the function target, scenario ID,
+argument leaves, required result type/value and required output. An input's JSON
+type is retained: strings stay strings (including full i64 decimal text), booleans
+use checkboxes, and record fields keep their keys. Rust decides whether those
+values match the selected function's types; the browser never interprets Wisp or
+infers a requirement from a runtime observation.
+
+**Duplicate scenario** copies the selected inputs and requirements with a new
+unused `case-N` ID. It does not invent an expected result: edit the copy yourself.
+**Remove scenario** explicitly removes that row. Duplication stops at 16 cases;
+removal stops at one. Every field edit, duplicate and removal invalidates current
+review/download eligibility. Invalid integer strings or duplicate IDs stay as
+entered and receive native errors; they are not corrected automatically.
+
+Forms require exact pretty-printed JSON (`JSON.stringify(value, null, 2)`), known
+version-1 suite/case/expectation fields, 1–16 cases, LF-only strings, String/Bool or
+record values, at most 16 record levels/32 fields per record, 64 KiB total input,
+and at most 2,048 counted fields/value nodes for rendering. No arrays are exposed
+except the ordered argument list, and no JSON number/null values are coerced.
+Unsupported/duplicate/noncanonical JSON remains unchanged in the advanced editor;
+these UI limits are not a judgment of semantic validity. Only the explicitly
+loaded bundled example is automatically formatted. Obsolete form callbacks cannot
+overwrite raw edits or a replaced workspace.
