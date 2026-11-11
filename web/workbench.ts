@@ -9,6 +9,7 @@ export function workbenchMarkup() {
     <div class="eyebrow">WISP POLICY WORKBENCH · LOCAL / NO ACCOUNT</div>
     <h1>Change a rule.<br>See the consequences.</h1>
     <p class="intro">Check reservation decisions before you ship a policy change.</p>
+    <nav class="workbench-actions" aria-label="Policy workbench actions"><div id="workbench-review-actions"></div><a href="#source">Policy</a><a href="#scenario-editor">Scenarios</a><a href="#review-status">Results</a></nav>
     <p>The sample fixes pack rounding and expired stock. Seven saved scenarios cover boundaries and rejection rules. Edit the candidate, compare decisions, then download your code and review. Nothing is uploaded. Browser draft saving is off unless you opt in under Save or reopen your workspace.</p>
     <ol class="workbench-steps"><li>Edit the proposed policy</li><li>Review saved scenarios</li><li>Download code + evidence</li></ol>
     ${policyFilesMarkup()}
@@ -22,6 +23,11 @@ export function workbenchMarkup() {
 export function setupWorkbench() {
   const source = document.querySelector<HTMLTextAreaElement>('#source')!;
   const workspace = setupReview(source, () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
+  // Move the real controls: retain their existing worker, cancellation and
+  // disabled-state lifecycle rather than introducing proxy execution buttons.
+  const run = document.getElementById('review-run')!; const stop = document.getElementById('review-stop')!;
+  document.getElementById('workbench-review-actions')!.append(run, stop); run.classList.add('primary');
+  run.addEventListener('click', () => document.getElementById('review-status')!.scrollIntoView({ block: 'start' }));
   setupPolicyFiles(workspace);
   document.getElementById('review-example')!.click();
   const suite = document.querySelector<HTMLTextAreaElement>('#review-suite')!;

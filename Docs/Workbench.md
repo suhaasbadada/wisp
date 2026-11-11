@@ -335,3 +335,14 @@ Content Security Policy with only a fixed inline stylesheet allowed. These contr
 and finite browser tests are not a universal hostile-file security guarantee. The
 HTML is for reading/printing; reopen the JSON workspace/review bundle to resume
 editing or rerun. Browser recovery does not store this report.
+
+### First-screen and phone controls
+
+The focused workbench places its existing **Review cases** and **Stop review**
+controls in a sticky action bar, alongside **Policy**, **Scenarios** and **Results**
+links. These are the same controls and worker lifecycle as before, not a second
+execution path. Review scrolls to the status/results area; the bar stays reachable
+while inspecting decisions or editing. Navigation alone neither executes cases
+nor changes inputs, and sticky Stop retains cancellation/late-response rejection.
+The full language playground keeps its original layout. Source/scenario/result
+anchor offsets leave room for the sticky bar on phone-sized screens.
