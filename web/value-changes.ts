@@ -29,27 +29,45 @@ export function transportDifferences(before: unknown, proposed: unknown): ValueD
   let textBytes = 0; const encoder = new TextEncoder();
   const empty = Symbol('empty record');
   const present = Symbol('present record');
+  const emptyList = Symbol('empty list');
+  const presentList = Symbol('present list');
   const fail = (message: string): never => { throw new Error(message); };
   const flatten = (input: unknown) => {
     if (!record(input) || !own(input, 'result') || !own(input, 'output') || typeof input.output !== 'string' || !record(input.result) || !own(input.result, 'type') || typeof input.result.type !== 'string' || !own(input.result, 'value') || Object.keys(input.result).length !== 2) fail('Unsupported result/output transport shape.');
     const data = input as RecordValue & { result: RecordValue; output: string };
-    const leaves = new Map<string, string | boolean | null | typeof empty | typeof present>();
+    const leaves = new Map<string, string | boolean | null | typeof empty | typeof present | typeof emptyList | typeof presentList>();
     const walk = (value: unknown, path: string, depth: number): void => {
       if (++nodes > 2048) fail('UI limit: 2048 visited nodes per comparison.');
       if (path.length > 8192) fail('UI limit: field path exceeds 8192 UTF-16 units.');
       if (typeof value === 'string' && !scalarText(value)) fail('Unsupported non-scalar Unicode transport string.');
       if (typeof value === 'string' || typeof value === 'boolean' || value === null) { leaves.set(path, value); return; }
-      if (Array.isArray(value)) fail('List-valued differences are not expanded by this view; full native JSON retained.');
+      if (Array.isArray(value)) {
+        if (depth > 16) fail('UI limit: 16 combined record/list levels.');
+        if (value.length > 1024) fail('UI limit: 1024 elements per list.');
+        // Only native JSON-shaped dense arrays: no holes, inherited indices,
+        // accessors, symbols or extra properties. Validate before reading.
+        if (Object.getPrototypeOf(value) !== Array.prototype || Reflect.ownKeys(value).length !== value.length + 1) fail('Unsupported non-JSON list shape.');
+        leaves.set(path, value.length ? presentList : emptyList);
+        for (let index = 0; index < value.length; index++) {
+          const entry = Object.getOwnPropertyDescriptor(value, String(index));
+          if (!entry || !entry.enumerable || !Object.hasOwn(entry, 'value')) fail('Unsupported non-JSON list shape.');
+          walk(entry!.value, `${path}/${index}`, depth + 1);
+        }
+        return;
+      }
       if (!record(value)) fail('Unsupported transport value (numbers and non-JSON shapes are not compared).');
-      if (depth > 16) fail('UI limit: 16 record levels.');
+      if (depth > 16) fail('UI limit: 16 combined record/list levels.');
       const keys = Object.keys(value as RecordValue);
       if (keys.length > 32) fail('UI limit: 32 fields per record.');
+      if (Reflect.ownKeys(value as RecordValue).length !== keys.length) fail('Unsupported non-JSON record shape.');
       // Keep record presence so a scalar-to-record change never falsely labels
       // the existing parent path absent. Bounded leaf paths follow the marker.
       leaves.set(path, keys.length ? present : empty);
       for (const key of keys) {
         if (!scalarText(key)) fail('Unsupported non-scalar Unicode field name.');
-        walk((value as RecordValue)[key], `${path}/${pointer(key)}`, depth + 1);
+        const entry = Object.getOwnPropertyDescriptor(value, key)!;
+        if (!Object.hasOwn(entry, 'value')) fail('Unsupported non-JSON record shape.');
+        walk(entry.value, `${path}/${pointer(key)}`, depth + 1);
       }
     };
     walk(data.result.type, '/result/type', 1);
@@ -65,6 +83,8 @@ export function transportDifferences(before: unknown, proposed: unknown): ValueD
       const value = values.get(path)!;
       if (value === empty) return 'present empty record {}';
       if (value === present) return 'present record (bounded leaf paths below)';
+      if (value === emptyList) return 'present empty list []';
+      if (value === presentList) return 'present list (bounded positional paths below)';
       const cell = scalar(value); limited ||= cell.limited; return cell.text;
     };
     for (const path of paths) {
@@ -100,6 +120,7 @@ export function renderValueChanges(document: Document, row: CaseValues): HTMLEle
     return node;
   };
   panel.append(element('p', 'Exact transport-value differences, not causal explanations, native verdicts, policy repair or approval.'));
+  panel.append(element('p', 'List indices align by JSON position only, not row identity or moves.'));
   for (const requirements of [false, true]) {
     const details = document.createElement('details'); details.className = requirements ? 'requirement-differences' : 'observed-value-changes';
     const appendFixed = (tag: 'summary' | 'p', text: string) => { details.append(element(tag, text)); };

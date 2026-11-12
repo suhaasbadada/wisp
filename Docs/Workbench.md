@@ -664,15 +664,16 @@ readable requirement comparison. Preflight has no case observations to compare.
 Paths are JSON-quoted JSON pointers, with `~` and `/` escaped as `~0` and `~1`.
 Strings remain quoted exact strings, including full i64 decimal text, empty or
 newline output, Unicode and escaped NUL. Bool and null remain distinct; missing
-fields and empty/present records have explicit presence markers. Own record keys,
-including `__proto__`, are literal data. Numbers, arrays, malformed result shapes
-and non-scalar Unicode fail closed as unsupported views, even if both sides look
-identical. In particular, valid list results produce an unavailable array view,
-not a core Error or “no change”; full native JSON remains available. Zero
+fields and empty/present records and lists have explicit presence markers. Lists
+align by ordered JSON index, not inferred row identity or moves; nested lists and
+records use literal indexed paths. Own record keys, including `__proto__`, are
+literal data. Numbers, malformed/non-JSON shapes (including sparse arrays) and
+non-scalar Unicode fail closed, even if both sides look identical. Zero
 displayed differences is not universal native equivalence or a
 fresh verdict. No requirements or native evidence are rewritten.
 
-Each comparison is limited to 16 record levels, 32 fields per record, 2048 visited
+Each comparison is limited to 16 combined Record/List levels, 32 fields per record,
+1024 elements per list, 2048 visited
 nodes across both sides, 64 displayed difference rows, 8192 UTF-16 units per path
 and 120 KiB row text. Scalar cells show at most 512 Unicode scalars with explicit
 truncation. Each two-comparison panel has a 256 KiB generated-text budget. A limit
@@ -681,6 +682,8 @@ native JSON is retained separately. These are display limits, not absolute memor
 bounds or language-validity judgments. Filtering, expanding or exporting this
 view executes no policy code. Historical views use saved accepted values, not
 subsequent form edits; restart/import/Restore clear them with other results.
+See [List value differences](List-value-differences.md) for positional semantics
+and full native JSON fallback. List-shaped scenario forms remain unsupported.
 
 ### Choose a clear starting path
 

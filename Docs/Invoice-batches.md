@@ -94,7 +94,8 @@ for example `[Int;]`. Negative/out-of-range indexing is a native Runtime Error.
 
 Typed Invoke and raw scenario/review JSON support lists. The scenario form
 builder deliberately refuses list-shaped forms with a raw-JSON alternative.
-Field-difference views likewise show an unavailable notice for list values rather
-than claiming no change; full native JSON remains available. These are UI limits,
+Field-difference views show bounded positional list differences, not row identity
+or moves; full native JSON remains available when the view is limited or
+unsupported. See [List value differences](List-value-differences.md). These are UI limits,
 not list execution failures. See [Language](Language.md), [Interface](Interface.md)
 and [Workbench](Workbench.md). Compiler semantics-7 does not migrate old evidence.
