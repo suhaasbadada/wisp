@@ -1,14 +1,26 @@
 .workbench-page { scroll-behavior: auto; }
-.product-workbench { padding-top: 48px; padding-bottom: 64px; max-width: 1100px; }
-.product-workbench h1 { font-size: clamp(36px, 6vw, 64px); margin: 20px 0; }
+.product-workbench { padding-top: 24px; padding-bottom: 64px; max-width: 1100px; }
+.product-workbench h1 { font-size: clamp(36px, 5vw, 48px); margin: 12px 0; letter-spacing: -2px; }
 .product-workbench > p { max-width: 780px; line-height: 1.7; }
-.workbench-steps { display: flex; flex-wrap: wrap; gap: 32px; padding: 20px; color: var(--muted); }
+.product-workbench > .intro { font-size: 18px; margin-block: 10px; }
+.product-workbench .code-panel h2 { font-size: 24px; margin-block: 6px; }
+.workbench-start { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-block: 18px; }
+.workbench-start article { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 4px; }
+.workbench-start h2 { font-size: 21px; margin: 0 0 10px; letter-spacing: -.5px; }
+.workbench-start p { font-size: 12px; line-height: 1.5; margin-block: 10px; }
+.workbench-start button { display: block; width: 100%; margin-block: 8px; font-size: 12px; padding: 8px; }
+.workbench-start a { font-size: 13px; }
+.product-workbench .workbench-privacy { font-size: 12px; line-height: 1.5; }
+.workbench-guide { margin-block: 16px; font-size: 13px; }
+#workbench-expense-status:empty { display: none; }
+.workbench-tools { margin-top: 28px; }
+@media (max-width: 700px) { .workbench-start { grid-template-columns: minmax(0, 1fr); } }
 .product-workbench #source { width: 100%; min-height: 440px; padding: 20px; border: 0; background: transparent; color: inherit; font: 13px/1.7 monospace; resize: vertical; }
 .product-workbench .review-panel { margin-top: 28px; }
 .workbench-actions { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px; margin-block: 18px; background: #f5f2e9; border: 1px solid var(--line); border-radius: 4px; }
 #workbench-review-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .workbench-actions a { padding: 10px 2px; font-size: 13px; }
-.product-workbench :is(#source, #scenario-editor, #review-status) { scroll-margin-top: 150px; }
+.product-workbench :is(#source, #scenario-editor, #review-status, #policy-files-heading, #workspace-file, #workspace-library > summary) { scroll-margin-top: 150px; }
 .decision-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
 .decision-table th, .decision-table td { text-align: left; padding: 12px; border-bottom: 1px solid #363638; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere; }
 .decision-scroll { overflow-x: auto; }
