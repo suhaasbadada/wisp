@@ -47,7 +47,8 @@ test('format permission expires on input edit-and-revert, replacement and import
   await page.locator('#review-run').click(); await expect(page.locator('#review-format-suite')).toBeEnabled();
   const report = JSON.parse(await page.locator('#review-json').textContent());
   await page.locator('#review-example').click(); await expect(page.locator('#review-format-suite')).toBeDisabled();
-  await expect(page.locator('#review-status')).toContainText('Historical review');
+  await expect(page.locator('#review-status')).toContainText('no current review');
+  await expect(page.locator('#review-json')).toHaveText('');
   await page.locator('summary').filter({ hasText: 'Save or reopen your workspace' }).click();
   const bundle = JSON.stringify({ format: 'wisp-browser-review-v1', approval: 'not_granted', applied: false, baseline: source, candidate: source, suite_json: raw, report }, null, 2);
   await page.locator('#workspace-file').setInputFiles({ name: 'review.json', mimeType: 'application/json', buffer: Buffer.from(bundle) });

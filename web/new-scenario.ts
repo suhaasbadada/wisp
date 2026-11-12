@@ -88,7 +88,9 @@ export function setupNewScenario(workspace: ReviewWorkspace, source: HTMLTextAre
   }
   const fresh = (snapshot: { source: string; suite: string; generation: number; serial: number }) => snapshot.serial === serial && snapshot.generation === workspace.generation() && snapshot.source === source.value && snapshot.suite === suite.value;
   for (const node of [source, suite, get('review-baseline')]) for (const event of ['input', 'change']) node.addEventListener(event, () => invalidate());
-  for (const id of ['review-capture', 'review-example']) get(id).addEventListener('click', () => invalidate());
+  get('review-capture').addEventListener('click', () => invalidate());
+  // Actual example replacements dispatch source input and invalidate above.
+  // An identical focused-workbench load is a true no-op, including unadded work.
   stop.onclick = () => invalidate('Reading stopped; worker terminated. This builder requested no case execution.');
   read.onclick = () => {
     invalidate('Reading candidate shapes in Rust; no cases execute.');

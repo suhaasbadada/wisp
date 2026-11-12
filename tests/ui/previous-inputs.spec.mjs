@@ -37,14 +37,16 @@ async function expectCleared(page) {
   await expect(page.locator('#review-status')).toContainText('no current review');
 }
 
-test('only replacement of a complete workspace creates a previous buffer, not edits or example loading', async ({ page }) => {
+test('focused example replacement keeps complete edited inputs; an incomplete playground has no backup', async ({ page }) => {
   await open(page);
   await expect(page.locator('#workspace-restore-previous')).toBeDisabled();
   await page.locator('#source').fill('invalid edited input');
   await page.locator('#review-suite').evaluate(node => { node.value = '{invalid'; node.dispatchEvent(new Event('input')); });
   await page.locator('#review-capture').click();
+  const edited = await values(page);
   await page.locator('#review-example').click();
-  await expect(page.locator('#workspace-restore-previous')).toBeDisabled();
+  await expect(page.locator('#workspace-restore-previous')).toBeEnabled();
+  await restore(page); expect(await values(page)).toEqual(edited);
   await open(page, '');
   await expect(page.locator('#review-baseline')).toHaveValue('');
   await page.locator('#workspace-file').setInputFiles(file('draft.json', envelope(inputs)));

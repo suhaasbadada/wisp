@@ -440,8 +440,9 @@ The full language playground retains its existing behavior.
 ### Recover from opening the wrong workspace
 
 **Restore previous inputs (replaces current)** keeps one complete prior workspace
-in tab memory when opening policy files, a JSON workspace/review bundle or browser
-recovery. A complete set includes a captured baseline, candidate and raw suite.
+in tab memory when opening policy files, a JSON workspace/review bundle, browser
+recovery, a named workspace or an explicit focused-workbench example. A complete
+set includes a captured baseline, candidate and raw suite.
 The button is disabled before such a replacement, or when the previous editor had
 no captured baseline. This is not general edit undo or a multi-step history.
 
@@ -665,3 +666,36 @@ native JSON is retained separately. These are display limits, not absolute memor
 bounds or language-validity judgments. Filtering, expanding or exporting this
 view executes no policy code. Historical views use saved accepted values, not
 subsequent form edits; restart/import/Restore clear them with other results.
+
+### Choose a clear starting path
+
+The focused workbench opens with three paths: **Try examples**, **Open your own
+policy**, and **Resume work**. Its real, single Review/Stop pair remains sticky.
+Source editing follows these compact paths; full file-intake and named-library
+tools follow the review/editor rather than blocking the initial editing path.
+Detailed illustrative rules are available under **Example rules and boundaries**.
+Local-saving, replacement, privacy and finance-advice warnings remain beside the
+actions they qualify.
+
+**Open policy file tools** navigates to and focuses the existing intake heading;
+it does not activate a file picker or import anything. **Find a browser workspace**
+opens the existing named-library disclosure. **Reopen a downloaded workspace**
+opens the existing Save or reopen disclosure and focuses its file input without
+clicking it. These navigation actions do not change inputs, storage or evidence,
+request execution, enable saving, download files or grant import consent.
+
+The initial reservation example remains seven scenarios with no review requested
+by startup. Subsequent explicit reservation and expense loads now share the
+complete-workspace replacement path in the focused workbench: different inputs
+preserve the previous complete set, including invalid raw text and post-import
+edits, clear evidence/history and invalidate unadded builder metadata/forms. Prior
+attempts may already have run; loading itself requests no execution. Identical
+loads are true no-ops, preserving native evidence, previous inputs, open saved
+cards and their current result-to-form bindings, and unadded scenario-builder
+values, replacement consent and in-flight metadata reads. Only known bundled suites are
+formatted. The full language playground retains its original example behavior.
+
+The responsive layout uses three desktop columns and one phone column, with
+keyboard focus/scroll targets below the sticky bar. Measurements at a specific
+viewport are regression checks, not claims about every device, browser or visual
+setting; no universal usability or accessibility certification is implied.

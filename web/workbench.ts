@@ -6,6 +6,8 @@ import { newScenarioMarkup, setupNewScenario } from './new-scenario';
 import { workspaceLibraryMarkup, setupWorkspaceLibrary } from './workspace-library';
 import './workbench.css';
 import exampleSuite from '../examples/policies/cases.json?raw';
+import reservationBaseline from '../examples/policies/reservations-before.wisp?raw';
+import reservationCandidate from '../examples/policies/reservations-after.wisp?raw';
 import expenseBaseline from '../examples/policies/expenses-before.wisp?raw';
 import expenseCandidate from '../examples/policies/expenses-after.wisp?raw';
 import expenseSuite from '../examples/policies/expenses-cases.json?raw';
@@ -13,21 +15,33 @@ import expenseSuite from '../examples/policies/expenses-cases.json?raw';
 export function workbenchMarkup() {
   return `<div class="wrap product-workbench">
     <div class="eyebrow">WISP POLICY WORKBENCH · LOCAL / NO ACCOUNT</div>
-    <h1>Change a rule.<br>See the consequences.</h1>
+    <h1>Change a rule. See the consequences.</h1>
     <p class="intro">Compare policy decisions before you ship a rule change.</p>
     <nav class="workbench-actions" aria-label="Policy workbench actions"><div id="workbench-review-actions"></div><a href="#source">Policy</a><a href="#scenario-editor">Scenarios</a><a href="#review-status">Results</a></nav>
-    <p>The sample fixes pack rounding and expired stock. Seven saved scenarios cover boundaries and rejection rules. Edit the candidate, compare decisions, then download your code and review. Nothing is uploaded. Browser draft saving is off unless you opt in under Save or reopen your workspace. Browsers may warn before leaving with changed inputs; this does not save them.</p>
-    <p>Alternate illustration: expense reimbursement in whole cents. Owner requirements: reject negative amounts, allow amounts up to 10000 cents inclusive, and require a receipt only above 2500 cents. The candidate fixes two boundary mistakes. This is not finance, tax or company advice or approval.</p>
-    <button id="workbench-expense">Load expense walkthrough (replaces all three inputs)</button>
-    <p>This explicit action replaces baseline, proposed policy and scenarios, keeping the previous complete inputs in this tab for Restore previous inputs under Save or reopen your workspace. It does not run cases or grant approval.</p>
+    <p class="workbench-privacy">Local only: nothing uploaded. Browser saving is off unless explicitly enabled. The leaving warning is not a save or backup.</p>
+    <section class="workbench-start" aria-label="Start your workspace">
+      <article><h2>Try examples</h2><p>Starts with seven reservation scenarios. Loading an example does not request a review.</p>
+        <div id="workbench-reservation"></div>
+        <button id="workbench-expense">Load expense walkthrough (replaces all three inputs)</button>
+        <p>Loads replace all three inputs; previous complete inputs stay in this tab for Restore. No execution requested or approval granted.</p>
+        <p>Expense is illustrative, not finance, tax or company advice or approval.</p>
+      </article>
+      <article><h2>Open your own policy</h2><p>Bring baseline Wisp, an optional candidate, and scenario JSON. Choose files first; open them only when ready.</p><a href="#policy-files-heading">Open policy file tools</a></article>
+      <article><h2>Resume work</h2><p>Use an explicitly saved browser copy or a downloaded workspace. Navigation alone loads and saves nothing.</p>
+        <button id="workbench-resume-library">Find a browser workspace</button>
+        <button id="workbench-resume-file">Reopen a downloaded workspace</button>
+      </article>
+    </section>
     <p id="workbench-expense-status" role="status" aria-live="polite"></p>
-    <ol class="workbench-steps"><li>Edit the proposed policy</li><li>Review saved scenarios</li><li>Download code + evidence</li></ol>
-    ${policyFilesMarkup()}
-    ${workspaceLibraryMarkup()}
+    <details class="workbench-guide"><summary>Example rules and boundaries</summary>
+      <p>The reservation sample fixes pack rounding and expired stock. Seven saved scenarios cover boundaries and rejection rules. Edit the candidate, review saved scenarios, then download code and evidence.</p>
+      <p>Expense owner requirements: reject negative amounts, allow amounts up to 10000 cents inclusive, and require a receipt only above 2500 cents. The candidate fixes two boundary mistakes. This illustration is not finance, tax or company advice or approval.</p>
+    </details>
     <section class="code-panel"><div class="panel-head"><h2>1. Proposed policy</h2><span>Wisp source · editable</span></div>
     <label class="sr-only" for="source">Proposed policy source</label><textarea id="source" spellcheck="false"></textarea></section>
     ${reviewMarkup()}
     ${newScenarioMarkup()}
+    <section class="workbench-tools" aria-label="Workspace tools">${policyFilesMarkup()}${workspaceLibraryMarkup()}</section>
     <p>New to the example? Expand a case to compare the old decision, proposed decision and required result. To use your own policy, paste its source, capture it as the baseline, then edit the candidate and create scenarios from its function inputs or import a case suite. <a href="?playground#playground">Open the full language playground</a>.</p>
   </div>`;
 }
@@ -47,27 +61,36 @@ export function setupWorkbench() {
   document.getElementById('workbench-review-actions')!.append(run, stop); run.classList.add('primary');
   run.addEventListener('click', () => document.getElementById('review-status')!.scrollIntoView({ block: 'start' }));
   setupPolicyFiles(workspace);
-  document.getElementById('review-example')!.click();
+  const reservation = document.getElementById('review-example')!;
+  reservation.click();
+  document.getElementById('workbench-reservation')!.append(reservation);
+  reservation.textContent = 'Load reservation walkthrough (replaces all three inputs)';
   const suite = document.querySelector<HTMLTextAreaElement>('#review-suite')!;
   scenarios = setupScenarioEditor(suite);
   document.getElementById('scenario-editor')!.before(document.getElementById('new-scenario')!);
-  function loadedExample() {
-    // Only the bundled, explicitly loaded fixture may be formatted here.
-    if (suite.value === exampleSuite) suite.value = JSON.stringify(JSON.parse(exampleSuite), null, 2);
-    scenarios!.refresh();
-  }
-  loadedExample(); suite.addEventListener('change', scenarios.refresh);
-  document.getElementById('review-example')!.addEventListener('click', loadedExample);
-  document.getElementById('workbench-expense')!.addEventListener('click', () => {
-    // Only this known bundled fixture is normalized, never imported owner input.
-    const value = { baseline: expenseBaseline, candidate: expenseCandidate, suite_json: JSON.stringify(JSON.parse(expenseSuite), null, 2) };
+  // Startup alone uses the original walkthrough handler. Explicit subsequent
+  // loads replace complete workspaces, preserving even invalid previous text.
+  // Only these known bundled fixtures are normalized, never owner input.
+  suite.value = JSON.stringify(JSON.parse(exampleSuite), null, 2);
+  scenarios.refresh(); suite.addEventListener('change', scenarios.refresh);
+  function loadExample(baseline: string, candidate: string, rawSuite: string, label: string) {
+    const value = { baseline, candidate, suite_json: JSON.stringify(JSON.parse(rawSuite), null, 2) };
     const current = workspace.read();
     const same = current?.baseline === value.baseline && current.candidate === value.candidate && current.suite_json === value.suite_json;
     if (!same) workspace.replace(value);
     document.getElementById('workbench-expense-status')!.textContent = same
-      ? 'Illustrative expense inputs already loaded; inputs and previous inputs unchanged. No cases executed by this action; nothing applied or approved.'
-      : 'Illustrative expense inputs replaced; previous complete inputs kept for Restore. Evidence cleared. Select Review cases for fresh results. This action requested no case execution; a prior review may already have attempted cases. Nothing applied or approved.';
-  });
+      ? `${label} inputs already loaded; inputs and previous inputs unchanged. No cases executed by this action; nothing applied or approved.`
+      : `${label} inputs replaced; previous complete inputs kept for Restore. Evidence cleared. Select Review cases for fresh results. This action requested no case execution; a prior review may already have attempted cases. Nothing applied or approved.`;
+  }
+  reservation.onclick = () => loadExample(reservationBaseline, reservationCandidate, exampleSuite, 'Reservation');
+  document.getElementById('workbench-expense')!.onclick = () => loadExample(expenseBaseline, expenseCandidate, expenseSuite, 'Illustrative expense');
+  document.getElementById('policy-files-heading')!.tabIndex = -1;
+  const reveal = (target: HTMLElement) => {
+    target.closest('details')!.open = true;
+    target.focus(); target.scrollIntoView({ block: 'start' });
+  };
+  document.getElementById('workbench-resume-library')!.onclick = () => reveal(document.querySelector<HTMLElement>('#workspace-library > summary')!);
+  document.getElementById('workbench-resume-file')!.onclick = () => reveal(document.getElementById('workspace-file')!);
   setupLeaveWarning(workspace);
   setupNewScenario(workspace, source, makeWorker);
   setupWorkspaceLibrary(workspace);
