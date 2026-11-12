@@ -102,8 +102,10 @@ Use the generic [focused workbench](https://suhaasbadada.github.io/wisp/?workben
 and **Open your policy files**: select the existing baseline, candidate and
 `cases.json`, then explicitly **Open files — replace unsaved inputs**. Selection
 alone does not load or execute. Inspect all three inputs, then explicitly Review.
-Keep a draft before replacing unsaved work. List-shaped scenario arguments use
-the advanced raw JSON editor, not the forms. List result differences use bounded
+Keep a draft before replacing unsaved work. List-shaped scenario arguments and
+requirements can use [manual List JSON fields](List-scenario-builder.md) or the
+advanced raw editor. Add stages owner-entered values without execution or inferred
+expectations; Review remains explicit. List result differences use bounded
 positional paths, not row identities; full native JSON remains authoritative when
 the view is limited or unavailable. Open the old suite and
 Review again to observe Fail without inferring replacement expectations. The

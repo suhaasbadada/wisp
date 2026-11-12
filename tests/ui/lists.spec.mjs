@@ -65,7 +65,7 @@ test('signed and very large list indices fail with bounded native errors', async
   }
 });
 
-test('list reviews compare transport positions while unsupported builder fails closed', async ({ page }) => {
+test('list reviews compare transport positions and manual builder stages owner values', async ({ page }) => {
   await observe(page); await page.goto('?workbench');
   await page.locator('#source').fill('fn f(xs:[Int])->[Int] {xs}'); await page.locator('#review-capture').click();
   const suite = JSON.stringify({ version: 1, target: 'f', cases: [{ id: 'list', args: [['1']], expect: { result: { type: '[Int]', value: ['1'] }, output: '' } }] }, null, 2);
@@ -79,7 +79,11 @@ test('list reviews compare transport positions while unsupported builder fails c
   await page.locator('#new-scenario > summary').click(); await page.locator('#scenario-read').click();
   await expect(page.locator('#scenario-build-status')).toContainText('Metadata Ready');
   await page.locator('#scenario-function').selectOption({ label: 'f' });
-  await expect(page.locator('#scenario-build-status')).toContainText('Use the raw scenario JSON editor');
-  await expect(page.locator('#scenario-add')).toBeDisabled(); await expect(page.locator('#review-suite')).toHaveValue(suite);
+  await page.getByLabel('Input xs (List JSON [Int])', { exact: true }).fill('["2"]');
+  await page.getByLabel('Required result (List JSON [Int])', { exact: true }).fill('["999"]');
+  await expect(page.locator('#scenario-add')).toBeEnabled(); await expect(page.locator('#review-suite')).toHaveValue(suite);
   expect(JSON.parse(await page.locator('#review-json').textContent())).toEqual(report);
+  await page.locator('#scenario-add').click();
+  await expect(page.locator('#scenario-build-status')).toContainText('Scenario added');
+  expect(JSON.parse(await page.locator('#review-suite').inputValue()).cases[1].expect.result.value).toEqual(['999']);
 });

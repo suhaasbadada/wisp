@@ -479,11 +479,15 @@ revision to SHA-256 of the submitted source. Metadata Ready is not finite Pass o
 approval. Native Error/Unknown, unsupported interfaces and malformed shapes cannot
 enable Add; diagnostics remain literal text.
 
-List descriptors are recognized, but List-shaped argument/result forms fail
-closed with guidance to the raw scenario JSON editor or Invoke JSON. Selecting
-a scalar/record-only function in the same source still works. This is a form
-projection limit, not a language restriction; saved-scenario forms may also be
-unable to render lists. The raw scenario editor remains available.
+List arguments, record members and required results use empty, manual **List
+JSON** textareas with native element/type labels, including nested Lists/records.
+Owners supply every value; nothing is extracted from Invoke or observed results.
+Ints must be JSON strings, not numbers. Add admits bounded, unique-key Unicode/LF
+arrays before writing anything and serializes accepted form whitespace; this is
+not an exact raw-file loader. Unknown/cyclic/overdeep metadata fails closed.
+See [List scenario builder](List-scenario-builder.md) for admission caps and raw
+editor fallback, including intentionally invalid numeric cases. Saved-scenario
+forms may still require the always-available raw editor.
 
 Choose a native-described function, then fill its arguments, owner-required result
 and expected output. Int fields remain exact strings; Bool requires an explicit
@@ -683,7 +687,8 @@ bounds or language-validity judgments. Filtering, expanding or exporting this
 view executes no policy code. Historical views use saved accepted values, not
 subsequent form edits; restart/import/Restore clear them with other results.
 See [List value differences](List-value-differences.md) for positional semantics
-and full native JSON fallback. List-shaped scenario forms remain unsupported.
+and full native JSON fallback. Manual List scenario authoring is described in
+[List scenario builder](List-scenario-builder.md); this is not a complete generic List UI.
 
 ### Choose a clear starting path
 

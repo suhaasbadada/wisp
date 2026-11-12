@@ -27,6 +27,7 @@ retained in live evidence and exported HTML, including omitted or truncated
 values. Error/Unknown observations show unavailable comparisons without inferred
 entries. Text and pointer keys are literal DOM text, never executable HTML.
 
-Use raw scenario JSON for List arguments and required results; the scenario
-builder still refuses List-shaped forms. This bounded presentation does not
+Use [manual List JSON fields](List-scenario-builder.md) or raw scenario JSON for
+List arguments and required results. The builder never captures observed values
+as requirements. This bounded presentation and manual authoring do not
 complete every List UI feature or change language evaluation, interfaces or limits.
