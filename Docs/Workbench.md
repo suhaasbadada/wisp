@@ -587,3 +587,46 @@ JSON, then review again. Preflight errors use their separate source diagnostics,
 not scenario actions. The full language playground has no generic saved-scenario
 form adapter and does not offer these controls. Native reports and exported
 evidence remain unchanged by selection.
+
+### Keep separate named policy workspaces
+
+The focused workbench's **Named workspaces on this browser** holds explicit local
+copies of complete baseline, candidate and raw scenario text. **Save current
+workspace** is consent for that one copy, not automatic saving. Inputs are stored
+unencrypted on this origin, accessible to its scripts and other browser users;
+do not use for sensitive data or on a shared browser. Storage can be cleared or
+unavailable and is not cloud backup. Keep downloaded workspace files.
+
+There are at most eight exact, case-sensitive names, each 1–80 UTF-8 bytes with
+no surrounding whitespace or control characters. The complete encoded library
+is capped at 2 MiB; each input retains the existing 64 KiB scalar-Unicode/LF
+limit. Escaping can mean fewer than eight maximum-sized workspaces fit. No entry
+is automatically evicted. Names such as `__proto__` remain literal data. Raw suite
+text stays opaque: saving does not validate Wisp or scenarios or round integers.
+
+Selecting a name only previews byte counts. **Open selected workspace (replaces
+all three inputs)** explicitly replaces different inputs through the existing
+workspace path, preserving previous complete inputs in this tab, cancelling an
+active review and clearing current evidence and imported history. Opening
+identical inputs is a no-op. Neither action requests case execution, but earlier
+review attempts may already have run. Saved copies never include native results,
+approval, the previous-input buffer or unadded scenario-builder fields. Reload
+lists saved names without automatically opening them. Review separately for fresh
+finite evidence.
+
+Saving different inputs over an existing name requires a one-shot **Replace
+existing saved name** confirmation bound to that exact name; changing the name
+revokes it. Identical saves are no-ops. Deleting a selected saved copy and
+forgetting the entire named library each require their own explicit confirmation.
+These operations do not alter current inputs/evidence or unrelated browser keys,
+including automatic draft recovery. Invalid/foreign/duplicate/oversized library
+records cannot be partially loaded or silently overwritten; only confirmed
+Forget can remove such a record.
+
+Each action compares the stored version with the version shown. Other-tab storage
+events pause actions and invalidate selection/confirmations until **Refresh saved
+names**. A version mismatch also aborts even if its event was missed. These are
+conservative comparisons, not atomic compare-and-swap or transactional multi-tab
+safety; simultaneous writes can still race. Updates require exact readback before
+claiming a saved copy. Quota, access and verification failures pause operations
+with a no-saved-copy-guarantee warning rather than retrying or erasing unknown data.

@@ -3,6 +3,7 @@ import { policyFilesMarkup, setupPolicyFiles } from './policy-files';
 import { setupScenarioEditor } from './scenarios';
 import { setupLeaveWarning } from './leave-warning';
 import { newScenarioMarkup, setupNewScenario } from './new-scenario';
+import { workspaceLibraryMarkup, setupWorkspaceLibrary } from './workspace-library';
 import './workbench.css';
 import exampleSuite from '../examples/policies/cases.json?raw';
 import expenseBaseline from '../examples/policies/expenses-before.wisp?raw';
@@ -22,6 +23,7 @@ export function workbenchMarkup() {
     <p id="workbench-expense-status" role="status" aria-live="polite"></p>
     <ol class="workbench-steps"><li>Edit the proposed policy</li><li>Review saved scenarios</li><li>Download code + evidence</li></ol>
     ${policyFilesMarkup()}
+    ${workspaceLibraryMarkup()}
     <section class="code-panel"><div class="panel-head"><h2>1. Proposed policy</h2><span>Wisp source · editable</span></div>
     <label class="sr-only" for="source">Proposed policy source</label><textarea id="source" spellcheck="false"></textarea></section>
     ${reviewMarkup()}
@@ -68,4 +70,5 @@ export function setupWorkbench() {
   });
   setupLeaveWarning(workspace);
   setupNewScenario(workspace, source, makeWorker);
+  setupWorkspaceLibrary(workspace);
 }
