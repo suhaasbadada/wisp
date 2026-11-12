@@ -30,10 +30,17 @@ def oracle(rows, payment):
     declared = sum((amount for _, _, amount in valid), Decimal(0))
     mismatches = sum(quantity * unit != amount for quantity, unit, amount in valid)
     invalid = len(decoded) - len(valid)
+    mismatch_indices = [index for index, (quantity, unit, amount) in enumerate(decoded)
+                        if all(value >= 0 for value in (quantity, unit, amount))
+                        and quantity * unit != amount]
+    invalid_indices = [index for index, row in enumerate(decoded)
+                       if any(value < 0 for value in row)]
     paid = Decimal(payment)
     return dict(line_count=str(len(rows)), computed_cents=str(int(computed)),
                 declared_cents=str(int(declared)), mismatched_lines=str(mismatches),
-                invalid_lines=str(invalid), payment_cents=str(int(paid)),
+                first_mismatched_index=str(min(mismatch_indices, default=-1)),
+                invalid_lines=str(invalid),
+                first_invalid_index=str(min(invalid_indices, default=-1)), payment_cents=str(int(paid)),
                 payment_difference_cents=str(int(computed - paid)),
                 balanced=paid >= 0 and invalid == 0 and mismatches == 0 and computed == paid)
 
@@ -62,7 +69,12 @@ cases = [("empty", [], "0"), ("worked-mismatch", worked, "1500"),
          ("overpaid", [row(2, 250, 500)], "501"),
          ("invalid", [row(-1, 250, 250), row(1, 100, 100)], "100"),
          ("zero-values", [row(0, 250, 0), row(1, 0, 0)], "0"),
-         ("negative-payment", [], "-1"), ("mixed-200", mixed, "300000")]
+         ("negative-payment", [row(1, 100, 100)], "-1"), ("mixed-200", mixed, "300000"),
+         ("invalid-and-multiple-mismatches", [row(1, 100, 100), row(1, -100, 0),
+                                             row(2, 100, 199), row(1, 100, 99),
+                                             row(1, 100, -1)], "400"),
+         ("last-mismatch", [row(1, 100, 100), row(2, 100, 199)], "300"),
+         ("last-invalid", [row(1, 100, 100), row(1, 100, -1)], "100")]
 observations = []
 for name, rows, payment in cases:
     report = invoke(name, [rows, payment])

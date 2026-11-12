@@ -149,7 +149,7 @@ compareCall('{"op":"call","source":"record R{x:Int} fn f(xs:[R])->Int{xs.length}
 const batchRows = Array.from({ length: 200 }, (_, i) => ({ quantity: String(i % 7 + 1), unit_cents: String(100 + i * 3), declared_cents: String(BigInt(i % 7 + 1) * BigInt(100 + i * 3)) }));
 const batchResult = compareCall({ op: 'call', source: examples[5], function: 'reconcile', args: [batchRows, '317012'] });
 assert.equal(batchResult.status, 'Complete');
-assert.deepEqual(batchResult.result.value, { line_count: '200', computed_cents: '317012', declared_cents: '317012', mismatched_lines: '0', invalid_lines: '0', payment_cents: '317012', payment_difference_cents: '0', balanced: true });
+assert.deepEqual(batchResult.result.value, { line_count: '200', computed_cents: '317012', declared_cents: '317012', mismatched_lines: '0', first_mismatched_index: '-1', invalid_lines: '0', first_invalid_index: '-1', payment_cents: '317012', payment_difference_cents: '0', balanced: true });
 const loanSource = readFileSync('evaluation/loan-dogfood/loan.wisp', 'utf8');
 const loanFocus = compareCall({ op: 'analyze', source: loanSource, focus: 'interest' });
 const loanInterest = loanFocus.graph.functions.find(fn => fn.name === 'interest');
@@ -255,7 +255,8 @@ console.log(`Guarded edits: ${editComparisons} exact serialized-byte comparisons
 let reviewComparisons = 0;
 function compareReview(request, retainedSuite) {
   const raw = typeof request === 'string' ? request : JSON.stringify(request);
-  const native = spawnSync('./target/debug/wisp', ['--json'], { input: raw, encoding: 'utf8' });
+  const native = spawnSync('./target/debug/wisp', ['--json'], { input: raw, encoding: 'utf8', timeout: 30000 });
+  assert.equal(native.error, undefined, `Native review comparison ${reviewComparisons + 1} failed (${Buffer.byteLength(raw)} request bytes): ${native.error?.code ?? 'unknown'}`);
   assert.equal(native.status, 0, native.stderr);
   const wasm = dispatch(raw); assert.equal(wasm, native.stdout.trimEnd()); reviewComparisons++;
   const r = JSON.parse(wasm), q = typeof request === 'string' ? JSON.parse(request) : request, review = r.review;

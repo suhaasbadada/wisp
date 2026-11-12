@@ -15,7 +15,8 @@ quantity and unit price produce 300 cents. Its output includes:
 
 ```text
 line_count: 3, computed_cents: 1500, declared_cents: 1490,
-mismatched_lines: 1, invalid_lines: 0,
+mismatched_lines: 1, first_mismatched_index: 1,
+invalid_lines: 0, first_invalid_index: -1,
 payment_cents: 1500, payment_difference_cents: 0, balanced: false
 ```
 
@@ -61,6 +62,10 @@ unit price or declared amount makes that line invalid: it is counted in
 contribute. Mismatch counts apply to nonnegative lines only. `balanced` requires
 nonnegative payment, no invalid lines, no declared mismatches and exact payment
 agreement. It does not authorize payment or assert the invoice's authenticity.
+`first_mismatched_index` and `first_invalid_index` locate the first corresponding
+row in the original input, zero-based, or return `-1` when none exists. Invalid
+rows are never also mismatches; negative payment does not create an invalid row.
+See [Invoice line diagnostics](Invoice-line-diagnostics.md) for examples and checks.
 
 There is no currency conversion, tax, discount, dates, identity matching or fraud
 detection. Arithmetic overflow is Error; work exhaustion is Unknown, never an
