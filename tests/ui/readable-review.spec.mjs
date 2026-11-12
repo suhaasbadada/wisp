@@ -75,7 +75,7 @@ test('download is complete offline evidence, including all seven passed rows und
         await expect(cells.nth(cell)).toContainText(`Output: ${JSON.stringify(observation.output)}`);
       }
       await expect(cells.nth(3)).toHaveText(`Result (${row.expected.result.type}): ${JSON.stringify(row.expected.result.value, null, 2)}\nOutput: ${JSON.stringify(row.expected.output)}`);
-      await expect(cells.nth(4)).toHaveText(`Expectation: ${row.expectation}\nComparison: ${row.comparison}\nReason: ${row.comparison_reason}`);
+      await expect(cells.nth(4).locator('.native-case-status')).toHaveText(`Expectation: ${row.expectation}\nComparison: ${row.comparison}\nReason: ${row.comparison_reason}`);
     }
     expect(await saved.locator('#baseline-source').textContent()).toBe(baseline);
     expect(await saved.locator('#candidate-source').textContent()).toBe(source);

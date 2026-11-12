@@ -2,6 +2,7 @@ import './review.css';
 import { readableReview } from './readable-review';
 import { reviewPackage } from './review-package';
 import { renderSourceChanges } from './source-changes';
+import { renderValueChanges } from './value-changes';
 import { diagnosticLocation } from './diagnostic-location';
 import { setupWorkspace, workspaceMarkup } from './workspace';
 import type { Workspace } from './workspace';
@@ -291,6 +292,8 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     for (const { row, index } of visible) {
       const tr = body.insertRow();
       for (const value of [`${row.id}\nInputs: ${args(row, index)}`, decision(row.before), decision(row.after), required(row.expected), `Expectation: ${row.expectation}\nComparison: ${row.comparison}\n${row.comparison_reason}`]) tr.insertCell().textContent = value;
+      const nativeStatus = document.createElement('span'); nativeStatus.className = 'native-case-status'; nativeStatus.textContent = tr.cells[4].textContent;
+      tr.cells[4].replaceChildren(nativeStatus, renderValueChanges(document, row));
       const action = editAction(row, index); if (action) tr.cells[0].append(action);
     }
     if (scenarioButtons.length) caption.append(' Selection does not write or run; editing invalidates results. Review separately. Finite Pass is not approval.');
@@ -305,7 +308,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
         const pre = document.createElement('pre'); pre.textContent = JSON.stringify(observation, null, 2); section.append(head, pre); grid.append(section);
       }
       const expected = document.createElement('pre'); expected.className = 'review-expected'; expected.textContent = `Caller-owned expectation\n${JSON.stringify(row.expected, null, 2)}`;
-      card.append(title, note, grid, expected);
+      card.append(title, note, grid, expected, renderValueChanges(document, row));
       const action = editAction(row, index); if (action) card.append(action);
       return card;
     }));
