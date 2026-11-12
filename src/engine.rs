@@ -2,6 +2,7 @@ use crate::syntax::*;
 use crate::DiagnosticCode;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 pub type Env<T> = BTreeMap<String, T>;
 #[cfg(test)]
 mod runtime_tests;
@@ -12,6 +13,80 @@ pub enum Value {
     String(String),
     Unit,
     Record(String, Vec<(String, Value)>),
+    List(ListValue),
+}
+
+// Only checked construction establishes the cached combined aggregate height.
+// No mutable access to the backing elements is exposed, even to the evaluator.
+#[derive(Debug)]
+pub struct ListValue {
+    elements: Arc<[Value]>,
+    height: usize,
+}
+impl ListValue {
+    pub(crate) fn elements(&self) -> &[Value] {
+        &self.elements
+    }
+}
+
+fn type_height(ty: &Ty, rs: &Env<&Record>, span: Span) -> Result<usize> {
+    fn visit(
+        ty: &Ty,
+        rs: &Env<&Record>,
+        active: &mut BTreeSet<String>,
+        done: &mut Env<usize>,
+        depth: usize,
+        span: Span,
+    ) -> Result<usize> {
+        if depth > 16 {
+            return Err(err(
+                DiagnosticCode::LimitTypeDepth,
+                "container type depth exceeds 16",
+                span,
+            ));
+        }
+        let height = match ty {
+            Ty::List(element) => 1 + visit(element, rs, active, done, depth + 1, span)?,
+            Ty::Named(name) => {
+                let r = rs.get(name).ok_or_else(|| {
+                    err(
+                        DiagnosticCode::NameUnknown,
+                        format!("unknown type {name}"),
+                        span,
+                    )
+                })?;
+                if active.contains(name) {
+                    return Err(err(
+                        DiagnosticCode::TypeRecursive,
+                        "recursive record type",
+                        span,
+                    ));
+                }
+                if let Some(height) = done.get(name) {
+                    return Ok(*height);
+                }
+                active.insert(name.clone());
+                let mut height = 1;
+                for (_, child, child_span) in &r.fields {
+                    height =
+                        height.max(1 + visit(child, rs, active, done, depth + 1, *child_span)?);
+                }
+                active.remove(name);
+                done.insert(name.clone(), height);
+                height
+            }
+            _ => 0,
+        };
+        if height > 16 {
+            return Err(err(
+                DiagnosticCode::LimitTypeDepth,
+                "container type depth exceeds 16",
+                span,
+            ));
+        }
+        Ok(height)
+    }
+    visit(ty, rs, &mut BTreeSet::new(), &mut Env::new(), 0, span)
 }
 
 #[cfg(test)]
@@ -47,6 +122,80 @@ mod aggregate_bounds_tests {
             "Limit"
         );
         assert_eq!(machine.allocation, 70);
+    }
+
+    #[test]
+    fn shared_list_copy_is_constant_cost_and_preserves_backing() {
+        let p = parse("let xs = [String; \"payload\", \"more\"]; ").unwrap();
+        check(&p).unwrap();
+        let limits = Limits::default();
+        let mut machine = Machine::new(&p, &limits);
+        let mut env = Env::new();
+        machine.stmt(&p.statements[0], &mut env).unwrap();
+        let before = (machine.fuel, machine.allocation);
+        let copied = machine.copy(&env["xs"], Span::default()).unwrap();
+        assert_eq!(
+            (machine.fuel - before.0, machine.allocation - before.1),
+            (1, 16)
+        );
+        let (Value::List(a), Value::List(b)) = (&env["xs"], &copied) else {
+            panic!()
+        };
+        assert!(Arc::ptr_eq(&a.elements, &b.elements));
+        assert_eq!(a.height, 1);
+        let before = machine.fuel;
+        assert!(machine.equal(&env["xs"], &copied, Span::default()).unwrap());
+        // List + both strings + both copies' actual UTF-8 payloads.
+        assert_eq!(machine.fuel - before, 1 + 2 + 2 * (7 + 4));
+    }
+
+    #[test]
+    fn nested_record_copy_shares_lists_and_preflights_cached_combined_height() {
+        let p = parse("record R {xs:[Int]} let r = new R {xs:[Int;1]};").unwrap();
+        check(&p).unwrap();
+        let limits = Limits::default();
+        let mut machine = Machine::new(&p, &limits);
+        let mut env = Env::new();
+        machine.stmt(&p.statements[0], &mut env).unwrap();
+        let before = machine.allocation;
+        let copied = machine.copy(&env["r"], Span::default()).unwrap();
+        assert_eq!(machine.allocation - before, 32 + 1 + 32 + 2 + 16);
+        let (Value::Record(_, a), Value::Record(_, b)) = (&env["r"], &copied) else {
+            panic!()
+        };
+        let (Value::List(a), Value::List(b)) = (&a[0].1, &b[0].1) else {
+            panic!()
+        };
+        assert!(Arc::ptr_eq(&a.elements, &b.elements));
+
+        let mut value = copied;
+        for _ in 0..14 {
+            value = Value::Record("Outer".into(), vec![("x".into(), value)]);
+        }
+        assert_eq!(machine.value_height(&value, Span::default()).unwrap(), 16);
+        machine.copy(&value, Span::default()).unwrap();
+        value = Value::Record("TooDeep".into(), vec![("x".into(), value)]);
+        let before = machine.allocation;
+        assert_eq!(
+            machine.copy(&value, Span::default()).unwrap_err().code,
+            DiagnosticCode::LimitValueDepth
+        );
+        assert_eq!(machine.allocation, before);
+    }
+
+    #[test]
+    fn list_constructor_reserves_slots_before_any_element_effects() {
+        let p = parse("[Int; {print(1); 2}];").unwrap();
+        check(&p).unwrap();
+        let limits = Limits {
+            allocation_bytes: 63,
+            ..Limits::default()
+        };
+        let mut machine = Machine::new(&p, &limits);
+        let d = machine.stmt(&p.statements[0], &mut Env::new()).unwrap_err();
+        assert_eq!(d.code, DiagnosticCode::LimitAllocation);
+        assert_eq!(machine.output, "");
+        assert_eq!(machine.allocation, 16 + 32 + 16);
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -153,58 +302,8 @@ pub fn check(p: &Program) -> Result<Facts> {
             }
         }
     }
-    // Memoized DAG heights avoid expanding shared record types as trees.
-    fn height(
-        n: &str,
-        rs: &Env<&Record>,
-        active: &mut BTreeSet<String>,
-        done: &mut Env<usize>,
-    ) -> Result<usize> {
-        if let Some(d) = done.get(n) {
-            return Ok(*d);
-        }
-        let r = rs[n];
-        if !active.insert(n.into()) {
-            return Err(err(
-                DiagnosticCode::TypeRecursive,
-                "recursive record type",
-                r.span,
-            ));
-        }
-        if active.len() > 16 {
-            return Err(err(
-                DiagnosticCode::LimitTypeDepth,
-                "record type depth exceeds 16",
-                r.span,
-            ));
-        }
-        let mut depth = 1;
-        for (_, t, span) in &r.fields {
-            if let Ty::Named(child) = t {
-                if !rs.contains_key(child) {
-                    return Err(err(
-                        DiagnosticCode::NameUnknown,
-                        format!("unknown type {child}"),
-                        *span,
-                    ));
-                }
-                depth = depth.max(1 + height(child, rs, active, done)?);
-            }
-        }
-        if depth > 16 {
-            return Err(err(
-                DiagnosticCode::LimitTypeDepth,
-                "record type depth exceeds 16",
-                r.span,
-            ));
-        }
-        active.remove(n);
-        done.insert(n.into(), depth);
-        Ok(depth)
-    }
-    let mut done = Env::new();
     for r in &p.records {
-        height(&r.name, &records, &mut BTreeSet::new(), &mut done)?;
+        type_height(&Ty::Named(r.name.clone()), &records, r.span)?;
     }
     let mut funcs = Env::new();
     let mut facts = Facts {
@@ -218,15 +317,7 @@ pub fn check(p: &Program) -> Result<Facts> {
             .map(|(_, t)| t)
             .chain(std::iter::once(&f.ret))
         {
-            if let Ty::Named(n) = t {
-                if !records.contains_key(n) {
-                    return Err(err(
-                        DiagnosticCode::NameUnknown,
-                        format!("unknown type {n}"),
-                        f.span,
-                    ));
-                }
-            }
+            type_height(t, &records, f.span)?;
         }
         if funcs.insert(f.name.clone(), f).is_some() {
             return Err(err(
@@ -316,6 +407,25 @@ fn type_expr(e: &Expr, env: &mut Env<Ty>, fs: &Env<&Function>, rs: &Env<&Record>
         ExprKind::Int(_) => Ty::Int,
         ExprKind::Bool(_) => Ty::Bool,
         ExprKind::String(_) => Ty::String,
+        ExprKind::List(element, elements) => {
+            let ty = Ty::List(Box::new(element.clone()));
+            type_height(&ty, rs, e.span)?;
+            for value in elements {
+                if type_expr(value, env, fs, rs)? != *element {
+                    return Err(bad());
+                }
+            }
+            ty
+        }
+        ExprKind::Index(receiver, index) => {
+            let Ty::List(element) = type_expr(receiver, env, fs, rs)? else {
+                return Err(bad());
+            };
+            if type_expr(index, env, fs, rs)? != Ty::Int {
+                return Err(bad());
+            }
+            *element
+        }
         ExprKind::Var(n) => env
             .get(n)
             .ok_or_else(|| {
@@ -368,7 +478,18 @@ fn type_expr(e: &Expr, env: &mut Env<Ty>, fs: &Env<&Function>, rs: &Env<&Record>
             Ty::Named(n.clone())
         }
         ExprKind::Project(receiver, name, span) => {
-            let Ty::Named(n) = type_expr(receiver, env, fs, rs)? else {
+            let receiver_ty = type_expr(receiver, env, fs, rs)?;
+            if matches!(receiver_ty, Ty::List(_)) {
+                if name == "length" {
+                    return Ok(Ty::Int);
+                }
+                return Err(err(
+                    DiagnosticCode::TypeMismatch,
+                    "list only has length",
+                    *span,
+                ));
+            }
+            let Ty::Named(n) = receiver_ty else {
                 return Err(err(
                     DiagnosticCode::TypeMismatch,
                     "projection requires record",
@@ -520,8 +641,31 @@ impl<'a> Machine<'a> {
     }
     // Preflight the entire copy before any recursive allocation. Logical sizes
     // are target-independent, not measurements of allocator/process memory.
+    fn value_height(&mut self, value: &Value, span: Span) -> Result<usize> {
+        let mut stack = vec![(value, 0usize)];
+        let mut height = 0;
+        while let Some((value, depth)) = stack.pop() {
+            self.tick(1, span)?;
+            match value {
+                Value::List(list) => height = height.max(depth + list.height),
+                Value::Record(_, fields) => {
+                    height = height.max(depth + 1);
+                    if height > 16 {
+                        return Err(err(
+                            DiagnosticCode::LimitValueDepth,
+                            "container value depth exceeds 16",
+                            span,
+                        ));
+                    }
+                    stack.extend(fields.iter().map(|(_, value)| (value, depth + 1)));
+                }
+                _ => {}
+            }
+        }
+        Ok(height)
+    }
     fn copy(&mut self, v: &Value, span: Span) -> Result<Value> {
-        let mut stack = vec![(v, 0)];
+        let mut stack = vec![(v, 0usize)];
         let mut bytes: usize = 0;
         let mut work: usize = 0;
         while let Some((v, depth)) = stack.pop() {
@@ -545,6 +689,16 @@ impl<'a> Machine<'a> {
                         stack.push((child, depth + 1));
                     }
                 }
+                Value::List(list) => {
+                    if depth.saturating_add(list.height) > 16 {
+                        return Err(err(
+                            DiagnosticCode::LimitValueDepth,
+                            "container value depth exceeds 16",
+                            span,
+                        ));
+                    }
+                    bytes = bytes.saturating_add(16);
+                }
                 _ => {}
             }
         }
@@ -556,6 +710,10 @@ impl<'a> Machine<'a> {
                 Value::Bool(b) => Value::Bool(*b),
                 Value::Unit => Value::Unit,
                 Value::String(s) => Value::String(s.clone()),
+                Value::List(list) => Value::List(ListValue {
+                    elements: Arc::clone(&list.elements),
+                    height: list.height,
+                }),
                 Value::Record(n, fs) => Value::Record(
                     n.clone(),
                     fs.iter().map(|(n, v)| (n.clone(), duplicate(v))).collect(),
@@ -582,6 +740,14 @@ impl<'a> Machine<'a> {
                     } else {
                         // LIFO stack: reverse pushes to visit declaration order.
                         stack.extend(af.iter().zip(bf).rev().map(|((_, a), (_, b))| (a, b)));
+                        true
+                    }
+                }
+                (Value::List(a), Value::List(b)) => {
+                    if a.elements.len() != b.elements.len() {
+                        false
+                    } else {
+                        stack.extend(a.elements.iter().zip(b.elements.iter()).rev());
                         true
                     }
                 }
@@ -637,6 +803,16 @@ impl<'a> Machine<'a> {
                     self.display(v, true, span)?;
                 }
                 self.emit(if fs.is_empty() { "}" } else { " }" }, span)
+            }
+            Value::List(list) => {
+                self.emit("[", span)?;
+                for (i, value) in list.elements.iter().enumerate() {
+                    if i != 0 {
+                        self.emit(", ", span)?;
+                    }
+                    self.display(value, true, span)?;
+                }
+                self.emit("]", span)
             }
         }
     }
@@ -741,6 +917,55 @@ impl<'a> Machine<'a> {
                 Value::String(s.clone())
             }
             ExprKind::Var(n) => self.copy(&env[n], e.span)?,
+            ExprKind::List(_, elements) => {
+                if elements.len() > 1024 {
+                    return Err(err(
+                        DiagnosticCode::LimitListElements,
+                        "list exceeds 1024 elements",
+                        e.span,
+                    ));
+                }
+                self.alloc(32 + 16 * elements.len(), e.span)?;
+                let mut values = Vec::with_capacity(elements.len());
+                let mut height = 1;
+                for element in elements {
+                    let value = self.eval(element, env)?;
+                    height = height.max(1 + self.value_height(&value, e.span)?);
+                    if height > 16 {
+                        return Err(err(
+                            DiagnosticCode::LimitValueDepth,
+                            "container value depth exceeds 16",
+                            e.span,
+                        ));
+                    }
+                    values.push(value);
+                }
+                Value::List(ListValue {
+                    elements: values.into(),
+                    height,
+                })
+            }
+            ExprKind::Index(receiver, index) => {
+                // Receiver is evaluated first and owns a metered shared handle;
+                // index effects may now safely borrow the environment mutably.
+                let Value::List(list) = self.eval(receiver, env)? else {
+                    unreachable!()
+                };
+                let Value::Int(index) = self.eval(index, env)? else {
+                    unreachable!()
+                };
+                let index = usize::try_from(index)
+                    .ok()
+                    .filter(|i| *i < list.elements.len())
+                    .ok_or_else(|| {
+                        err(
+                            DiagnosticCode::IndexBounds,
+                            "list index out of bounds",
+                            e.span,
+                        )
+                    })?;
+                self.copy(&list.elements[index], e.span)?
+            }
             ExprKind::Construct(n, fields) => {
                 let r = self.records[n];
                 // Height is already checked statically; construction moves children.
@@ -757,18 +982,13 @@ impl<'a> Machine<'a> {
                 }
                 // Runtime value depth is independent of syntax/call depth and
                 // checked before building the enclosing recursive value.
-                let mut stack: Vec<_> = values.iter().map(|v| (v.as_ref().unwrap(), 1)).collect();
-                while let Some((value, depth)) = stack.pop() {
-                    self.tick(1, e.span)?;
-                    if let Value::Record(_, children) = value {
-                        if depth >= 16 {
-                            return Err(err(
-                                DiagnosticCode::LimitValueDepth,
-                                "record value depth exceeds 16",
-                                e.span,
-                            ));
-                        }
-                        stack.extend(children.iter().map(|(_, v)| (v, depth + 1)));
+                for value in &values {
+                    if self.value_height(value.as_ref().unwrap(), e.span)? >= 16 {
+                        return Err(err(
+                            DiagnosticCode::LimitValueDepth,
+                            "container value depth exceeds 16",
+                            e.span,
+                        ));
                     }
                 }
                 Value::Record(
@@ -782,16 +1002,22 @@ impl<'a> Machine<'a> {
             }
             ExprKind::Project(receiver, name, _) => {
                 if Self::projection_root(receiver) {
-                    let Value::Record(_, fields) = self.borrow_projection(receiver, env)? else {
-                        unreachable!()
-                    };
-                    self.copy(&fields.iter().find(|(n, _)| n == name).unwrap().1, e.span)?
+                    match self.borrow_projection(receiver, env)? {
+                        Value::List(list) => Value::Int(list.elements.len() as i64),
+                        Value::Record(_, fields) => {
+                            self.copy(&fields.iter().find(|(n, _)| n == name).unwrap().1, e.span)?
+                        }
+                        _ => unreachable!(),
+                    }
                 } else {
-                    let Value::Record(_, fields) = self.eval(receiver, env)? else {
-                        unreachable!()
-                    };
-                    // Computed receivers are owned: move the selected payload.
-                    fields.into_iter().find(|(n, _)| n == name).unwrap().1
+                    match self.eval(receiver, env)? {
+                        Value::List(list) => Value::Int(list.elements.len() as i64),
+                        // Computed receivers are owned: move the selected payload.
+                        Value::Record(_, fields) => {
+                            fields.into_iter().find(|(n, _)| n == name).unwrap().1
+                        }
+                        _ => unreachable!(),
+                    }
                 }
             }
             ExprKind::Call(n, args) => {

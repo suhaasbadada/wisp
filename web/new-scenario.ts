@@ -2,7 +2,7 @@
 import type { ReviewWorkspace } from './review';
 import { validWorkspace } from './workspace';
 
-type Type = { kind: 'Int' | 'Bool' | 'String' } | { kind: 'Record'; name: string };
+type Type = { kind: 'Int' | 'Bool' | 'String' } | { kind: 'Record'; name: string } | { kind: 'List'; element: Type };
 type Member = { name: string; type: Type };
 type FunctionShape = { name: string; parameters: Member[]; return_type: Type };
 type Value = string | boolean | { [key: string]: Value };
@@ -26,18 +26,18 @@ export function newScenarioMarkup() {
 }
 
 function metadata(raw: unknown) {
-  if (!object(raw) || raw.compiler !== 'wisp-0.1.0-semantics-6' || typeof raw.revision !== 'string' || !/^[a-f0-9]{64}$/.test(raw.revision) || raw.status !== 'Ready' || raw.output !== '' ||
+  if (!object(raw) || raw.compiler !== 'wisp-0.1.0-semantics-7' || typeof raw.revision !== 'string' || !/^[a-f0-9]{64}$/.test(raw.revision) || raw.status !== 'Ready' || raw.output !== '' ||
       !Array.isArray(raw.probes) || raw.probes.length !== 0 || !Array.isArray(raw.diagnostics) || raw.diagnostics.length !== 0) fail('Not a supported native Ready description.');
   const report = raw as Record<string, unknown>;
   const api = report.interface;
-  if (!keys(api, ['contract_version', 'phase', 'new_execution', 'functions', 'records', 'encodings', 'scope']) || api.contract_version !== 1 || api.phase !== 'described' || api.new_execution !== false ||
+  if (!keys(api, ['contract_version', 'phase', 'new_execution', 'functions', 'records', 'encodings', 'scope']) || api.contract_version !== 2 || api.phase !== 'described' || api.new_execution !== false ||
       !Array.isArray(api.functions) || !Array.isArray(api.records) || api.functions.length > 2048 || api.records.length > 2048 || typeof api.scope !== 'string') fail('Unsupported native interface.');
   const shape = api as Record<string, unknown>;
   const encoding = shape.encodings;
-  const expected = { Int: 'canonical_signed_i64_string', Bool: 'JSON_boolean', String: 'JSON_string', Unit: 'JSON_null', Record: 'exact_field_object' };
+  const expected = { Int: 'canonical_signed_i64_string', Bool: 'JSON_boolean', String: 'JSON_string', Unit: 'JSON_null', Record: 'exact_field_object', List: 'JSON_array' };
   if (!keys(encoding, Object.keys(expected)) || !Object.entries(expected).every(([key, value]) => encoding[key] === value)) fail('Unsupported native value encodings.');
-  function type(x: unknown): x is Type {
-    return keys(x, ['kind']) && ['Int', 'Bool', 'String'].includes(String(x.kind)) || keys(x, ['kind', 'name']) && x.kind === 'Record' && scalar(x.name) && x.name.length > 0;
+  function type(x: unknown, depth = 0): x is Type {
+    return keys(x, ['kind']) && ['Int', 'Bool', 'String'].includes(String(x.kind)) || keys(x, ['kind', 'name']) && x.kind === 'Record' && scalar(x.name) && x.name.length > 0 || depth < 16 && keys(x, ['kind', 'element']) && x.kind === 'List' && type(x.element, depth + 1);
   }
   function members(x: unknown): x is Member[] {
     return Array.isArray(x) && x.length <= 2048 && x.every(m => keys(m, ['name', 'type']) && scalar(m.name) && m.name.length > 0 && type(m.type)) && new Set(x.map(m => m.name)).size === x.length;
@@ -144,6 +144,7 @@ export function setupNewScenario(workspace: ReviewWorkspace, source: HTMLTextAre
       }
       function field(parent: HTMLElement, name: string, type: Type, depth = 0): () => Value {
         if (++count > 2048) fail('UI field limit (2048) exceeded.');
+        if (type.kind === 'List') fail('List-shaped forms are not available in this builder. Use the raw scenario JSON editor or the typed Invoke JSON input; Rust validates list values.');
         if (type.kind === 'Record') {
           const fields = binding!.api.records.get(type.name);
           if (!fields || depth >= 16 || fields.length > 32) fail('Unsupported record layout (16 levels / 32 fields maximum).');

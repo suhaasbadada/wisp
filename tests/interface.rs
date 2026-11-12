@@ -26,7 +26,7 @@ fn structured_types_declaration_order_and_nonexecution_are_exact() {
         format!("{:x}", Sha256::digest(source.as_bytes()))
     );
     let i = &r["interface"];
-    assert_eq!(i["contract_version"], 1);
+    assert_eq!(i["contract_version"], 2);
     assert_eq!(i["new_execution"], false);
     assert_eq!(i["phase"], "described");
     assert_eq!(
@@ -105,7 +105,7 @@ fn describe_diagnostics_match_checker_and_current_context_fixture() {
     describe(source);
     let context = send(json!({"op":"context","source":source,"focus":"probe:0","budget":4096}));
     let frozen: Value =
-        serde_json::from_str(include_str!("fixtures/semantics6-context.json")).unwrap();
+        serde_json::from_str(include_str!("fixtures/semantics7-context.json")).unwrap();
     assert_eq!(context, frozen);
 }
 static NEXT: AtomicU64 = AtomicU64::new(0);

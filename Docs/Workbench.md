@@ -59,11 +59,17 @@ policy fails. Commands write no files; stdout is structured JSON. Exit 0 Pass,
 ```
 
 Int values are canonical signed-i64 strings, Bool is JSON boolean, String is JSON
-text and nominal records are exact objects. Every expected result names the
+text, nominal records are exact objects, and `[T]` values are JSON arrays of T
+(Int elements remain strings). Every expected result names the
 checked return type; captured output is mandatory and exact, including newlines,
 Unicode and NUL. Duplicate/unknown/missing fields are rejected by Rust. Expected
 data is validated, never executed or rewritten. Object field order/JSON escape
 spelling does not change typed equality; captured output is not normalized.
+Lists compare ordered typed contents, including shared values; expected type
+strings use brackets, e.g. `[InvoiceLine]`. Each list is capped at 1,024 elements;
+combined Record/List depth is 16, counting empty containers. Raw args permit 17
+JSON container levels including the root argument array; expected values permit
+16 without that root. Malformed list elements have indexed JSON Pointer paths.
 
 Use 1–16 unique ASCII IDs (`A-Z`, `a-z`, digits, underscore, hyphen; 1–64 bytes).
 Raw suite JSON is limited to 65,536 UTF-8 bytes. A suite hash identifies the
@@ -73,7 +79,8 @@ effective limits. No cache reuse or authenticity follows from these hashes.
 
 Both programs are whole-program checked and every case is preflighted before
 any execution. They must expose the same canonical target signature (including
-parameter names) and recursively reachable nominal record layouts. Unrelated
+parameter names), list element types and recursively reachable nominal record
+layouts through lists on both parameters and returns. Unrelated
 records/comments/declaration placement may differ. Signature/type migrations and
 invalid-baseline repair are outside v1. A last invalid case prevents all cells
 from executing. Preflight failures have zero observations, not fabricated runtime
@@ -103,7 +110,7 @@ Nothing is uploaded or automatically persisted. Source/output/JSON remain
 untrusted text, not instructions or HTML.
 
 This is a useful workflow slice, not validated external-user value, production
-readiness, superiority or intent correctness. Modules, collections, richer types
+readiness, superiority or intent correctness. Modules, richer collection operations/types
 and host adapters may still be needed by broader policy workflows. See
 [ADR 0010](Decisions/0010-policy-change-workbench.md) and the exact
 [protocol](Protocol.md#policy-review-contract-v1).
@@ -467,10 +474,16 @@ Open **Create a scenario from function inputs** beside the scenario editor. If
 starting a new policy, first capture its source as the baseline; the builder never
 captures or repairs it for you. **Read candidate function shapes** invokes the
 existing nonexecuting Rust `describe` operation in a disposable worker. It checks
-compiler semantics-6/interface-v1 encodings and independently matches the native
+compiler semantics-7/interface-v2 encodings and independently matches the native
 revision to SHA-256 of the submitted source. Metadata Ready is not finite Pass or
 approval. Native Error/Unknown, unsupported interfaces and malformed shapes cannot
 enable Add; diagnostics remain literal text.
+
+List descriptors are recognized, but List-shaped argument/result forms fail
+closed with guidance to the raw scenario JSON editor or Invoke JSON. Selecting
+a scalar/record-only function in the same source still works. This is a form
+projection limit, not a language restriction; saved-scenario forms may also be
+unable to render lists. The raw scenario editor remains available.
 
 Choose a native-described function, then fill its arguments, owner-required result
 and expected output. Int fields remain exact strings; Bool requires an explicit
@@ -654,7 +667,9 @@ newline output, Unicode and escaped NUL. Bool and null remain distinct; missing
 fields and empty/present records have explicit presence markers. Own record keys,
 including `__proto__`, are literal data. Numbers, arrays, malformed result shapes
 and non-scalar Unicode fail closed as unsupported views, even if both sides look
-identical. Zero displayed differences is not universal native equivalence or a
+identical. In particular, valid list results produce an unavailable array view,
+not a core Error or “no change”; full native JSON remains available. Zero
+displayed differences is not universal native equivalence or a
 fresh verdict. No requirements or native evidence are rewritten.
 
 Each comparison is limited to 16 record levels, 32 fields per record, 2048 visited

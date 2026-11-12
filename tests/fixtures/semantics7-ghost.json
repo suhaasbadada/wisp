@@ -1,0 +1,22 @@
+{
+  "compiler": "wisp-0.1.0-semantics-7",
+  "format": "wisp-ghost",
+  "ghost": {
+    "dependency_key": "88ee76565af3230ccdd6fdd5684a5de5c4088fba39529b44645c52b2737c5619",
+    "input": "9",
+    "predicate_key": "dad989d905a7a406397fa194226821c0ed6de195fc07395a53123a305d0da4d1",
+    "revision": "0823b8b04223d17a453d6a52fc228b26436942b93a6669c8f2f001e00014b74a",
+    "witness_id": "1a73c1efab3cdf715219ab9e203f6ec757886b92561801569718bcc14dfe9f30"
+  },
+  "limits": {
+    "allocation_bytes": 1048576,
+    "call_depth": 32,
+    "cases": 1000,
+    "evaluation_depth": 128,
+    "fuel": 100000,
+    "output_bytes": 8192,
+    "source_bytes": 65536
+  },
+  "source": "fn bill(snacks: Int) -> Int {\n    if snacks >= 10 { snacks * 80 } else { snacks * 100 }\n}\nprint(bill(9));\nprobe n in 1..=11 { bill(n + 1) >= bill(n) }\n",
+  "version": 1
+}

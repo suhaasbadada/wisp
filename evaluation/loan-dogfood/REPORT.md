@@ -1,6 +1,10 @@
 # Wisp language dogfood: loan repayment calculator
 
-## Follow-up: runtime repair (local, not deployed)
+## Follow-up: runtime repair (historical local checkpoint)
+
+This checkpoint predates the semantics-6 deployment in PR #54. The subsequent
+semantics-7 list implementation is tracked separately; claims below about absent
+collections describe the original experiment and runtime-repair checkpoint.
 
 The original experiment below is retained as historical evidence of semantics-5.
 A semantics-6 runtime repair now lets the **unchanged ordinary Wisp algorithm**

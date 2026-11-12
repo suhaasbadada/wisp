@@ -84,11 +84,19 @@ policy semantics. The graph/identity metadata is outside the text budget; inspec
 omissions and overflow. Context is not relevance/completeness or approval proof.
 
 Construction runs `project describe` without policy execution. It requires a
-Ready version-1 project/interface contract, unique policy/record/function/field/
+Ready version-1 project contract with checked interface v2 under compiler
+semantics-7, unique policy/record/function/field/
 parameter identities, known type descriptors and source/suite/manifest hashes.
 `description` returns a defensive copy; changing it cannot alter the client's
 pins. Applications must still check that described signatures and records match
 their own expected domain boundary.
+
+`ProjectClient` validates recursive `{"kind":"List","element":TYPE}`
+descriptors as well as primitive/record types; List encoding is `JSON_array`.
+Pass Python lists at typed List positions, with Int values as canonical decimal
+strings, including nested records/lists. These are literal data, not host code.
+Rust enforces 1,024 elements per list and combined container depth 16. Project
+and session adapter envelopes remain v1; interface v2 does not migrate old artifacts.
 
 `call_batch(requests)` accepts 1–32 explicit objects with exactly `id`, `policy`,
 `function`, `args`. IDs are unique ASCII `[A-Za-z0-9_-]{1,64}` within a batch.

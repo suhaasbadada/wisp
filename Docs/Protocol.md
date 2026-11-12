@@ -1,5 +1,11 @@
 # Native / WASM JSON protocol
 
+Current compiler: `wisp-0.1.0-semantics-7`; checked interface contract: v2.
+Request, artifact, context, review, edit, project and adapter envelopes remain v1.
+Introduction notes below are historical, not cross-version acceptance promises.
+Semantics-5/6 artifacts and fixtures remain unchanged and are rejected before
+execution; fresh semantics-7 fixtures are separate. There is no quiet migration.
+
 `wisp::dispatch(&str) -> String` and wasm-bindgen `dispatch(request_json: string)`
 are the same implementation. Crate/package `wisp`, cdylib + rlib; wasm-pack can
 emit `web/pkg/wisp.js`. `cargo run -- examples/snacks.wisp` prints a JSON report.
@@ -59,6 +65,8 @@ offsets and limits, **never language i64 values**.
   signatures likewise use language names, never internal enum/index spellings.
 - `syntax_limits` includes fixed `depth:64`, `tokens:8192`,
   `record_type_depth:16`, `record_value_depth:16`, `record_fields:32`.
+  Depth counts combined Record/List containers; each list has a fixed
+  1,024-element ceiling. See [Language](Language.md) for metering and bounds.
 - Agent View: `focus`, `text`, `budget_bytes`, actual `used_bytes`,
   `required_bytes` before truncation, `overflow`, `omitted`, `uncertainty`.
   Includes conservative record declaration text, focus body and transitive
@@ -242,15 +250,17 @@ Arguments use type-directed JSON, not language source:
 | Bool | boolean |
 | String | string (never interpreted as source or an expression) |
 | Named record | object, every declared field exactly once, no extras |
+| `[T]` | JSON array, each element decoded as T, at most 1,024 elements |
 
 Int strings reject plus signs, whitespace, redundant zeros, `-0`, fractions and
-out-of-range values. JSON numbers, null and nested arrays are invalid values;
-only the root args is an array. Record keys are compared after JSON unescaping;
+out-of-range values. JSON numbers and null are invalid public values. Arrays are
+valid at declared List positions; the root args array still lists arguments.
+Record keys are compared after JSON unescaping;
 duplicates at any typed depth are errors, not last-value-wins. Output records
 use declaration order, including nested records (input order is immaterial).
 Malformed envelope JSON/schema is Request Error; well-formed but invalid argument
 data or an unknown target is Input Error. Input diagnostics have a JSON Pointer
-`path` such as `/args/0/unit_price` or `/function`, and sentinel source span
+`path` such as `/args/0/unit_price`, `/args/0/2/qty` or `/function`, and sentinel source span
 `{start:0,end:0}`: data offsets are **not** language source offsets.
 
 The raw args JSON value is retained by Rust as `Box<RawValue>` until typed
@@ -258,8 +268,9 @@ decoding; no client normalization through a generic JSON object is safe for
 duplicates or numeric widths. Its ceiling is 65,536 UTF-8 bytes (including
 whitespace *inside* that value), in addition to the whole 1 MiB envelope cap.
 Exceeding this argument ceiling is Limit/Unknown, before execution. Independent
-JSON nesting ceiling is 17 containers (root array plus up to 16 record objects).
-Declared record and runtime value depth ceilings remain 16. Host clients should
+JSON nesting ceiling is 17 containers (root array plus up to 16 Record/List
+containers, counting empty containers). Combined container type and runtime
+value depth ceilings are 16. Host clients should
 bound their raw files/text before constructing a request too.
 
 Reports after a decodable call request include
@@ -274,9 +285,11 @@ failure. `usage` reports fuel, logical allocation bytes and `attempted_cases:0`.
 This is observed execution of one input, not a finite domain check or proof.
 
 Input decoding constructs literal ASTs only, independently bounded by raw bytes
-and nesting. Evaluation, string/record construction, parameter binding, scope
-copies and value traversal use the existing shared machine's fuel, allocation
-and depth accounting unchanged. Result encoding visits every value (one fuel
+and nesting. All arguments are decoded before execution, including the final
+list element; malformed data cannot trigger a partial call. Evaluation uses the
+shared machine's metered construction, binding, copy and depth accounting,
+including list reference sharing (see [Language](Language.md)). Result encoding
+visits every value, including shared list contents (one fuel
 per node) and charges one fuel and one logical allocation byte per emitted JSON
 byte, including record keys, punctuation and escapes. The encoded **value** and
 captured print share `output_bytes`; result type/envelope/metadata are outside
@@ -353,7 +366,7 @@ decoding; duplicate fields are errors, not last-value-wins normalization. File
 input must be valid UTF-8; a BOM is not silently stripped before JSON decoding.
 
 ```json
-{"format":"wisp-ghost","version":1,"compiler":"wisp-0.1.0-semantics-6",
+{"format":"wisp-ghost","version":1,"compiler":"wisp-0.1.0-semantics-7",
  "source":"<exact historical complete source>",
  "limits":{"source_bytes":65536,"fuel":100000,"call_depth":32,
            "evaluation_depth":128,"output_bytes":8192,
@@ -408,9 +421,9 @@ proofs. A party can construct an artifact that reproduces; it cannot thereby
 prove who ran it or when. Source may contain sensitive logic. Host clients own
 explicit file IO and must not silently upload or persist artifacts. The Rust
 language implementation gains no filesystem/network/host execution capability.
-Compiler identity is now `wisp-0.1.0-semantics-6`: tail-call frame reuse and
-copy-eliding scope/projection accounting change bounded execution outcomes.
-Envelope schema version remains 1. Earlier compiler artifacts (including semantics-5) are
+Compiler identity is now `wisp-0.1.0-semantics-7`: bounded immutable lists and
+shared-reference accounting extend semantics-6's tail calls and copy elision.
+Envelope schema version remains 1. Earlier compiler artifacts (including semantics-5/6) are
 explicitly rejected **before historical execution** (`validation.new_execution:
 false`); there is no migration or silent reinterpretation. Unsupported envelope
 versions are also errors.
@@ -421,7 +434,7 @@ to function return positions through final block expressions and selected `if`
 branches. Argument evaluation stays left-to-right/non-tail; non-tail calls stay
 depth-bounded. Fuel/allocation remain cumulative. See [Language](Language.md) for
 copy-elision costs and scope cleanup. Existing archived semantics-5 artifacts and
-context fixtures remain historical data; fresh semantics-6 fixtures are separate.
+context fixtures remain historical data; fresh semantics-7 fixtures are separate.
 Source revision hashes still identify exact bytes; compiler-dependent evidence,
 invocation and context identities change rather than authorizing cross-version reuse.
 
@@ -545,8 +558,9 @@ version/count/IDs, both independent source caps, whole baseline parse/check,
 whole candidate parse/check, target boundary, all args on both programs and all
 typed expectations, then execution. Every preflight failure creates zero
 Machines and returns no partial cases. Target signatures include parameter
-names. Recursively reachable nominal records must have identical ordered
-fields/types; unrelated records, trivia and declaration placement are ignored.
+names. List element types and recursively reachable nominal records on both
+parameters and return values must match recursively, with identical ordered
+record fields/types; unrelated records, trivia and declaration placement are ignored.
 Expected type is the checked candidate return type; no evaluation decodes it.
 
 Each case executes baseline then candidate, each with fresh effective runtime
@@ -601,8 +615,11 @@ not new language behavior.
 # Checked callable interfaces
 
 `{"op":"describe","source":SOURCE,"limits":{...}}` returns interface contract
-v1: structured function parameters/return types and nominal record field types,
+v2: structured function parameters/return types and nominal record field types,
 all compiler-owned after whole-program checking, with no execution. See
 [Interface](Interface.md) for exact tags, ordering, preflight failures, envelope
 restrictions and native saved-project orchestration. This additive operation
-does not alter existing graph/context reports or semantics-5 identity material.
+uses `{"kind":"List","element":TYPE}` recursively and `List:"JSON_array"`
+encoding metadata. Public signature/result type strings use brackets, e.g.
+`[InvoiceLine]`. Other envelope versions remain v1; see the current compiler note
+above rather than treating historical introduction identities as compatibility.

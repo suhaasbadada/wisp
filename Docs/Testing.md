@@ -12,7 +12,48 @@ primary check into independent review or erase an earlier failure. Current run
 state must be checked at its exact revision; an old green release is not evidence
 for a new head.
 
-## Semantics-6 runtime repair (local, not deployed)
+## Bounded immutable lists (semantics-7, under integration verification)
+
+Owner-approved ADR 0035 adds typed immutable lists and an invoice-batch program,
+not host-side calculation or a new UI evaluator. Bob implemented Rust parsing,
+checking, sharing/metering, invocation, interface v2 and review compatibility;
+Sherlock investigated integration hazards before implementation. Joffrey reviewed
+the core and focused tests read-only with no substantive findings. That review
+did not cover subsequent frontend/client/documentation integration or execute tests.
+
+The primary's measured 200-row invoice program completes at 26289 fuel and 457432
+logical allocation units against unchanged 100000 / 1048576 ceilings. A separate
+core 1024-Int traversal completes too; neither result guarantees every list-shaped
+program will fit. The sample deliberately reports a line mismatch despite exact
+payment agreement. A Decimal oracle covers empty/correct/mismatched, invalid,
+over-/underpayment, zero values and a mixed 200-row batch; overflow must not return
+a partial result, and a malformed last element must prevent all execution.
+
+Tests include type-parser depth before semantic traversal, mixed record/list
+depth/cycles, 1024/1025 elements, signed index errors, receiver/index/element
+evaluation order, transitive purity/dependencies, duplicate-preserving typed JSON,
+list return boundaries, preflight of all review cases and metered shared equality/
+output expansion. Browser tests exercise real Wisp/WASM calls and raw reviews;
+unsupported list-shaped forms/projections fail closed while preserving inputs and
+native JSON. Python project-client tests exercise interface-v2 nested-list results.
+
+Full native/WASM/browser/host integration and exact committed-tree release checks
+remain separate gates. Earlier fixtures are untouched; current fixtures are newly
+generated for semantics-7. No CI, merge, deployment or public acceptance is implied
+by this local checkpoint.
+
+Local integration subsequently passed all 213 Rust tests, fmt/strict Clippy,
+install/WASM/TypeScript/static build, evaluation/maintenance/host workflows,
+350 native/WASM comparisons, all 184 Chromium tests on a unique port, and both
+invoice Decimal and existing loan oracles. The first host workflow run caught
+two example consumers still requiring interface v1; their exact-schema checks
+were retained while their version guards were updated to v2. The parity oracle's
+interface-signature formatter was also extended to recurse through List types.
+Joffrey's full integration review found no substantive issues and executed four
+targeted checks, but did not run the full suites or review a released revision.
+Exact committed-tree checks, remote CI and public acceptance remain pending.
+
+## Semantics-6 runtime repair (historical local checkpoint)
 
 Dogfooding the language, rather than the workbench, exposed month-deep recursive
 evaluation and unnecessary immutable record copies. Bob repaired the evaluator;

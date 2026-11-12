@@ -29,7 +29,7 @@ test('loan selection checks without executing; explicit Run completes in WASM', 
   await expect(page.locator('#filename')).toHaveText('loan.wisp · editable');
   await expect(page.locator('#example option')).toHaveText([
     'Goblin Snack Bureau', 'Snack Bureau — proposed repair', 'Inventory reorder',
-    'Typed invoice records', 'Loan repayment (360 months)',
+    'Typed invoice records', 'Loan repayment (360 months)', 'Invoice batch reconciliation',
   ]);
   await expect(page.locator('#run-status')).toHaveText(priorStatus);
   await expect(page.locator('#output')).toHaveText(priorOutput);

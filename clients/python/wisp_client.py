@@ -201,10 +201,13 @@ def _index(items, key):
     return result
 
 
-def _type(value, records):
+def _type(value, records, depth=0):
     _require(isinstance(value, dict), "Unsupported type descriptor")
     kind = value.get("kind")
-    _require(kind in ["Int", "Bool", "String", "Unit", "Record"], "Unsupported type kind")
+    _require(kind in ["Int", "Bool", "String", "Unit", "Record", "List"], "Unsupported type kind")
+    if kind == "List":
+        _require(depth < 16 and set(value) == {"kind", "element"}, "Unsupported list descriptor")
+        return "[" + _type(value["element"], records, depth + 1) + "]"
     if kind == "Record":
         _require(isinstance(value.get("name"), str) and value["name"] in records, "Unknown record descriptor")
         return value["name"]
@@ -239,7 +242,7 @@ class ProjectClient:
                 interface = report["interface"]
                 _require(report["status"] == "Ready" and _hash(report["revision"])
                          and _hash(policy["suite_file_hash"]) and isinstance(report["compiler"], str)
-                         and report["compiler"] and _version(interface["contract_version"])
+                          and report["compiler"] and type(interface["contract_version"]) is int and interface["contract_version"] == 2
                          and interface["phase"] == "described" and interface["new_execution"] is False,
                          "Unsupported checked policy description")
                 records = _index(interface["records"], "name")
@@ -579,7 +582,7 @@ class ProjectClient:
                     _require(_hash(invocation["execution_key"]), "Missing invocation identity")
                 if response["status"] == "Complete":
                     target = self._functions[request["policy"]][request["function"]]["return_type"]
-                    name = target["name"] if target["kind"] == "Record" else target["kind"]
+                    name = _type(target, _index(policy["report"]["interface"]["records"], "name"))
                     _require(invocation["new_execution"] and report["result"]["type"] == name
                              and "value" in report["result"], "Unexpected completed result boundary")
                 else:

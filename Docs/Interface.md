@@ -1,4 +1,4 @@
-# Checked callable interfaces v1
+# Checked callable interfaces v2
 
 An agent or application can discover a saved project's callable boundaries
 without parsing source/signature strings or executing policy code:
@@ -30,7 +30,7 @@ A successful report includes compiler, exact source revision, effective limits,
 `status:"Ready"`, empty output/probes/diagnostics and:
 
 ```json
-{"interface":{"contract_version":1,"phase":"described","new_execution":false,
+{"interface":{"contract_version":2,"phase":"described","new_execution":false,
  "functions":[{"name":"decide",
    "parameters":[{"name":"order","type":{"kind":"Record","name":"Order"}}],
    "return_type":{"kind":"Bool"}}],
@@ -38,13 +38,14 @@ A successful report includes compiler, exact source revision, effective limits,
    {"name":"quantity","type":{"kind":"Int"}}
  ]}],
  "encodings":{"Int":"canonical_signed_i64_string","Bool":"JSON_boolean",
-   "String":"JSON_string","Unit":"JSON_null","Record":"exact_field_object"},
+   "String":"JSON_string","Unit":"JSON_null","Record":"exact_field_object","List":"JSON_array"},
  "scope":"all checked global functions and nominal records; not an authorization allowlist, suite verification or property-specific relevance claim"}}
 ```
 
 This illustrates a smaller source, not the reservation function's complete
 signature. Types are tagged `{"kind":"Int"}`, Bool, String or
-`{"kind":"Record","name":NAME}`; consumers need not parse type text. Unit's
+`{"kind":"Record","name":NAME}` or `{"kind":"List","element":TYPE}`,
+recursively describing the element type; consumers need not parse type text. Unit's
 encoding documents the internal value representation; it does **not** introduce
 Unit declaration syntax (the current language cannot declare a Unit parameter or
 return type). Function and record lists are sorted by name; parameter and record
@@ -53,11 +54,14 @@ not only a suite target or a property-relevant dependency closure.
 
 Int data remains canonical signed-i64 **strings**, not JSON numbers. Record data
 uses exact named fields, recursively following checked nonrecursive layouts.
+List data uses JSON arrays at typed positions (including inside records), capped
+at 1,024 elements per list and combined Record/List depth 16. Int elements remain
+strings. Public signature/result type text uses brackets, e.g. `[InvoiceLine]`.
 The descriptors are a versioned Wisp interface, not JSON Schema, code generation,
 a new evaluator or a proof. Unknown interface versions/tags must not be guessed.
 
 Parse/type/source-limit failures return existing diagnostics and Error/Unknown,
-with `interface.{contract_version:1,phase:"preflight",new_execution:false}` and
+with `interface.{contract_version:2,phase:"preflight",new_execution:false}` and
 **no invented function/record lists**. Earlier envelope failures may omit
 `interface`. Unused/unreachable bad declarations still fail whole-program checking.
 Ordinary runtime faults/recursion in well-typed code do not prevent discovery,
@@ -66,6 +70,10 @@ or execution key. Compilation/reporting are outside machine fuel; zero execution
 budgets do not mean compilation is free or absolutely time/memory bounded.
 
 ## Saved projects and session pinning
+
+The compiler is semantics-7 and checked interface contract is v2. Project,
+adapter, request, review and edit envelopes remain v1; their versions do not imply
+cross-compiler compatibility or silently migrate old artifacts.
 
 `project describe` uses existing bounded/confined project loading, with all files
 loaded before checking and the stable trusted-parent limitation unchanged.

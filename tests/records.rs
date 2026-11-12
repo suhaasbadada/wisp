@@ -233,7 +233,7 @@ fn type_dags_depth_fields_and_projection_chains_are_bounded() {
 #[test]
 fn record_metadata_and_agent_view_have_language_types_and_bounded_declarations() {
     let r = analyze(INVOICE);
-    assert_eq!(r["compiler"], "wisp-0.1.0-semantics-6");
+    assert_eq!(r["compiler"], "wisp-0.1.0-semantics-7");
     assert_eq!(r["syntax_limits"]["record_type_depth"], 16);
     assert_eq!(r["graph"]["records"][0]["name"], "Invoice");
     let item = &r["graph"]["records"][1];

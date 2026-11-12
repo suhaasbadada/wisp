@@ -8,7 +8,7 @@ import init, { dispatch } from '../web/pkg/wisp.js';
 const build = spawnSync('cargo', ['build', '--quiet'], { stdio: 'inherit' });
 assert.equal(build.status, 0);
 await init({ module_or_path: readFileSync(new URL('../web/pkg/wisp_bg.wasm', import.meta.url)) });
-const examples = ['snacks', 'snacks-repaired', 'inventory', 'invoice', 'loan'].map(name => readFileSync(`examples/${name}.wisp`, 'utf8'));
+const examples = ['snacks', 'snacks-repaired', 'inventory', 'invoice', 'loan', 'invoice-batch'].map(name => readFileSync(`examples/${name}.wisp`, 'utf8'));
 const recordSources = [
   'record A { s: String } print(new A { s: "é\\n\\\"" });',
   'record A { n: Int } record B { n: Int } print(new A { n: 1 } == new B { n: 1 });',
@@ -128,13 +128,28 @@ for (const example of discovery.capabilities.examples) {
   assert.equal(result.status, example.expected_status);
   if (example.expected_result) assert.deepEqual(result.result, example.expected_result);
 }
-const pinned = JSON.parse(readFileSync('tests/fixtures/semantics6-ghost.json', 'utf8'));
+const pinned = JSON.parse(readFileSync('tests/fixtures/semantics7-ghost.json', 'utf8'));
 assert.equal(compareCall({ op: 'inspect-artifact', source: '', artifact: pinned }).status, 'Ready');
 const historical5 = JSON.parse(readFileSync('tests/fixtures/semantics5-ghost.json', 'utf8'));
 const rejected5 = compareCall({ op: 'inspect-artifact', source: '', artifact: historical5 });
 assert.equal(rejected5.status, 'Error');
 assert.equal(rejected5.diagnostics[0].code, 'E_ARTIFACT_COMPATIBILITY');
 assert.equal(rejected5.validation.new_execution, false);
+const historical6 = JSON.parse(readFileSync('tests/fixtures/semantics6-ghost.json', 'utf8'));
+const rejected6 = compareCall({ op: 'inspect-artifact', source: '', artifact: historical6 });
+assert.equal(rejected6.status, 'Error'); assert.equal(rejected6.validation.new_execution, false);
+for (const request of [
+  { op: 'call', source: 'fn f(xs:[[Int]])->[[Int]] {xs}', function: 'f', args: [[['1', '9223372036854775807'], []]] },
+  { op: 'run', source: 'let xs=[Int;1,2]; print(xs == xs); print(xs.length);' },
+  ...['-1', '9223372036854775807'].map(index => ({ op: 'call', source: 'fn f(xs:[Int],i:Int)->Int {xs[i]}', function: 'f', args: [['1'], index] })),
+  { op: 'call', source: 'fn f(xs:[Int])->Int {xs.length}', function: 'f', args: [Array(1025).fill('1')] },
+  { op: 'call', source: 'fn f(xs:[String])->[[String]] {[[String];xs,xs,xs,xs]}', function: 'f', args: [['a'.repeat(3000)]] },
+]) compareCall(request);
+compareCall('{"op":"call","source":"record R{x:Int} fn f(xs:[R])->Int{xs.length}","function":"f","args":[[{"x":"1","\\u0078":"2"}]]}');
+const batchRows = Array.from({ length: 200 }, (_, i) => ({ quantity: String(i % 7 + 1), unit_cents: String(100 + i * 3), declared_cents: String(BigInt(i % 7 + 1) * BigInt(100 + i * 3)) }));
+const batchResult = compareCall({ op: 'call', source: examples[5], function: 'reconcile', args: [batchRows, '317012'] });
+assert.equal(batchResult.status, 'Complete');
+assert.deepEqual(batchResult.result.value, { line_count: '200', computed_cents: '317012', declared_cents: '317012', mismatched_lines: '0', invalid_lines: '0', payment_cents: '317012', payment_difference_cents: '0', balanced: true });
 const loanSource = readFileSync('evaluation/loan-dogfood/loan.wisp', 'utf8');
 const loanFocus = compareCall({ op: 'analyze', source: loanSource, focus: 'interest' });
 const loanInterest = loanFocus.graph.functions.find(fn => fn.name === 'interest');
@@ -235,7 +250,7 @@ for (const source of [examples[0], 'fn label()->String{"é😀"} fn f(n:Int)->In
   compareEdit({ ...req, focus: 'missing', change: { ...req.change, replacement: '{0}' } });
 }
 for (const op of ['run', 'analyze', 'call', 'capabilities', 'context', 'focus', 'edit']) compareEdit({ op, source: '', change: null });
-assert.deepEqual(JSON.parse(dispatch(JSON.stringify({ op: 'context', source: examples[0], focus: 'probe:0', budget: 4096 }))), JSON.parse(readFileSync('tests/fixtures/semantics6-context.json', 'utf8')));
+assert.deepEqual(JSON.parse(dispatch(JSON.stringify({ op: 'context', source: examples[0], focus: 'probe:0', budget: 4096 }))), JSON.parse(readFileSync('tests/fixtures/semantics7-context.json', 'utf8')));
 console.log(`Guarded edits: ${editComparisons} exact serialized-byte comparisons with independent candidate/source/body hash and splice audits.`);
 let reviewComparisons = 0;
 function compareReview(request, retainedSuite) {
@@ -303,7 +318,7 @@ for (const op of ['run', 'call', 'capabilities', 'edit', 'analyze', 'review']) {
   assert.equal(result.output, ''); assert.equal(result.revision, ''); assert.equal(result.usage, undefined);
 }
 console.log(`Legacy null-function rejection: 6 additional non-executing native/WASM comparisons (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons + editComparisons + reviewComparisons} total).`);
-const objectArtifact = JSON.parse(readFileSync('tests/fixtures/semantics6-ghost.json', 'utf8'));
+const objectArtifact = JSON.parse(readFileSync('tests/fixtures/semantics7-ghost.json', 'utf8'));
 const objectGhost = objectArtifact.ghost;
 const ghostArray = ['revision','predicate_key','dependency_key','input','witness_id'].map(key => objectGhost[key]);
 const limitsArray = [65536,100000,32,128,8192,1048576,1000];
@@ -341,12 +356,12 @@ function compareInterface(request){
   const r=JSON.parse(wasm),q=typeof request==='string'?JSON.parse(request):request;
   assert.equal(r.output,'');assert.deepEqual(r.probes,[]);assert.equal(r.usage,undefined);assert.equal(r.invocation,undefined);
   if(r.interface){
-    assert.equal(r.interface.contract_version,1);assert.equal(r.interface.new_execution,false);assert.equal(r.revision,sha(Buffer.from(q.source)));
+    assert.equal(r.interface.contract_version,2);assert.equal(r.interface.new_execution,false);assert.equal(r.revision,sha(Buffer.from(q.source)));
     if(r.status==='Ready'){
       assert.equal(r.interface.phase,'described');
       const checked=JSON.parse(dispatch(JSON.stringify({op:'analyze',source:q.source,limits:q.limits})));
       assert.equal(checked.status,'Ready');
-      const name=t=>t.kind==='Record'?t.name:t.kind;
+      const name=t=>t.kind==='Record'?t.name:t.kind==='List'?`[${name(t.element)}]`:t.kind;
       const byName=(a,b)=>a.name<b.name?-1:a.name>b.name?1:0;
       assert.deepEqual(r.interface.functions.map(f=>({name:f.name,signature:`fn ${f.name}(${f.parameters.map(p=>`${p.name}: ${name(p.type)}`).join(', ')}) -> ${name(f.return_type)}`})),checked.graph.functions.map(f=>({name:f.name,signature:f.signature})).sort(byName));
       assert.deepEqual(r.interface.records.map(record=>({name:record.name,fields:record.fields.map(f=>({name:f.name,type:name(f.type)}))})),checked.graph.records.map(record=>({name:record.name,fields:record.fields.map(f=>({name:f.name,type:f.type}))})).sort(byName));

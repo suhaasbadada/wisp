@@ -1,5 +1,31 @@
 # Architecture
 
+## Bounded immutable lists (semantics-7)
+
+The current compiler is `wisp-0.1.0-semantics-7`; introduction sections below
+describe earlier increments, not current cross-compiler acceptance. Native/WASM
+use the same Rust parser, checker, interpreter and typed JSON transport. Checked
+interface v2 adds recursive `List` descriptors/JSON arrays; other envelopes stay v1.
+Semantics-5/6 artifacts remain untouched and are rejected before execution.
+
+Lists use immutable `Arc` backing storage with a privately established cached
+combined Record/List height. Construction reserves `32 + 16 * n` logical units
+before elements; element expressions retain normal costs. A reference copy costs
+16 allocation units and one fuel, without traversing backing contents. Cached
+height enables bounded preflight without repeated shared-payload traversal.
+Equality, display and JSON encoding still meter actual contents, even for equal
+shared handles. Receiver-before-index evaluation occurs once each; no vector
+clone, mutation or identity shortcut is part of the language contract.
+
+Each list has at most 1,024 elements; combined static/runtime container depth is
+16, including empty containers. Type parsing is bounded and nominal cycles through
+lists are rejected. Existing ceilings and host permission boundaries remain.
+Logical accounting is not a heap-byte, process-memory or wall-time guarantee.
+All list AST children participate in checking, purity, dependencies and identities;
+typed call/review preflight validates all data before any execution and checks
+nested record schemas through lists on both parameters and returns. See
+[ADR 0035](Decisions/0035-bounded-immutable-lists.md) and [Language](Language.md).
+
 ## Bounded runtime repair (semantics-6)
 
 The runtime uses a tail-call trampoline: a final function call returns an owned
@@ -11,7 +37,7 @@ borrow ancestors before copying the selected payload; owned computed receivers
 move selected fields. Selected copies still preflight value depth and cumulative
 fuel/allocation. No ceilings, core permissions or grammar are expanded.
 
-Compiler identity is `wisp-0.1.0-semantics-6` because these changes affect resource
+That increment used `wisp-0.1.0-semantics-6` because these changes affect resource
 outcomes and evidence identities. Earlier sections describe the introduction of
 operations under semantics-5, not current cross-compiler artifact compatibility.
 Old artifacts remain untouched and are rejected before historical execution;

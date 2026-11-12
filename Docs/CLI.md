@@ -134,7 +134,11 @@ function `total`, an `item.json` containing
 `[{"quantity":"9","unit_price":"100"}]` yields a typed Int result value
 `"900"`; this is the same program and language syntax, not generated source.
 See [Protocol.md](Protocol.md#typed-function-invocation) for strict primitive and
-nested record encoding, input error paths, result shape and execution identities.
+nested record/list encoding, input error paths, result shape and execution identities.
+For a list argument use a nested JSON array, with Int elements still canonical
+strings: `wisp call examples/invoice-batch.wisp reconcile --args-file examples/invoice-batch-args.json`.
+This invokes only `reconcile`, skipping the file's default print. Lists use the
+same Rust implementation in native and WASM; see [Language](Language.md).
 
 `INPUT` is a UTF-8 local file or `-` stdin. `FILE` may likewise be `-`, but both
 cannot consume stdin in one call (usage error, exit 2). There is deliberately no
@@ -183,10 +187,14 @@ Reproduction is **not authentication**, proof, or evidence of author/time.
 
 ## Limits, IO and exits
 
-The current compiler is `wisp-0.1.0-semantics-6`. Tail-position calls reuse frames;
+The current compiler is `wisp-0.1.0-semantics-7`. Bounded immutable lists add
+`[T]`, `[T; ...]`, indexing and `.length`; checked interface contract is v2.
+Tail-position calls reuse frames;
 record projection and block entry avoid unnecessary inherited payload copies.
-All ceilings remain unchanged; see [Language](Language.md) for exact accounting.
-Semantics-5 artifacts are rejected before reproduction, not silently migrated.
+Existing ceilings remain unchanged; lists add a 1,024-element bound per list
+and share the combined Record/List depth-16 cap. See [Language](Language.md) for
+exact accounting. Semantics-5/6 artifacts are rejected before reproduction, not
+silently migrated. Other envelopes remain v1.
 Immutable nominal records use
 the same commands: `wisp run examples/invoice.wisp` or
 `wisp focus examples/invoice.wisp total`. `check`/`focus` include record metadata

@@ -49,7 +49,13 @@ Machine-contract hardening adds explicit stable diagnostic codes and compiler-ow
 
 Probe context adds non-executing selected-predicate/dependency source with a deterministic atomic TEXT-byte ledger and explicit budget/scope omissions. It is compiler-derived metadata, not a runtime graph interpreter, context-completeness/relevance/minimality guarantee, proof engine, persistent ID system or automatic source/spec edit.
 
-Not included: tagged unions, recursive records, collections, modules, mutable state, loops, inheritance/methods/object identity, host filesystem/network/process access, solver/proofs, automatic intent repair, native C backend, persistent stable semantic editing IDs, incremental compilation, research-grade context capsules, package ecosystem. Graphs are development metadata, not runtime graph interpretation.
+The semantics-7 increment adds bounded homogeneous immutable lists, typed literals,
+checked indexing and length, combined record/list depth limits and typed list JSON.
+It is under release verification; local implementation is not proof of deployment
+or adoption. The invoice-batch example exercises variable-size inputs entirely in
+Wisp. See [Language](Language.md) and [Invoice batches](Invoice-batches.md).
+
+Not included: tagged unions, recursive record types, mutable/growable collections, modules, mutable state, loops, inheritance/methods/object identity, host filesystem/network/process access, solver/proofs, automatic intent repair, native C backend, persistent stable semantic editing IDs, incremental compilation, research-grade context capsules, package ecosystem. Graphs are development metadata, not runtime graph interpretation.
 
 Acceptance: CLI and actual WASM execute the snack example; first failure is n=9; proposed repair clears exactly 11 adjacent pairs. Faults are errors, limits Unknown, never passing. Unrelated function edits may preserve dependency keys; changed transitive bodies invalidate them. Historical witnesses survive edits and replay is a new execution. Browser Stop hard-terminates its worker. Fresh documentation visits default Agent.
 

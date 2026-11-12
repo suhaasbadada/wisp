@@ -53,7 +53,7 @@ test('first custom scenario is wholly manual, describes without execution, then 
   await field(page, 'Required result (Int)').fill('999');
   await expect(page.locator('#review-suite')).toHaveValue(original);
   expect(await page.evaluate(() => window.sent.map(r => r.op))).toEqual(['describe']);
-  expect(await page.evaluate(() => window.nativeReports[0])).toMatchObject({ status: 'Ready', output: '', probes: [], interface: { contract_version: 1, phase: 'described', new_execution: false } });
+  expect(await page.evaluate(() => window.nativeReports[0])).toMatchObject({ status: 'Ready', output: '', probes: [], interface: { contract_version: 2, phase: 'described', new_execution: false } });
   await expect(page.locator('#review-json')).toHaveText('');
   await add(page);
   expect(await page.evaluate(() => window.sent.map(r => r.op))).toEqual(['describe']);
@@ -173,8 +173,8 @@ async function synthetic(page) {
     window.reply = async (index, patch = {}) => {
       const worker = window.fakeWorkers[index]; const request = JSON.parse(worker.message.requestJson);
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(request.source));
-      const report = { compiler: 'wisp-0.1.0-semantics-6', revision: Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join(''), status: 'Ready', output: '', probes: [], diagnostics: [],
-        interface: { contract_version: 1, phase: 'described', new_execution: false, functions: [{ name: 'f', parameters: [{ name: 'n', type: { kind: 'Int' } }], return_type: { kind: 'Int' } }], records: [], encodings: { Int: 'canonical_signed_i64_string', Bool: 'JSON_boolean', String: 'JSON_string', Unit: 'JSON_null', Record: 'exact_field_object' }, scope: 'synthetic transport test' }, ...patch };
+      const report = { compiler: 'wisp-0.1.0-semantics-7', revision: Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join(''), status: 'Ready', output: '', probes: [], diagnostics: [],
+        interface: { contract_version: 2, phase: 'described', new_execution: false, functions: [{ name: 'f', parameters: [{ name: 'n', type: { kind: 'Int' } }], return_type: { kind: 'Int' } }], records: [], encodings: { Int: 'canonical_signed_i64_string', Bool: 'JSON_boolean', String: 'JSON_string', Unit: 'JSON_null', Record: 'exact_field_object', List: 'JSON_array' }, scope: 'synthetic transport test' }, ...patch };
       worker.callback({ data: { id: worker.message.id, report } });
     };
   });

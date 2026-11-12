@@ -32,11 +32,13 @@ pub enum Ty {
     String,
     Unit,
     Named(String),
+    List(Box<Ty>),
 }
 impl std::fmt::Display for Ty {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Named(n) => f.write_str(n),
+            Self::List(t) => write!(f, "[{t}]"),
             _ => write!(f, "{self:?}"),
         }
     }
@@ -49,6 +51,8 @@ pub enum ExprKind {
     Var(String),
     Call(String, Vec<Expr>),
     Construct(String, Vec<(String, Span, Expr)>),
+    List(Ty, Vec<Expr>),
+    Index(Box<Expr>, Box<Expr>),
     Project(Box<Expr>, String, Span),
     Unary(String, Box<Expr>),
     Binary(String, Box<Expr>, Box<Expr>),
@@ -182,7 +186,7 @@ fn lex(source: &str) -> Result<Vec<Token>> {
             if let Some(op) = op {
                 i += op.len();
                 op.into()
-            } else if "(){}:;,.+-*/%!<>=".contains(c) {
+            } else if "(){}[]:;,.+-*/%!<>=".contains(c) {
                 i += 1;
                 c.to_string()
             } else {
@@ -267,6 +271,22 @@ impl Parser {
         }
     }
     fn ty(&mut self) -> Result<Ty> {
+        self.ty_at(0)
+    }
+    fn ty_at(&mut self, depth: usize) -> Result<Ty> {
+        if self.at("[") {
+            if depth >= 16 {
+                return Err(err(
+                    DiagnosticCode::LimitTypeDepth,
+                    "container type depth exceeds 16",
+                    self.token().span,
+                ));
+            }
+            self.expect("[")?;
+            let element = self.ty_at(depth + 1)?;
+            self.expect("]")?;
+            return Ok(Ty::List(Box::new(element)));
+        }
         if self.take("Int") {
             Ok(Ty::Int)
         } else if self.take("Bool") {
@@ -348,6 +368,33 @@ impl Parser {
                     end: e.span.end,
                 },
                 kind: ExprKind::Unary(op, Box::new(e)),
+            }
+        } else if self.take("[") {
+            let ty = self.ty()?;
+            self.expect(";")?;
+            let mut elements = Vec::new();
+            if !self.at("]") {
+                loop {
+                    elements.push(self.expr(0)?);
+                    if elements.len() > 1024 {
+                        return Err(err(
+                            DiagnosticCode::LimitListElements,
+                            "list exceeds 1024 elements",
+                            self.token().span,
+                        ));
+                    }
+                    if !self.take(",") {
+                        break;
+                    }
+                }
+            }
+            self.expect("]")?;
+            Expr {
+                kind: ExprKind::List(ty, elements),
+                span: Span {
+                    start,
+                    end: self.tokens[self.pos - 1].span.end,
+                },
             }
         } else if self.take("new") {
             let name = self.name()?;
@@ -444,6 +491,26 @@ impl Parser {
         };
         let mut chain = 0;
         loop {
+            if self.take("[") {
+                chain += 1;
+                if chain > 64 {
+                    return Err(err(
+                        DiagnosticCode::LimitSyntaxDepth,
+                        "index chain depth exceeded",
+                        left.span,
+                    ));
+                }
+                let index = self.expr(0)?;
+                self.expect("]")?;
+                left = Expr {
+                    span: Span {
+                        start,
+                        end: self.tokens[self.pos - 1].span.end,
+                    },
+                    kind: ExprKind::Index(Box::new(left), Box::new(index)),
+                };
+                continue;
+            }
             if self.take(".") {
                 chain += 1;
                 if chain > 64 {
@@ -692,6 +759,8 @@ pub fn children(e: &Expr) -> Vec<&Expr> {
     match &e.kind {
         ExprKind::Call(_, a) => a.iter().collect(),
         ExprKind::Construct(_, fields) => fields.iter().map(|(_, _, e)| e).collect(),
+        ExprKind::List(_, elements) => elements.iter().collect(),
+        ExprKind::Index(receiver, index) => vec![receiver, index],
         ExprKind::Project(e, _, _) => vec![e],
         ExprKind::Unary(_, a) => vec![a],
         ExprKind::Binary(_, a, b) => vec![a, b],

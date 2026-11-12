@@ -19,7 +19,10 @@ use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use syntax::*;
-pub const COMPILER: &str = "wisp-0.1.0-semantics-6";
+pub const COMPILER: &str = "wisp-0.1.0-semantics-7";
+fn syntax_limits() -> Json {
+    json!({"depth":64,"tokens":8192,"record_type_depth":16,"record_value_depth":16,"record_fields":32,"list_elements":1024,"container_depth_meaning":"combined record/list nodes; primitives zero, empty containers one"})
+}
 fn hash(s: &str) -> String {
     format!("{:x}", Sha256::digest(s.as_bytes()))
 }
@@ -551,7 +554,7 @@ fn execute_language(
         return context::report(&p, &facts, &r, &meta, &keys);
     }
     let specs: Vec<_> = p.probes.iter().zip(&keys).map(|(probe, key)| json!({"predicate_key":predicate_key(probe, &r.source),"dependency_key":key})).collect();
-    let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":r.limits,"syntax_limits":{"depth":64,"tokens":8192,"record_type_depth":16,"record_value_depth":16,"record_fields":32},"status":"Ready","output":"","diagnostics":[],"probes":[],"probe_metadata":specs,"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref(),r.budget.unwrap_or(4096).min(65536) as usize)});
+    let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":r.limits,"syntax_limits":syntax_limits(),"status":"Ready","output":"","diagnostics":[],"probes":[],"probe_metadata":specs,"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref(),r.budget.unwrap_or(4096).min(65536) as usize)});
     if r.op == "analyze" {
         return report;
     }
