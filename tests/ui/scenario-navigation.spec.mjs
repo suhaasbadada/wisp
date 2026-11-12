@@ -68,7 +68,7 @@ test('reservation decision and case-card actions focus the first required record
   await action(page, 'exact-pack').click();
   await expect(card.getByLabel('Required: accepted', { exact: true })).toBeFocused();
   await card.locator('summary').click();
-  const resultCard = page.locator('#review-cases .review-case').first(); await resultCard.locator('summary').click();
+  const resultCard = page.locator('#review-cases .review-case').first(); await resultCard.locator(':scope > summary').click();
   await resultCard.getByRole('button', { name: 'Edit saved scenario exact-pack', exact: true }).click();
   await expect(card.getByLabel('Required: accepted', { exact: true })).toBeFocused();
   await expect(card.getByLabel('Required result type', { exact: true })).not.toBeFocused();

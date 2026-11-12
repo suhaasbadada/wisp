@@ -35,3 +35,8 @@
 .source-before { background: #fcebea; } .source-after { background: #e5f2e4; }
 .source-omission { font-weight: bold; border: 1px dashed #6f7969; padding: 6px; }
 @media(max-width: 700px) { .source-change-grid { grid-template-columns: minmax(0, 1fr); } }
+.value-changes { white-space: normal; margin-top: .5rem; font-size: .85rem; }
+.value-changes details { margin: .5rem 0; }
+.value-changes [role="row"] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.value-changes [role="cell"], .value-changes [role="columnheader"] { white-space: pre-wrap; overflow-wrap: anywhere; padding: .3rem; border: 1px solid #80909b; }
+.value-changes [role="columnheader"] { font-weight: bold; }

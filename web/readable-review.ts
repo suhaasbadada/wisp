@@ -1,5 +1,6 @@
 import type { ReviewReport } from './review';
 import { renderSourceChanges } from './source-changes';
+import { renderValueChanges } from './value-changes';
 import reviewStyles from './review.css?inline';
 
 export interface ReadableReviewSnapshot {
@@ -93,6 +94,8 @@ export function readableReview(snapshot: ReadableReviewSnapshot, document: Docum
         observation(row.before), observation(row.after), required(row.expected),
         `Expectation: ${row.expectation}\nComparison: ${row.comparison}\nReason: ${row.comparison_reason}`,
       ]) tr.insertCell().textContent = text;
+      const nativeStatus = element('span', tr.cells[4].textContent ?? ''); nativeStatus.className = 'native-case-status';
+      tr.cells[4].replaceChildren(nativeStatus, renderValueChanges(doc, row));
     }
     const scroll = element('div'); scroll.className = 'table-scroll'; scroll.append(table); doc.body.append(scroll);
   }
