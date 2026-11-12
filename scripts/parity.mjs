@@ -8,7 +8,7 @@ import init, { dispatch } from '../web/pkg/wisp.js';
 const build = spawnSync('cargo', ['build', '--quiet'], { stdio: 'inherit' });
 assert.equal(build.status, 0);
 await init({ module_or_path: readFileSync(new URL('../web/pkg/wisp_bg.wasm', import.meta.url)) });
-const examples = ['snacks', 'snacks-repaired', 'inventory', 'invoice'].map(name => readFileSync(`examples/${name}.wisp`, 'utf8'));
+const examples = ['snacks', 'snacks-repaired', 'inventory', 'invoice', 'loan'].map(name => readFileSync(`examples/${name}.wisp`, 'utf8'));
 const recordSources = [
   'record A { s: String } print(new A { s: "é\\n\\\"" });',
   'record A { n: Int } record B { n: Int } print(new A { n: 1 } == new B { n: 1 });',
