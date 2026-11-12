@@ -39,6 +39,9 @@ To load a dataset file, check types without execution and download exact inputs
 for a fresh native attempt, see [Function inputs](Function-inputs.md).
 To change an explicitly authored pricing rule and review its consequences against
 both new and retained requirements, see [Invoice rule review](Invoice-rule-review.md).
+For CSV datasets already expressed as integer cents, use the explicit local
+[CSV host transport](Invoice-CSV.md); it validates by default and never evaluates
+CSV formulas or calculates prices itself.
 
 Explicit example selection replaces source/resets arguments. Save current inputs
 before switching. Manual source edits and metadata refresh do not reset arguments.
