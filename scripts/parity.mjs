@@ -128,8 +128,28 @@ for (const example of discovery.capabilities.examples) {
   assert.equal(result.status, example.expected_status);
   if (example.expected_result) assert.deepEqual(result.result, example.expected_result);
 }
-const pinned = JSON.parse(readFileSync('tests/fixtures/semantics5-ghost.json', 'utf8'));
+const pinned = JSON.parse(readFileSync('tests/fixtures/semantics6-ghost.json', 'utf8'));
 assert.equal(compareCall({ op: 'inspect-artifact', source: '', artifact: pinned }).status, 'Ready');
+const historical5 = JSON.parse(readFileSync('tests/fixtures/semantics5-ghost.json', 'utf8'));
+const rejected5 = compareCall({ op: 'inspect-artifact', source: '', artifact: historical5 });
+assert.equal(rejected5.status, 'Error');
+assert.equal(rejected5.diagnostics[0].code, 'E_ARTIFACT_COMPATIBILITY');
+assert.equal(rejected5.validation.new_execution, false);
+const loanSource = readFileSync('evaluation/loan-dogfood/loan.wisp', 'utf8');
+const loanFocus = compareCall({ op: 'analyze', source: loanSource, focus: 'interest' });
+const loanInterest = loanFocus.graph.functions.find(fn => fn.name === 'interest');
+const loanEdit = compareCall({ op: 'edit', source: loanSource, focus: 'interest', change: {
+  expected_revision: loanFocus.revision, expected_body_hash: loanInterest.body_hash,
+  replacement: readFileSync('evaluation/loan-dogfood/round-half-up.body', 'utf8'),
+} });
+assert.equal(loanEdit.status, 'Ready');
+const loan360 = compareCall({ op: 'call', source: loanEdit.edit.source, function: 'simulate', args: [
+  { principal: '30000000', annual_bps: '600', payment: '179865', extra: '0', months: '360' },
+] });
+assert.equal(loan360.status, 'Complete');
+assert.deepEqual(loan360.result, { type: 'Summary', value: {
+  months_elapsed: '360', balance: '144', total_paid: '64751400', total_interest: '34751544', valid: true,
+} });
 const contractRequests = [
   { op: 'run', source: 'print(1 / 0);' },
   { op: 'run', source: 'print(-9223372036854775808 / -1);' },
@@ -215,7 +235,7 @@ for (const source of [examples[0], 'fn label()->String{"é😀"} fn f(n:Int)->In
   compareEdit({ ...req, focus: 'missing', change: { ...req.change, replacement: '{0}' } });
 }
 for (const op of ['run', 'analyze', 'call', 'capabilities', 'context', 'focus', 'edit']) compareEdit({ op, source: '', change: null });
-assert.deepEqual(JSON.parse(dispatch(JSON.stringify({ op: 'context', source: examples[0], focus: 'probe:0', budget: 4096 }))), JSON.parse(readFileSync('tests/fixtures/semantics5-context.json', 'utf8')));
+assert.deepEqual(JSON.parse(dispatch(JSON.stringify({ op: 'context', source: examples[0], focus: 'probe:0', budget: 4096 }))), JSON.parse(readFileSync('tests/fixtures/semantics6-context.json', 'utf8')));
 console.log(`Guarded edits: ${editComparisons} exact serialized-byte comparisons with independent candidate/source/body hash and splice audits.`);
 let reviewComparisons = 0;
 function compareReview(request, retainedSuite) {
@@ -283,7 +303,7 @@ for (const op of ['run', 'call', 'capabilities', 'edit', 'analyze', 'review']) {
   assert.equal(result.output, ''); assert.equal(result.revision, ''); assert.equal(result.usage, undefined);
 }
 console.log(`Legacy null-function rejection: 6 additional non-executing native/WASM comparisons (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons + editComparisons + reviewComparisons} total).`);
-const objectArtifact = JSON.parse(readFileSync('tests/fixtures/semantics5-ghost.json', 'utf8'));
+const objectArtifact = JSON.parse(readFileSync('tests/fixtures/semantics6-ghost.json', 'utf8'));
 const objectGhost = objectArtifact.ghost;
 const ghostArray = ['revision','predicate_key','dependency_key','input','witness_id'].map(key => objectGhost[key]);
 const limitsArray = [65536,100000,32,128,8192,1048576,1000];

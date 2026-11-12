@@ -81,7 +81,7 @@ pub(super) fn document() -> Json {
     let configurable = [
         ("source_bytes", "UTF-8 bytes", "source only; request escaping/envelope excluded"),
         ("fuel", "logical execution units", "compilation and report metadata excluded"),
-        ("call_depth", "active function calls", "parser and evaluation depth separate"),
+        ("call_depth", "active function frames", "tail calls replace their frame; parser and evaluation depth separate"),
         ("evaluation_depth", "active evaluation frames", "includes nested expressions and calls"),
         ("output_bytes", "UTF-8 bytes", "captured prints plus encoded call value; result type and report metadata excluded"),
         ("allocation_bytes", "cumulative logical allocation units", "not live allocator bytes or process/browser memory"),

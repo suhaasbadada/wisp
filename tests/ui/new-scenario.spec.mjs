@@ -173,7 +173,7 @@ async function synthetic(page) {
     window.reply = async (index, patch = {}) => {
       const worker = window.fakeWorkers[index]; const request = JSON.parse(worker.message.requestJson);
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(request.source));
-      const report = { compiler: 'wisp-0.1.0-semantics-5', revision: Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join(''), status: 'Ready', output: '', probes: [], diagnostics: [],
+      const report = { compiler: 'wisp-0.1.0-semantics-6', revision: Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join(''), status: 'Ready', output: '', probes: [], diagnostics: [],
         interface: { contract_version: 1, phase: 'described', new_execution: false, functions: [{ name: 'f', parameters: [{ name: 'n', type: { kind: 'Int' } }], return_type: { kind: 'Int' } }], records: [], encodings: { Int: 'canonical_signed_i64_string', Bool: 'JSON_boolean', String: 'JSON_string', Unit: 'JSON_null', Record: 'exact_field_object' }, scope: 'synthetic transport test' }, ...patch };
       worker.callback({ data: { id: worker.message.id, report } });
     };

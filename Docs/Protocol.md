@@ -353,7 +353,7 @@ decoding; duplicate fields are errors, not last-value-wins normalization. File
 input must be valid UTF-8; a BOM is not silently stripped before JSON decoding.
 
 ```json
-{"format":"wisp-ghost","version":1,"compiler":"wisp-0.1.0-semantics-5",
+{"format":"wisp-ghost","version":1,"compiler":"wisp-0.1.0-semantics-6",
  "source":"<exact historical complete source>",
  "limits":{"source_bytes":65536,"fuel":100000,"call_depth":32,
            "evaluation_depth":128,"output_bytes":8192,
@@ -408,12 +408,22 @@ proofs. A party can construct an artifact that reproduces; it cannot thereby
 prove who ran it or when. Source may contain sensitive logic. Host clients own
 explicit file IO and must not silently upload or persist artifacts. The Rust
 language implementation gains no filesystem/network/host execution capability.
-Compiler identity is now `wisp-0.1.0-semantics-5`: reserved `record`/`new` and
-aggregate semantics/accounting are a compatibility boundary. Envelope schema
-version remains 1. Earlier compiler artifacts (including semantics-4) are
+Compiler identity is now `wisp-0.1.0-semantics-6`: tail-call frame reuse and
+copy-eliding scope/projection accounting change bounded execution outcomes.
+Envelope schema version remains 1. Earlier compiler artifacts (including semantics-5) are
 explicitly rejected **before historical execution** (`validation.new_execution:
 false`); there is no migration or silent reinterpretation. Unsupported envelope
 versions are also errors.
+
+Semantics-6 keeps the same source grammar, type rules, value meanings, permission
+boundary and configurable ceilings. Proper direct/mutual tail calls apply only
+to function return positions through final block expressions and selected `if`
+branches. Argument evaluation stays left-to-right/non-tail; non-tail calls stay
+depth-bounded. Fuel/allocation remain cumulative. See [Language](Language.md) for
+copy-elision costs and scope cleanup. Existing archived semantics-5 artifacts and
+context fixtures remain historical data; fresh semantics-6 fixtures are separate.
+Source revision hashes still identify exact bytes; compiler-dependent evidence,
+invocation and context identities change rather than authorizing cross-version reuse.
 
 Native commands, bounded file reading, output safety and exit codes are specified
 in [CLI.md](CLI.md). Artifacts/files are capped at 1 MiB by native readers;

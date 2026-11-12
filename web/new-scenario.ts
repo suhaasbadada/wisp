@@ -26,7 +26,7 @@ export function newScenarioMarkup() {
 }
 
 function metadata(raw: unknown) {
-  if (!object(raw) || raw.compiler !== 'wisp-0.1.0-semantics-5' || typeof raw.revision !== 'string' || !/^[a-f0-9]{64}$/.test(raw.revision) || raw.status !== 'Ready' || raw.output !== '' ||
+  if (!object(raw) || raw.compiler !== 'wisp-0.1.0-semantics-6' || typeof raw.revision !== 'string' || !/^[a-f0-9]{64}$/.test(raw.revision) || raw.status !== 'Ready' || raw.output !== '' ||
       !Array.isArray(raw.probes) || raw.probes.length !== 0 || !Array.isArray(raw.diagnostics) || raw.diagnostics.length !== 0) fail('Not a supported native Ready description.');
   const report = raw as Record<string, unknown>;
   const api = report.interface;

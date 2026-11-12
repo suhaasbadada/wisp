@@ -71,7 +71,7 @@ fn exhaustive_unique_wire_catalog_kinds_and_docs_are_one_contract() {
 fn capabilities_are_bounded_source_independent_nonexecuting_and_runnable() {
     let base = request(json!({"op":"capabilities","source":""}));
     assert_eq!(base["status"], "Ready");
-    assert_eq!(base["compiler"], "wisp-0.1.0-semantics-5");
+    assert_eq!(base["compiler"], "wisp-0.1.0-semantics-6");
     assert_eq!(base.as_object().unwrap().len(), 3);
     assert!(base.to_string().len() <= wisp::CAPABILITIES_BYTES);
     assert_eq!(wisp::CAPABILITIES_BYTES, 32768);
@@ -425,15 +425,15 @@ fn configurable_and_fixed_limits_are_distinct() {
 }
 
 #[test]
-fn pinned_semantics5_artifact_and_exact_raw_invoice_key_are_unchanged() {
+fn pinned_semantics6_artifact_and_exact_raw_invoice_key() {
     let artifact: Value =
-        serde_json::from_str(include_str!("fixtures/semantics5-ghost.json")).unwrap();
+        serde_json::from_str(include_str!("fixtures/semantics6-ghost.json")).unwrap();
     let r = request(json!({"op":"inspect-artifact","source":"","artifact":artifact}));
     assert_eq!(r["status"], "Ready");
     assert_eq!(r["artifact"]["ghost"], artifact["ghost"]);
     assert_eq!(
         artifact["ghost"]["dependency_key"],
-        "cfa2713a591f99e2a027118481711efd2bf559f6801b01a15d69a79e480a8359"
+        "3fd4fc3f22b38c7772cacf237f5604f2b28776bf775575e8d73e7d56dd489eaf"
     );
     assert_eq!(
         run(artifact["source"].as_str().unwrap())["probes"][0]["ghost"],
@@ -449,17 +449,29 @@ fn pinned_semantics5_artifact_and_exact_raw_invoice_key_are_unchanged() {
     assert_eq!(r["status"], "Complete");
     assert_eq!(
         r["invocation"]["execution_key"],
-        "f8411f40e06bfbbbf3e1f32792d6647cbf20f311d57026e36e8d81aaef08ba7f"
+        "8ecc5bb2b7e5c73cd0ac2b0e4334fc4f8506d388b56b4ea00a94933839ce315e"
     );
     assert_eq!(r["result"], json!({"type":"Int","value":"900"}));
-    assert_eq!(r["usage"]["fuel"], 29);
-    assert_eq!(r["usage"]["logical_allocation_bytes"], 741);
+    assert_eq!(r["usage"]["fuel"], 20);
+    assert_eq!(r["usage"]["logical_allocation_bytes"], 319);
+}
+
+#[test]
+fn semantics5_historical_artifact_is_rejected_without_migration_or_execution() {
+    let artifact: Value =
+        serde_json::from_str(include_str!("fixtures/semantics5-ghost.json")).unwrap();
+    for op in ["inspect-artifact", "replay-artifact"] {
+        let r = request(json!({"op":op,"source":artifact["source"],"artifact":artifact}));
+        top(&r, C::ArtifactCompatibility, "Error");
+        assert!(r.get("usage").is_none(), "{r}");
+        assert_eq!(r["output"], "");
+    }
 }
 
 #[test]
 fn replay_artifact_codes_and_unknown_status_exception_are_preserved() {
     let artifact: Value =
-        serde_json::from_str(include_str!("fixtures/semantics5-ghost.json")).unwrap();
+        serde_json::from_str(include_str!("fixtures/semantics6-ghost.json")).unwrap();
     let source = artifact["source"].as_str().unwrap();
     let ghost = artifact["ghost"].clone();
     let mut bad = ghost.clone();

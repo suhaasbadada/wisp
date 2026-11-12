@@ -19,7 +19,7 @@ use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use syntax::*;
-pub const COMPILER: &str = "wisp-0.1.0-semantics-5";
+pub const COMPILER: &str = "wisp-0.1.0-semantics-6";
 fn hash(s: &str) -> String {
     format!("{:x}", Sha256::digest(s.as_bytes()))
 }

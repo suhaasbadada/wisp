@@ -266,7 +266,7 @@ fn invocation_identity_has_sound_conservative_invalidation_and_no_revision_coupl
     assert_ne!(key, identity(base, r#"["1"]"#, json!({"fuel":99999})));
     let g = call(base, "g", r#"["1"]"#, json!({}));
     assert_ne!(key, g["invocation"]["execution_key"]);
-    assert_eq!(g["compiler"], "wisp-0.1.0-semantics-5");
+    assert_eq!(g["compiler"], "wisp-0.1.0-semantics-6");
 }
 
 #[test]

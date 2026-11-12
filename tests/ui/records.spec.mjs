@@ -12,7 +12,7 @@ test('typed invoice executes real WASM and exposes record context', async ({ pag
   await expect(page.locator('#output')).toHaveText('Invoice { item: Item { quantity: 9, unit_price: 100 }, customer: "Ada" }\n900\n');
   await expect(page.locator('#evidence')).toContainText('Clear · 21 completed cases');
   const metadata = JSON.parse(await page.locator('#graph').textContent());
-  expect(metadata.compiler).toBe('wisp-0.1.0-semantics-5');
+  expect(metadata.compiler).toBe('wisp-0.1.0-semantics-6');
   expect(metadata.graph.records.map(record => record.name)).toEqual(['Invoice', 'Item']);
   await page.locator('#budget').fill('20');
   await expect(page.locator('#agent-budget')).toContainText('OVERFLOW');

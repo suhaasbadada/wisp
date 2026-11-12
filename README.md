@@ -158,7 +158,7 @@ print(total(new Item { quantity: 9, unit_price: 100 }));
 
 Records are immutable nominal values, not classes. Initializers run in source order; field display follows declaration order. Nested records, projection and same-type structural equality are bounded/metered. Try `cargo run -- run examples/invoice.wisp` or the “Typed invoice records” playground example. See [ADR 0003](Docs/Decisions/0003-immutable-records.md) and the exact [language limits](Docs/Language.md).
 
-**Compiler compatibility:** semantics-5 adds reserved words and changes resource metering. Older-compiler artifacts are explicitly rejected before execution; artifact envelope v1 does not imply cross-compiler compatibility. No silent migration rewrites historical evidence.
+**Compiler compatibility:** semantics-6 adds proper tail-call frame reuse and avoids unnecessary record copies during block entry and projection, with unchanged resource ceilings. This changes bounded execution outcomes and evidence identities. Older-compiler artifacts, including semantics-5, are explicitly rejected before execution; artifact envelope v1 does not imply cross-compiler compatibility. No silent migration rewrites historical evidence.
 
 ## Invoke with structured data
 
@@ -174,7 +174,7 @@ Returns `result: {"type":"Int","value":"900"}` without executing top-level state
 cargo run -- capabilities
 ```
 
-The same compiler-generated document is published as [agent.json](https://suhaasbadada.github.io/wisp/agent.json): supported operations, implemented features, permissions, logical limits, artifact compatibility, runnable requests and diagnostic codes. Dispatch form: `{"op":"capabilities","source":""}` (source stays required; no checking or execution). Diagnostics expose stable codes alongside legacy kind, human message, spans and input paths. Use code/kind plus the enclosing status, not prose parsing; unknown codes fall back to kind/status. See [Errors.md](Docs/Errors.md). This additive contract preserves current semantics-5 artifacts and execution identities; it is not a proof, automatic repair policy or performance claim.
+The same compiler-generated document is published as [agent.json](https://suhaasbadada.github.io/wisp/agent.json): supported operations, implemented features, permissions, logical limits, artifact compatibility, runnable requests and diagnostic codes. Dispatch form: `{"op":"capabilities","source":""}` (source stays required; no checking or execution). Diagnostics expose stable codes alongside legacy kind, human message, spans and input paths. Use code/kind plus the enclosing status, not prose parsing; unknown codes fall back to kind/status. See [Errors.md](Docs/Errors.md). Discovery does not itself execute or migrate evidence; compiler compatibility remains the separate exact-identity boundary described above. It is not a proof, automatic repair policy or performance claim.
 
 ## Inspect probe context and its omissions
 
