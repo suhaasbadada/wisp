@@ -65,7 +65,7 @@ test('signed and very large list indices fail with bounded native errors', async
   }
 });
 
-test('list reviews retain native JSON while unsupported builder and projection fail closed', async ({ page }) => {
+test('list reviews compare transport positions while unsupported builder fails closed', async ({ page }) => {
   await observe(page); await page.goto('?workbench');
   await page.locator('#source').fill('fn f(xs:[Int])->[Int] {xs}'); await page.locator('#review-capture').click();
   const suite = JSON.stringify({ version: 1, target: 'f', cases: [{ id: 'list', args: [['1']], expect: { result: { type: '[Int]', value: ['1'] }, output: '' } }] }, null, 2);
@@ -74,7 +74,8 @@ test('list reviews retain native JSON while unsupported builder and projection f
   const report = JSON.parse(await page.locator('#review-json').textContent());
   expect(report.review.cases[0].after.result).toEqual({ type: '[Int]', value: ['1'] });
   await page.locator('.observed-value-changes').first().locator('summary').click();
-  await expect(page.locator('.observed-value-changes').first()).toContainText('List-valued differences are not expanded');
+  await expect(page.locator('.observed-value-changes').first()).toContainText('No supported transport differences');
+  await expect(page.locator('.observed-value-changes').first().locator('[role="cell"]')).toHaveCount(0);
   await page.locator('#new-scenario > summary').click(); await page.locator('#scenario-read').click();
   await expect(page.locator('#scenario-build-status')).toContainText('Metadata Ready');
   await page.locator('#scenario-function').selectOption({ label: 'f' });

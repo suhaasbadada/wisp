@@ -148,10 +148,16 @@ test('unsupported and bounded projections fail closed with unchanged native verd
     await page.evaluate(mode => { window.projectionMode = mode; }, mode);
     const report = await submit(page); expect(report.status).toBe('Pass');
     await observed(page).first().locator('summary').click();
+    if (mode === 'array') {
+      await expect(observed(page).first()).toContainText('No supported transport differences');
+      await expect(observed(page).first()).not.toContainText('not guaranteed complete');
+      await expect(cells(observed(page).first())).toHaveCount(0);
+      continue;
+    }
     await expect(observed(page).first()).toContainText('not guaranteed complete');
     expect(await cells(observed(page).first()).count()).toBeLessThanOrEqual(64 * 3);
     expect(await panels(page).first().evaluate(node => new TextEncoder().encode(node.textContent).length)).toBeLessThanOrEqual(256 * 1024);
-    if (['array', 'number', 'missing', 'surrogate', 'surrogate-key', 'depth', 'fields', 'nodes', 'path'].includes(mode)) {
+    if (['number', 'missing', 'surrogate', 'surrogate-key', 'depth', 'fields', 'nodes', 'path'].includes(mode)) {
       await expect(observed(page).first()).not.toContainText('No supported transport differences');
       await expect(cells(observed(page).first())).toHaveCount(0);
     }

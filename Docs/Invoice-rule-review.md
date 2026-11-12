@@ -103,8 +103,9 @@ and **Open your policy files**: select the existing baseline, candidate and
 `cases.json`, then explicitly **Open files — replace unsaved inputs**. Selection
 alone does not load or execute. Inspect all three inputs, then explicitly Review.
 Keep a draft before replacing unsaved work. List-shaped scenario arguments use
-the advanced raw JSON editor, not the forms; use full native JSON for list
-consequences, not an unavailable field-difference view. Open the old suite and
+the advanced raw JSON editor, not the forms. List result differences use bounded
+positional paths, not row identities; full native JSON remains authoritative when
+the view is limited or unavailable. Open the old suite and
 Review again to observe Fail without inferring replacement expectations. The
 existing review-package download preserves supported evidence; it is not a
 deployment or authorization. See [Workbench](Workbench.md) for its contract.
