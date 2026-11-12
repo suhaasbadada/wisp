@@ -61,3 +61,12 @@ The browser tests exercise the real WASM summary, including a 200-row mismatch
 at index 99 and a packaged-input mismatch at index 199. Native/WASM parity retains
 an exact expected result for the all-valid 200-row case. These checks are not
 proofs of universal correctness, financial approval or production adoption.
+
+During isolated release verification, two host watchdogs stopped parity after the
+guarded-edit section. Sherlock subsequently completed all 367 comparisons using
+the same native/WASM artifacts, including instrumented and uninstrumented review
+requests; no deterministic evaluator failure or exact blocked request was found.
+The cause remains unproven. Review parity subprocesses now have a 30-second timeout
+with comparison index/request-byte diagnostics, while the outer host watchdog
+still bounds synchronous WASM. A successful later run does not explain away the
+earlier watchdog failures.
