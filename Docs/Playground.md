@@ -1,5 +1,17 @@
 # Browser playground
 
+## Run a useful standalone program
+
+The language example menu includes **Loan repayment (360 months)** after the
+original four examples. Select it and then **Run** to execute a standalone Wisp
+program with half-up monthly interest, extra payments, early payoff and totals.
+Selection only loads/checks; it never runs automatically. For typed data changes,
+choose `simulate` in Invoke and edit its JSON arguments. Only explicit example
+selection resets arguments; normal source edits/metadata refresh preserve them.
+See the [loan quickstart](Loan-calculator.md) for browser/native commands, exact
+units, known results, replacement behavior and model limitations. It is an
+illustrative calculation, not financial advice or loan approval.
+
 ## Policy review
 
 The workbench explicitly captures a baseline, reviews the current Code candidate
