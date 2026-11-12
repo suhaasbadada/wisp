@@ -233,7 +233,7 @@ fn type_dags_depth_fields_and_projection_chains_are_bounded() {
 #[test]
 fn record_metadata_and_agent_view_have_language_types_and_bounded_declarations() {
     let r = analyze(INVOICE);
-    assert_eq!(r["compiler"], "wisp-0.1.0-semantics-5");
+    assert_eq!(r["compiler"], "wisp-0.1.0-semantics-6");
     assert_eq!(r["syntax_limits"]["record_type_depth"], 16);
     assert_eq!(r["graph"]["records"][0]["name"], "Invoice");
     let item = &r["graph"]["records"][1];
@@ -407,18 +407,18 @@ fn aggregate_copy_sites_have_documented_target_independent_payload_charges() {
         ),
         (
             "record A {s:String} let a = new A {s:\"abc\"}; {a};",
-            369,
-            18,
+            235,
+            13,
         ),
         (
             "record A {s:String} fn id(a:A)->A {a} id(new A {s:\"abc\"});",
-            385,
-            19,
+            251,
+            14,
         ),
         (
             "record A {s:String} let a = new A {s:\"abc\"}; a.s;",
-            238,
-            17,
+            169,
+            12,
         ),
         (
             "record A {s:String} new A {s:\"abc\"} == new A {s:\"abc\"};",

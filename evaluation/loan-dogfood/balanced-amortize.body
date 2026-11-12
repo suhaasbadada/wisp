@@ -1,0 +1,3 @@
+{
+    advance_months(loan, state, loan.months - state.months_elapsed)
+}

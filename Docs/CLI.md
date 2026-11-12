@@ -183,7 +183,11 @@ Reproduction is **not authentication**, proof, or evidence of author/time.
 
 ## Limits, IO and exits
 
-The current compiler is `wisp-0.1.0-semantics-5`. Immutable nominal records use
+The current compiler is `wisp-0.1.0-semantics-6`. Tail-position calls reuse frames;
+record projection and block entry avoid unnecessary inherited payload copies.
+All ceilings remain unchanged; see [Language](Language.md) for exact accounting.
+Semantics-5 artifacts are rejected before reproduction, not silently migrated.
+Immutable nominal records use
 the same commands: `wisp run examples/invoice.wisp` or
 `wisp focus examples/invoice.wisp total`. `check`/`focus` include record metadata
 without execution. Earlier compiler artifacts (including semantics-4) are

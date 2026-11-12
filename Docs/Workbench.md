@@ -467,7 +467,7 @@ Open **Create a scenario from function inputs** beside the scenario editor. If
 starting a new policy, first capture its source as the baseline; the builder never
 captures or repairs it for you. **Read candidate function shapes** invokes the
 existing nonexecuting Rust `describe` operation in a disposable worker. It checks
-compiler semantics-5/interface-v1 encodings and independently matches the native
+compiler semantics-6/interface-v1 encodings and independently matches the native
 revision to SHA-256 of the submitted source. Metadata Ready is not finite Pass or
 approval. Native Error/Unknown, unsupported interfaces and malformed shapes cannot
 enable Add; diagnostics remain literal text.

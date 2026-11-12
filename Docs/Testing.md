@@ -12,6 +12,41 @@ primary check into independent review or erase an earlier failure. Current run
 state must be checked at its exact revision; an old green release is not evidence
 for a new head.
 
+## Semantics-6 runtime repair (local, not deployed)
+
+Dogfooding the language, rather than the workbench, exposed month-deep recursive
+evaluation and unnecessary immutable record copies. Bob repaired the evaluator;
+primary reviewed the implementation and updated identity/compatibility/docs and
+integration tests. Joffrey independently reviewed the runtime and focused tests
+read-only with no substantive findings; he did not run checks or review the later
+compatibility/documentation changes.
+
+The unchanged 360-month loan algorithm completes and matches an independent
+iterative Python Decimal reference: balance 144, paid 64751400, interest 34751544
+cents. Native and WASM agree exactly. Usage is 41600 fuel and 878706 cumulative
+logical allocation units under unchanged 100000 / 1048576 ceilings. The alternate
+balanced algorithm still reaches allocation; this is not a general completeness,
+memory, speed or superiority claim. See `evaluation/loan-dogfood/REPORT.md`.
+
+Passed locally: fmt, strict Clippy, all 190 Rust tests, npm ci, WASM build,
+TypeScript check, static build, evaluation/maintenance/workflow tests, 330
+native/WASM comparisons, the independent dogfood runner and whitespace checks.
+The first npm test run caught a shipped runnable guard still pinning semantics-5;
+fresh nonexecuting metadata confirmed every source/suite/manifest hash unchanged,
+and only its compiler pin was refreshed. Old historical fixtures were preserved.
+The next npm test reached all 330 comparisons but could not start Chromium because
+port 4173 was already occupied. Without touching that process, the full browser
+suite ran against a frozen build on a unique free port: **177 passed**. Thus the
+default npm test command's final exit was a port conflict, not a claimed pass;
+its stages plus isolated browser replacement passed separately.
+
+Semantics-6 has fresh ghost/context fixtures; semantics-5 artifacts reject before
+historical execution, without migration. New regressions cover direct/mutual
+tail calls, non-tail depth limits, runaway cumulative limits, argument/print/error
+order, lexical cleanup, selected payload preflight and the original 360-month
+task. No commits, remote CI, merge, deployment or public acceptance for this
+runtime repair have occurred at this checkpoint.
+
 ## Read-only pinned maintenance command (under publication)
 
 Bob implemented the operator/example/CI/test work unit. Twelve new tests passed,

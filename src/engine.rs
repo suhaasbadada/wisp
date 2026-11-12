@@ -3,6 +3,8 @@ use crate::DiagnosticCode;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 pub type Env<T> = BTreeMap<String, T>;
+#[cfg(test)]
+mod runtime_tests;
 #[derive(Debug)]
 pub enum Value {
     Int(i64),
@@ -478,6 +480,12 @@ pub struct Machine<'a> {
     depth: usize,
     evaluation_depth: usize,
 }
+// A jump owns its evaluated arguments, never a caller's lexical environment.
+// Returning it unwinds branch/block evaluation before the next function body.
+enum Step<'a> {
+    Value(Value),
+    Tail(&'a Function, Env<Value>),
+}
 impl<'a> Machine<'a> {
     pub fn new(p: &'a Program, limits: &'a Limits) -> Self {
         Self {
@@ -654,6 +662,12 @@ impl<'a> Machine<'a> {
         Ok(())
     }
     pub fn eval(&mut self, e: &Expr, env: &mut Env<Value>) -> Result<Value> {
+        match self.eval_step(e, env, false)? {
+            Step::Value(v) => Ok(v),
+            Step::Tail(_, _) => unreachable!(),
+        }
+    }
+    fn eval_step(&mut self, e: &Expr, env: &mut Env<Value>, tail: bool) -> Result<Step<'a>> {
         if self.evaluation_depth >= self.limits.evaluation_depth {
             return Err(err(
                 DiagnosticCode::LimitEvaluationDepth,
@@ -662,14 +676,63 @@ impl<'a> Machine<'a> {
             ));
         }
         self.evaluation_depth += 1;
-        let result = self.eval_inner(e, env);
+        let result = self.eval_inner(e, env, tail);
         self.evaluation_depth -= 1;
         result
     }
-    fn eval_inner(&mut self, e: &Expr, env: &mut Env<Value>) -> Result<Value> {
+    fn call(&mut self, mut f: &'a Function, mut local: Env<Value>) -> Result<Value> {
+        self.depth += 1;
+        let result = (|| loop {
+            match self.eval_step(&f.body, &mut local, true)? {
+                Step::Value(v) => return Ok(v),
+                Step::Tail(next, args) => {
+                    f = next;
+                    local = args;
+                }
+            }
+        })();
+        self.depth -= 1;
+        result
+    }
+    fn projection_root(e: &Expr) -> bool {
+        match &e.kind {
+            ExprKind::Var(_) => true,
+            ExprKind::Project(receiver, _, _) => Self::projection_root(receiver),
+            _ => false,
+        }
+    }
+    // Evaluate a variable-rooted projection chain without duplicating ancestors.
+    // It still consumes the same expression entries and evaluation stack slots.
+    fn borrow_projection<'v>(&mut self, e: &Expr, env: &'v Env<Value>) -> Result<&'v Value> {
+        if self.evaluation_depth >= self.limits.evaluation_depth {
+            return Err(err(
+                DiagnosticCode::LimitEvaluationDepth,
+                "evaluation stack depth exceeded",
+                e.span,
+            ));
+        }
+        self.evaluation_depth += 1;
+        let result = (|| {
+            self.tick(1, e.span)?;
+            self.alloc(16, e.span)?;
+            match &e.kind {
+                ExprKind::Var(n) => Ok(&env[n]),
+                ExprKind::Project(receiver, name, _) => {
+                    let Value::Record(_, fields) = self.borrow_projection(receiver, env)? else {
+                        unreachable!()
+                    };
+                    Ok(&fields.iter().find(|(n, _)| n == name).unwrap().1)
+                }
+                _ => unreachable!(),
+            }
+        })();
+        self.evaluation_depth -= 1;
+        result
+    }
+    fn eval_inner(&mut self, e: &Expr, env: &mut Env<Value>, tail: bool) -> Result<Step<'a>> {
         self.tick(1, e.span)?;
         self.alloc(16, e.span)?;
-        Ok(match &e.kind {
+        Ok(Step::Value(match &e.kind {
             ExprKind::Int(n) => Value::Int(*n),
             ExprKind::Bool(b) => Value::Bool(*b),
             ExprKind::String(s) => {
@@ -718,13 +781,21 @@ impl<'a> Machine<'a> {
                 )
             }
             ExprKind::Project(receiver, name, _) => {
-                let Value::Record(_, fields) = self.eval(receiver, env)? else {
-                    unreachable!()
-                };
-                self.copy(&fields.iter().find(|(n, _)| n == name).unwrap().1, e.span)?
+                if Self::projection_root(receiver) {
+                    let Value::Record(_, fields) = self.borrow_projection(receiver, env)? else {
+                        unreachable!()
+                    };
+                    self.copy(&fields.iter().find(|(n, _)| n == name).unwrap().1, e.span)?
+                } else {
+                    let Value::Record(_, fields) = self.eval(receiver, env)? else {
+                        unreachable!()
+                    };
+                    // Computed receivers are owned: move the selected payload.
+                    fields.into_iter().find(|(n, _)| n == name).unwrap().1
+                }
             }
             ExprKind::Call(n, args) => {
-                if self.depth >= self.limits.call_depth {
+                if !tail && self.depth >= self.limits.call_depth {
                     return Err(err(
                         DiagnosticCode::LimitCallDepth,
                         "call depth exceeded",
@@ -738,10 +809,10 @@ impl<'a> Machine<'a> {
                     self.alloc(n.len() + 32, a.span)?;
                     local.insert(n.clone(), v);
                 }
-                self.depth += 1;
-                let result = self.eval(&f.body, &mut local);
-                self.depth -= 1;
-                result?
+                if tail {
+                    return Ok(Step::Tail(f, local));
+                }
+                self.call(f, local)?
             }
             ExprKind::Unary(op, a) => {
                 match (self.eval(a, env)?, op.as_str()) {
@@ -755,10 +826,10 @@ impl<'a> Machine<'a> {
             ExprKind::Binary(op, a, b) => {
                 let x = self.eval(a, env)?;
                 if op == "&&" && matches!(x, Value::Bool(false)) {
-                    return Ok(x);
+                    return Ok(Step::Value(x));
                 }
                 if op == "||" && matches!(x, Value::Bool(true)) {
-                    return Ok(x);
+                    return Ok(Step::Value(x));
                 }
                 let y = self.eval(b, env)?;
                 match op.as_str() {
@@ -798,29 +869,31 @@ impl<'a> Machine<'a> {
             }
             ExprKind::If(c, a, b) => {
                 if matches!(self.eval(c, env)?, Value::Bool(true)) {
-                    self.eval(a, env)?
+                    return self.eval_step(a, env, tail);
                 } else {
-                    self.eval(b, env)?
+                    return self.eval_step(b, env, tail);
                 }
             }
-            ExprKind::Block(stmts, tail) => {
-                self.alloc(
-                    env.len().saturating_mul(64) + env.keys().map(String::len).sum::<usize>(),
-                    e.span,
-                )?;
-                let mut local = Env::new();
-                for (n, v) in env.iter() {
-                    local.insert(n.clone(), self.copy(v, e.span)?);
-                }
+            ExprKind::Block(stmts, block_tail) => {
+                let result = (|| {
+                    for s in stmts {
+                        self.stmt(s, env)?;
+                    }
+                    if let Some(t) = block_tail {
+                        self.eval_step(t, env, tail)
+                    } else {
+                        Ok(Step::Value(Value::Unit))
+                    }
+                })();
+                // Checked immutable bindings never shadow inherited names.
+                // Cleanup is required on jumps and errors as well as values.
                 for s in stmts {
-                    self.stmt(s, &mut local)?;
+                    if let Stmt::Let(n, _) = s {
+                        env.remove(n);
+                    }
                 }
-                if let Some(t) = tail {
-                    self.eval(t, &mut local)?
-                } else {
-                    Value::Unit
-                }
+                return result;
             }
-        })
+        }))
     }
 }

@@ -95,7 +95,7 @@ fn whole_program_faults_limits_and_schema_precedence_never_invent_interface() {
     assert_eq!(r["interface"]["records"], json!([]));
 }
 #[test]
-fn describe_diagnostics_match_checker_and_legacy_identities_stay_unchanged() {
+fn describe_diagnostics_match_checker_and_current_context_fixture() {
     let source = "// é😀\nfn f(x:Int)->Int{true}";
     let a = send(json!({"op":"analyze","source":source}));
     let b = describe(source);
@@ -105,7 +105,7 @@ fn describe_diagnostics_match_checker_and_legacy_identities_stay_unchanged() {
     describe(source);
     let context = send(json!({"op":"context","source":source,"focus":"probe:0","budget":4096}));
     let frozen: Value =
-        serde_json::from_str(include_str!("fixtures/semantics5-context.json")).unwrap();
+        serde_json::from_str(include_str!("fixtures/semantics6-context.json")).unwrap();
     assert_eq!(context, frozen);
 }
 static NEXT: AtomicU64 = AtomicU64::new(0);

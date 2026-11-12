@@ -3,5 +3,5 @@
   "manifest_hash": "7bbb0fcdc28adecd561b74db2ae56f56130a8025fd2da9bbb4bd3cd4c0954e8e",
   "source_revision": "787296397873751854710228501813314ac8a08943d1ea5ada0bb0c013e4a096",
   "suite_file_hash": "dd4890fdbb556d921e6373abfc05ed2557b68e7cbf64d9c677805ad3b0c08f6f",
-  "compiler": "wisp-0.1.0-semantics-5"
+  "compiler": "wisp-0.1.0-semantics-6"
 }

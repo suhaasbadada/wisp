@@ -427,9 +427,9 @@ fn whole_baseline_token_and_depth_limits_preempt_guards() {
 }
 
 #[test]
-fn full_frozen_semantics5_context_response_is_unchanged() {
+fn full_frozen_semantics6_context_response_is_unchanged() {
     let expected: Value =
-        serde_json::from_str(include_str!("fixtures/semantics5-context.json")).unwrap();
+        serde_json::from_str(include_str!("fixtures/semantics6-context.json")).unwrap();
     let actual = send(
         json!({"op":"context","source":include_str!("../examples/snacks.wisp"),"focus":"probe:0","budget":4096}),
     );

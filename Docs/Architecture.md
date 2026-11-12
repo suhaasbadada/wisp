@@ -1,5 +1,23 @@
 # Architecture
 
+## Bounded runtime repair (semantics-6)
+
+The runtime uses a tail-call trampoline: a final function call returns an owned
+next-function/parameter-environment step, unwinds its expression scopes, and then
+reuses the active call frame. Arguments and non-tail calls use ordinary bounded
+evaluation; errors restore depth counters. Block scopes reuse immutable inherited
+bindings and clean newly bound names on every exit. Variable-rooted projections
+borrow ancestors before copying the selected payload; owned computed receivers
+move selected fields. Selected copies still preflight value depth and cumulative
+fuel/allocation. No ceilings, core permissions or grammar are expanded.
+
+Compiler identity is `wisp-0.1.0-semantics-6` because these changes affect resource
+outcomes and evidence identities. Earlier sections describe the introduction of
+operations under semantics-5, not current cross-compiler artifact compatibility.
+Old artifacts remain untouched and are rejected before historical execution;
+new fixtures pin the current compiler independently. The motivating loan trial
+and its limitations are in `evaluation/loan-dogfood/REPORT.md`.
+
 ## Policy-change workbench
 
 ADR 0010 adds shared Rust host orchestration over existing checked typed calls,

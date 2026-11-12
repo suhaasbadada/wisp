@@ -79,6 +79,23 @@ and escapes are specified below. Trailing parameter/argument commas are not supp
   execution. Duplicate names/parameters, unknown names, mismatched arguments and
   results are errors. Unit is not a public signature type.
 
+### Tail calls and lexical scopes (semantics-6)
+
+A function call in the return position of a function reuses its active call
+frame. Return position propagates through a block's final expression and the
+selected branch of an `if`; it does not include conditions, arguments,
+initializers, statement expressions, binary/unary operands or record fields.
+Direct and mutual tail calls use a trampoline, not a growing Rust/WASM stack.
+Arguments still evaluate left-to-right before switching to a fresh parameter
+environment. Other calls retain the existing call/evaluation-depth bounds.
+
+Fuel and cumulative logical allocation remain charged on every iteration;
+unending tail calls still yield Unknown on exhaustion. Expression nesting within
+each iteration also remains depth-bounded. All ceilings below are unchanged.
+Block scopes reuse inherited immutable bindings without copying their values;
+block-local names are removed on return, tail jump or error. The checker still
+rejects shadowing. These are execution-model changes, not mutation or closures.
+
 ## Immutable nominal records
 
 ```wisp
@@ -154,9 +171,15 @@ Logical allocation is cumulative accounting, not live retained size:
   Rust layout.
 - Let/function parameter bindings cost `32 + binding_name_bytes`; argument
   values move into parameter bindings, not an additional aggregate copy.
-- A block scope costs `64 * inherited_binding_count + sum(binding_name_bytes)`
-  plus the full payload charge for copying every inherited value. Variable
-  lookup and projection copy the selected value and charge its full payload.
+- Blocks do not allocate copies of inherited bindings. Their expression and
+  newly introduced binding costs still apply. A variable lookup copies its
+  value and charges its full payload. A variable-rooted projection chain borrows
+  ancestors and copies only the selected value, charging each traversed expression
+  and preflighting the selected payload's depth, fuel and allocation. Projection
+  from a computed, owned receiver moves the selected field without a second copy;
+  producing that receiver was already charged.
+- Tail calls allocate/charge their evaluated arguments and new parameter
+  bindings normally, while replacing rather than accumulating caller frames.
 - Copy preflight iteratively checks depth, charges fuel and reserves the complete
   payload before recursively allocating it. Runtime values deliberately have no
   derived `Clone` or `PartialEq` that could bypass accounting.
@@ -173,6 +196,9 @@ back that print's output, but retains consumed fuel/allocation. Other counters
 may include the attempted charge that exceeded a limit.
 
 These units are **not actual allocator usage or a process/browser memory bound**.
+These accounting/termination changes require compiler identity
+`wisp-0.1.0-semantics-6`. Semantics-5 historical artifacts are not migrated or
+reinterpreted under the new accounting; exact-compiler checks reject them.
 Compilation and
 report construction are source/token bounded, not charged execution fuel.
 Browser hard cancellation is a host responsibility; the language has no host IO.

@@ -29,7 +29,7 @@ Code meanings and code-to-kind mappings are pinned and never reused. New codes
 are additive. Consumers must tolerate unknown codes, falling back to `kind`
 and the enclosing report/probe/replay `status`. Unknown names remain Type, not
 a new Name kind. Diagnostic contract version 1 and discovery contract version 1
-are independent of exact compiler identity `wisp-0.1.0-semantics-5`.
+are independent of exact compiler identity `wisp-0.1.0-semantics-6`.
 
 Do not derive every outcome from diagnostic kind: transport excess is
 Request/Error; a blocked probe is Limit/Unknown even after top-level Runtime

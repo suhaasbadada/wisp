@@ -446,7 +446,7 @@ fn inventory_example_executes() {
 }
 
 #[test]
-fn combined_syntax_and_recursion_stack_is_bounded() {
+fn nested_tail_recursion_is_bounded_by_cumulative_work() {
     let source = format!(
         "fn f() -> Int {{ {} f() {} }} probe n in 1..=1 {{ f() == n }}",
         "if true { ".repeat(25),
@@ -454,10 +454,7 @@ fn combined_syntax_and_recursion_stack_is_bounded() {
     );
     let r = run(&source);
     assert_eq!(r["probes"][0]["status"], "Unknown", "{r}");
-    assert_eq!(
-        r["probes"][0]["diagnostic"]["message"],
-        "evaluation stack depth exceeded"
-    );
+    assert_eq!(r["probes"][0]["diagnostic"]["code"], "E_LIMIT_ALLOCATION");
 }
 
 #[test]
