@@ -1,4 +1,5 @@
 import { fixedPackage } from './fixed-package';
+import { jsonInputLocation } from './json-input-location';
 
 const encoder = new TextEncoder();
 const cap = 65_536;
@@ -17,6 +18,7 @@ export function callInputsMarkup(): string {
     <p>Download includes full source and data in plaintext. Inspect before sharing. Recorded validation is not fresh execution success or approval. No compiler or executable is included.</p>
     <button id="call-input-download" disabled>Download runnable inputs package</button>
     <details><summary>Native input validation / diagnostics</summary><pre id="call-input-report" tabindex="0"></pre></details>
+    <div id="call-input-locations" aria-label="JSON input diagnostic navigation"></div>
   </details>`;
 }
 
@@ -53,6 +55,19 @@ function nativeReady(report: NativeReport, snapshot: Snapshot, revision: string,
     && record(marker) && marker.contract_version === 1 && marker.phase === 'validated' && marker.new_execution === false
     && marker.target === snapshot.target && marker.argument_count === count && marker.argument_hash === hash
     && Object.keys(marker).length === 6;
+}
+
+function nativePreflight(report: NativeReport, snapshot: Snapshot, revision: string): boolean {
+  const marker = report.input_validation;
+  return (report.status === 'Error' || report.status === 'Unknown') && report.compiler === compiler
+    && report.revision === revision && /^[a-f0-9]{64}$/.test(revision)
+    && report.output === '' && Array.isArray(report.probes) && report.probes.length === 0
+    && Array.isArray(report.diagnostics) && report.diagnostics.every(d => record(d)
+      && typeof d.kind === 'string' && typeof d.message === 'string' && typeof d.code === 'string')
+    && (!('new_execution' in report) || report.new_execution === false)
+    && ['result', 'usage', 'invocation', 'execution_key', '__encoded_call_value'].every(key => !(key in report))
+    && record(marker) && marker.contract_version === 1 && marker.phase === 'preflight'
+    && marker.new_execution === false && marker.target === snapshot.target && Object.keys(marker).length === 4;
 }
 
 function instructions(target: string): string {
@@ -94,16 +109,18 @@ export function setupCallInputs(source: HTMLTextAreaElement, args: HTMLTextAreaE
   const download = element<HTMLButtonElement>('call-input-download');
   const status = element<HTMLElement>('call-input-status');
   const evidence = element<HTMLElement>('call-input-report');
+  const locations = element<HTMLElement>('call-input-locations');
   let generation = 0;
   let serial = 0;
   let reader: FileReader | undefined;
   let worker: Worker | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let accepted: Accepted | undefined;
+  let navigation: Accepted | undefined;
   let active = false;
   const snapshot = (): Snapshot => ({ source: source.value, args: args.value, target: target.value, generation, deadline: performance.now() + 5000 });
   const current = (s: Snapshot) => s.generation === generation && s.source === source.value && s.args === args.value && s.target === target.value;
-  function controls() { load.disabled = active; check.disabled = active; stop.disabled = !active && !accepted; download.disabled = !accepted || !current(accepted.snapshot); }
+  function controls() { load.disabled = active; check.disabled = active; stop.disabled = !active && !accepted && !navigation; download.disabled = !accepted || !current(accepted.snapshot); }
   function finish() {
     clearTimeout(timer); timer = undefined;
     const old = reader; reader = undefined;
@@ -112,14 +129,34 @@ export function setupCallInputs(source: HTMLTextAreaElement, args: HTMLTextAreaE
     active = false; controls();
   }
   function invalidate(message: string) {
-    generation++; accepted = undefined; finish(); evidence.textContent = ''; status.textContent = message;
+    generation++; accepted = undefined; navigation = undefined; locations.replaceChildren(); finish(); evidence.textContent = ''; status.textContent = message;
   }
   function timely(s: Snapshot): boolean {
     if (performance.now() < s.deadline) return true;
     invalidate('Input work deadline (5 seconds); cancelled. No inputs replaced or validation accepted.');
     return false;
   }
-  function fail(message: string) { accepted = undefined; finish(); status.textContent = `No accepted input validation — ${message}. Not executed by this input work.`; }
+  function fail(message: string) { accepted = undefined; navigation = undefined; locations.replaceChildren(); finish(); status.textContent = `No accepted input validation — ${message}. Not executed by this input work.`; }
+  function locate(report: NativeReport, s: Snapshot) {
+    const binding: Accepted = { snapshot: s, report };
+    for (const diagnostic of report.diagnostics as NativeReport[]) {
+      if (!['Input', 'Limit'].includes(String(diagnostic.kind)) || typeof diagnostic.path !== 'string') continue;
+      const range = jsonInputLocation(s.args, diagnostic.path);
+      if (!current(s) || !timely(s)) return;
+      if (!range) continue;
+      navigation = binding;
+      const row = document.createElement('p');
+      const description = document.createElement('span');
+      description.textContent = `${diagnostic.path}: ${String(diagnostic.message)}${typeof diagnostic.code === 'string' ? ` [${diagnostic.code}]` : ''} `;
+      const button = document.createElement('button'); button.textContent = 'Select JSON input value';
+      button.onclick = () => {
+        if (navigation !== binding || active || !current(s) || args.value !== s.args) return;
+        args.focus(); args.setSelectionRange(range.start, range.end);
+      };
+      row.append(description, button); locations.append(row);
+    }
+    controls();
+  }
   function begin(): Snapshot {
     invalidate('Input work pending; no accepted validation.'); active = true; controls();
     timer = setTimeout(() => invalidate('Input work deadline (5 seconds); cancelled. No inputs replaced or validation accepted.'), 5000);
@@ -175,11 +212,16 @@ export function setupCallInputs(source: HTMLTextAreaElement, args: HTMLTextAreaE
         // A second response cannot supersede the immutable first native report.
         pending.onmessage = null; pending.terminate();
         evidence.textContent = JSON.stringify(report, null, 2);
-        if (report.status !== 'Ready') {
-          const diagnostics = Array.isArray(report.diagnostics) ? report.diagnostics.filter(record).map(d => `${String(d.kind)} ${typeof d.path === 'string' ? d.path : 'source'}: ${String(d.message)}${typeof d.code === 'string' ? ` [${d.code}]` : ''}`).join('\n') : '';
-          fail(`${report.status === 'Unknown' ? 'Unknown' : 'Error'} — ${diagnostics || 'no input Ready metadata'}`); return;
-        }
         try {
+          if (report.status !== 'Ready') {
+            const diagnostics = Array.isArray(report.diagnostics) ? report.diagnostics.filter(record).map(d => `${String(d.kind)} ${typeof d.path === 'string' ? d.path : 'source'}: ${String(d.message)}${typeof d.code === 'string' ? ` [${d.code}]` : ''}`).join('\n') : '';
+            const revision = await sha256(s.source);
+            if (!live()) return;
+            const supported = nativePreflight(report, s, revision);
+            fail(`${report.status === 'Unknown' ? 'Unknown' : 'Error'} — ${diagnostics || 'no input Ready metadata'}${supported ? '' : '; unsupported native preflight metadata'}`);
+            if (supported) locate(report, s);
+            return;
+          }
           // RawValue excludes only JSON separator whitespace around the value.
           const [revision, hash] = await Promise.all([sha256(s.source), sha256(s.args.replace(/^[\x20\x09\x0a\x0d]+|[\x20\x09\x0a\x0d]+$/g, ''))]);
           if (!live()) return;

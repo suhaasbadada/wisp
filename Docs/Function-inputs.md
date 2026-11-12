@@ -64,3 +64,38 @@ saved validation is not fresh success. Semantic exits: 0 Complete/Ready, 1 Error
 3 Unknown; 2 host/usage failure. A fresh Complete is one observation, not proof or
 approval. Finite tests, list limits and this workflow do not establish that an
 arbitrary dataset fits all runtime bounds or that Wisp outperforms another tool.
+
+## Read-only JSON value navigation
+
+After **Check input shapes**, a current native Error/Unknown Input or Limit
+diagnostic with a resolvable `/args` JSON Pointer may offer **Select JSON input
+value** below the native report. Clicking focuses the arguments textarea and
+selects the exact raw value (including string quotes, or the whole argument array
+for `/args`). It never edits, normalizes, checks, invokes, runs, changes source
+selection, or writes invocation history/results/output. Fix inputs manually and
+explicitly Check again; Invoke is still separate. Native status/path remain
+authoritative; selection is presentation only, not another type implementation.
+
+Navigation requires semantics-7, matching SHA-256 source revision and target,
+contract-v1 preflight metadata with exactly four fields and `new_execution:false`,
+empty output/probes, diagnostics, and no result/usage/invocation/execution key or
+validated count/hash. Identity digestion shares the same five-second deadline
+and generation/worker guards as Ready. Preflight has no argument hash: binding is
+to the actual submitted immutable raw arguments and current owner generation,
+not cryptographic argument proof. Accepted navigation has no subsequent TTL.
+Every owner edit/change (even edit-and-revert), file change, Stop, load/read start
+or new check revokes it, including retained old button callbacks. Stop remains
+available when navigation exists. Error/Unknown never enables package download.
+
+The bounded lexical locator uses UTF-16 selection offsets, at most 64 KiB UTF-8
+and 17 nested JSON containers including the argument-array root. It does not
+convert numeric payloads to floating point. It requires a complete well-formed
+standalone array, unique decoded object keys everywhere (including escaped-key
+duplicates), valid Unicode scalar strings, LF-only text and no BOM. JSON Pointer
+decodes only `~0`/`~1`; array indices must be canonical nonnegative ASCII decimal
+indices that actually exist. Missing fields, source diagnostics/default spans,
+invalid/unresolved pointers, duplicates, unsupported metadata and inputs outside
+these UI bounds have no navigation; there is never a fallback to source offset
+zero. A native list-limit diagnostic may still select an existing 1025-element
+list within these presentation bounds. The complete raw native report remains
+available regardless of navigation; no diagnostic is reinterpreted or repaired.
