@@ -11,8 +11,10 @@ export function setupScenarioEditor(suite: HTMLTextAreaElement) {
   const label = document.querySelector<HTMLLabelElement>('label[for="review-suite"]')!;
   label.before(editor, details); details.append(summary, label, suite);
   let generation = 0;
+  let locate: (rawSuite: string, index: number, id: string) => { card: HTMLDetailsElement; field: HTMLInputElement | HTMLTextAreaElement } | undefined = () => undefined;
   function refresh() {
     const current = ++generation;
+    locate = () => undefined;
     editor.replaceChildren();
     const heading = document.createElement('h3'); heading.textContent = '2. Saved scenarios and required decisions'; editor.append(heading);
     const note = document.createElement('p'); note.textContent = 'Inputs and requirements are yours. Changing them invalidates the review; requirements are never repaired automatically. Strings stay exact strings; Rust selects and validates policy types. Duplicate scenario copies existing inputs and requirements: edit them yourself. Finite cases are not approval.'; editor.append(note);
@@ -57,23 +59,31 @@ export function setupScenarioEditor(suite: HTMLTextAreaElement) {
           save();
         });
         label.append(input); parent.append(label);
+        return input;
       }
-      function values(parent: HTMLElement, name: string, item: Value, update: (value: Value) => void, depth = 0) {
+      function values(parent: HTMLElement, name: string, item: Value, update: (value: Value) => void, depth = 0): HTMLInputElement | HTMLTextAreaElement | undefined {
         if (typeof item === 'object') {
           const group = document.createElement('fieldset'); const legend = document.createElement('legend'); legend.textContent = name; group.append(legend); parent.append(group);
-          for (const key of Object.keys(item)) values(group, depth === 0 && name === 'Required result' ? `Required: ${key}` : `${name}.${key}`, item[key], next => { item[key] = next; }, depth + 1);
-        } else field(parent, name, item, next => update(next));
+          let first: HTMLInputElement | HTMLTextAreaElement | undefined;
+          for (const key of Object.keys(item)) {
+            const child = values(group, depth === 0 && name === 'Required result' ? `Required: ${key}` : `${name}.${key}`, item[key], next => { item[key] = next; }, depth + 1);
+            first ??= child;
+          }
+          return first;
+        } else return field(parent, name, item, next => update(next));
       }
       const root = document.createElement('div'); root.className = 'scenario-fields'; editor.append(root);
       field(root, 'Function target', data.target, next => { data.target = String(next); });
+      const targets: { row: Suite['cases'][number]; card: HTMLDetailsElement; field: HTMLInputElement | HTMLTextAreaElement }[] = [];
       for (const row of data.cases) {
         const card = document.createElement('details'); card.className = 'scenario-card';
         const title = document.createElement('summary'); title.textContent = row.id; card.append(title);
         const fields = document.createElement('div'); fields.className = 'scenario-fields'; card.append(fields);
-        field(fields, 'Scenario ID', row.id, next => { row.id = String(next); title.textContent = row.id; });
+        const idField = field(fields, 'Scenario ID', row.id, next => { row.id = String(next); title.textContent = row.id; });
         row.args.forEach((arg, index) => values(fields, `Argument ${index + 1}`, arg, next => { row.args[index] = next; }));
         field(fields, 'Required result type', row.expect.result.type, next => { row.expect.result.type = String(next); });
-        values(fields, 'Required result', row.expect.result.value, next => { row.expect.result.value = next; });
+        const requiredField = values(fields, 'Required result', row.expect.result.value, next => { row.expect.result.value = next; });
+        targets.push({ row, card, field: requiredField ?? idField });
         field(fields, 'Required output', row.expect.output, next => { row.expect.output = String(next); }, true);
         const controls = document.createElement('div'); controls.className = 'scenario-controls'; card.append(controls);
         const duplicate = document.createElement('button'); duplicate.textContent = 'Duplicate scenario'; duplicate.disabled = data.cases.length >= 16;
@@ -89,6 +99,17 @@ export function setupScenarioEditor(suite: HTMLTextAreaElement) {
         });
         controls.append(duplicate, remove); editor.append(card);
       }
+      // Navigation is a read-only lookup into this exact render, never a parser,
+      // formatter or ID selector. Duplicate IDs fail closed even for one row.
+      locate = (rawSuite, index, id) => {
+        if (current !== generation || rawSuite !== snapshot || suite.value !== snapshot ||
+            !Number.isSafeInteger(index) || index < 0 || new Set(data.cases.map(row => row.id)).size !== data.cases.length) return;
+        const target = targets[index];
+        if (!target || data.cases[index] !== target.row || target.row.id !== id ||
+            !editor.isConnected || !target.card.isConnected || !editor.contains(target.card) ||
+            !target.field.isConnected || !target.card.contains(target.field) || target.field.disabled || target.field.readOnly) return;
+        return target;
+      };
     } catch (error) {
       const message = document.createElement('p'); message.textContent = error instanceof Error && error.message === 'UI field limit'
         ? 'UI field limit (2048) exceeded, not a policy validity judgment. Use the complete JSON editor below; Rust validates the suite.'
@@ -96,5 +117,22 @@ export function setupScenarioEditor(suite: HTMLTextAreaElement) {
       editor.append(message); details.open = true;
     }
   }
-  return refresh;
+  return {
+    refresh,
+    // Reading the adapter binds the current render. A retained review action
+    // cannot follow the mutable lookup into a subsequently rebuilt form.
+    get available() {
+      const rendered = locate;
+      return (rawSuite: string, index: number, id: string) => rendered(rawSuite, index, id) !== undefined;
+    },
+    get select() {
+      const rendered = locate;
+      return (rawSuite: string, index: number, id: string) => {
+        const target = rendered(rawSuite, index, id);
+        if (!target) return false;
+        target.card.open = true; target.field.focus(); target.field.scrollIntoView({ block: 'center', behavior: 'instant' });
+        return true;
+      };
+    }
+  };
 }

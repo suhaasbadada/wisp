@@ -34,7 +34,11 @@ export function setupWorkbench() {
   document.documentElement.classList.add('workbench-page');
   const source = document.querySelector<HTMLTextAreaElement>('#source')!;
   const makeWorker = () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-  const workspace = setupReview(source, makeWorker);
+  let scenarios: ReturnType<typeof setupScenarioEditor> | undefined;
+  const workspace = setupReview(source, makeWorker, {
+    get available() { return scenarios?.available ?? (() => false); },
+    get select() { return scenarios?.select ?? (() => false); }
+  });
   // Move the real controls: retain their existing worker, cancellation and
   // disabled-state lifecycle rather than introducing proxy execution buttons.
   const run = document.getElementById('review-run')!; const stop = document.getElementById('review-stop')!;
@@ -43,14 +47,14 @@ export function setupWorkbench() {
   setupPolicyFiles(workspace);
   document.getElementById('review-example')!.click();
   const suite = document.querySelector<HTMLTextAreaElement>('#review-suite')!;
-  const scenarios = setupScenarioEditor(suite);
+  scenarios = setupScenarioEditor(suite);
   document.getElementById('scenario-editor')!.before(document.getElementById('new-scenario')!);
   function loadedExample() {
     // Only the bundled, explicitly loaded fixture may be formatted here.
     if (suite.value === exampleSuite) suite.value = JSON.stringify(JSON.parse(exampleSuite), null, 2);
-    scenarios();
+    scenarios!.refresh();
   }
-  loadedExample(); suite.addEventListener('change', scenarios);
+  loadedExample(); suite.addEventListener('change', scenarios.refresh);
   document.getElementById('review-example')!.addEventListener('click', loadedExample);
   document.getElementById('workbench-expense')!.addEventListener('click', () => {
     // Only this known bundled fixture is normalized, never imported owner input.

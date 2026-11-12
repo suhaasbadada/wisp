@@ -36,7 +36,12 @@ export interface ReviewWorkspace {
   generation: () => number;
 }
 
-export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worker): ReviewWorkspace {
+export interface ScenarioNavigation {
+  available: (rawSuite: string, index: number, id: string) => boolean;
+  select: (rawSuite: string, index: number, id: string) => boolean;
+}
+
+export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worker, navigation?: ScenarioNavigation): ReviewWorkspace {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const put = (id: string, value: string) => { get(id).textContent = value; };
   const suite = get<HTMLTextAreaElement>('review-suite'); const baselineView = get<HTMLTextAreaElement>('review-baseline');
@@ -45,10 +50,12 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   let deadline: ReturnType<typeof setTimeout>;
   let accepted: { report: ReviewReport; historical: boolean; baseline: string; candidate: string; suite: string; generation: number } | undefined;
   let diagnosticButtons: { button: HTMLButtonElement; current: () => boolean }[] = [];
+  let scenarioButtons: { button: HTMLButtonElement; current: () => boolean }[] = [];
   let attentionOnly = false;
   function clearResults() {
     accepted = undefined; attentionOnly = false;
     diagnosticButtons = [];
+    scenarioButtons = [];
     for (const id of ['review-json', 'review-identity', 'review-summary']) put(id, '');
     for (const id of ['review-cases', 'review-decisions', 'review-diagnostics', 'review-source-host']) get(id).replaceChildren();
     get('review-filters').hidden = true;
@@ -97,6 +104,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     downloadSource.disabled = downloadEvidence.disabled = downloadReadable.disabled = downloadPackage.disabled = !accepted || accepted.historical || Boolean(worker);
     formatSuite.disabled = formattedSuite() === undefined;
     for (const { button, current } of diagnosticButtons) button.disabled = !current();
+    for (const { button, current } of scenarioButtons) button.disabled = !current();
   }
   function download(value: string | Blob, name: string, type: string) {
     const url = URL.createObjectURL(new Blob([value], { type }));
@@ -230,7 +238,24 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   }
   function renderCases() {
     if (!accepted?.report.review) return;
+    scenarioButtons = [];
+    const held = accepted;
     const review = accepted.report.review;
+    const editAction = (row: ReviewCase, index: number) => {
+      const id = row.id;
+      const available = navigation?.available; const select = navigation?.select;
+      const current = () => accepted === held && !held.historical && !worker && generation === held.generation &&
+        baseline === held.baseline && baselineView.value === held.baseline && source.value === held.candidate && suite.value === held.suite &&
+        review.phase === 'executed' && Number.isSafeInteger(row.index) && row.index === index &&
+        available?.(held.suite, index, id) === true;
+      if (!current()) return;
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'scenario-select';
+      button.textContent = `Edit saved scenario ${id}`;
+      button.title = 'Selection does not write or run. Editing invalidates results; review separately. Finite Pass is not approval.';
+      button.onclick = () => { if (current()) select?.(held.suite, index, id); };
+      scenarioButtons.push({ button, current });
+      return button;
+    };
     // Display only, after native shape validation. Never use live edited inputs,
     // coerce decimal strings, or derive caller requirements from observations.
     let inputs: unknown[] = [];
@@ -266,7 +291,9 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
     for (const { row, index } of visible) {
       const tr = body.insertRow();
       for (const value of [`${row.id}\nInputs: ${args(row, index)}`, decision(row.before), decision(row.after), required(row.expected), `Expectation: ${row.expectation}\nComparison: ${row.comparison}\n${row.comparison_reason}`]) tr.insertCell().textContent = value;
+      const action = editAction(row, index); if (action) tr.cells[0].append(action);
     }
+    if (scenarioButtons.length) caption.append(' Selection does not write or run; editing invalidates results. Review separately. Finite Pass is not approval.');
     get('review-decisions').replaceChildren(table);
     get('review-cases').replaceChildren(...visible.map(({ row, index }) => {
       const card = document.createElement('details'); card.className = 'review-case';
@@ -278,7 +305,9 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
         const pre = document.createElement('pre'); pre.textContent = JSON.stringify(observation, null, 2); section.append(head, pre); grid.append(section);
       }
       const expected = document.createElement('pre'); expected.className = 'review-expected'; expected.textContent = `Caller-owned expectation\n${JSON.stringify(row.expected, null, 2)}`;
-      card.append(title, note, grid, expected); return card;
+      card.append(title, note, grid, expected);
+      const action = editAction(row, index); if (action) card.append(action);
+      return card;
     }));
   }
   function start() {
@@ -312,6 +341,7 @@ export function setupReview(source: HTMLTextAreaElement, makeWorker: () => Worke
   }
   source.addEventListener('input', () => invalidate('Candidate source changed'));
   suite.oninput = () => invalidate('Case suite changed');
+  suite.addEventListener('change', () => invalidate('Case suite editor refreshed'));
   get<HTMLButtonElement>('review-capture').onclick = () => { invalidate('Baseline recaptured'); baseline = source.value; baselineView.value = baseline; controls(); };
   get<HTMLButtonElement>('review-example').onclick = () => {
     invalidate('Reservation walkthrough loaded'); baseline = beforeExample; baselineView.value = baseline; suite.value = casesExample;
