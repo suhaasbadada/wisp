@@ -26,11 +26,12 @@ test('batch starter loads without execution and exposes a real discrepancy throu
   await page.locator('#invoke').click(); await expect(page.locator('#run-status')).toHaveText('CALL COMPLETE');
   expect(JSON.parse(await page.locator('#call-result').textContent()).value).toEqual({
     line_count: '3', computed_cents: '1500', declared_cents: '1490', mismatched_lines: '1',
-    invalid_lines: '0', payment_cents: '1500', payment_difference_cents: '0', balanced: false,
+    first_mismatched_index: '1', invalid_lines: '0', first_invalid_index: '-1', payment_cents: '1500', payment_difference_cents: '0', balanced: false,
   });
   await expect(page.locator('#output')).toContainText('top-level statements skipped');
   await page.locator('#run').click(); await expect(page.locator('#run-status')).toHaveText('COMPLETE');
   await expect(page.locator('#output')).toContainText('declared_cents: 1490, mismatched_lines: 1');
+  await expect(page.locator('#output')).toContainText('first_mismatched_index: 1, invalid_lines: 0, first_invalid_index: -1');
   await expect(page.locator('#output')).toContainText('balanced: false');
   expect(await page.evaluate(() => window.executionOps)).toEqual(['call', 'run']);
 });
@@ -43,7 +44,7 @@ test('200-row typed batch completes and malformed last element prevents executio
   await page.locator('#call-args').fill(JSON.stringify([rows, '317012']));
   await page.locator('#invoke').click(); await expect(page.locator('#run-status')).toHaveText('CALL COMPLETE');
   const result = JSON.parse(await page.locator('#call-result').textContent()).value;
-  expect(result).toEqual({ line_count: '200', computed_cents: '317012', declared_cents: '317013', mismatched_lines: '1', invalid_lines: '0', payment_cents: '317012', payment_difference_cents: '0', balanced: false });
+  expect(result).toEqual({ line_count: '200', computed_cents: '317012', declared_cents: '317013', mismatched_lines: '1', first_mismatched_index: '99', invalid_lines: '0', first_invalid_index: '-1', payment_cents: '317012', payment_difference_cents: '0', balanced: false });
   rows[199].quantity = 1;
   await page.locator('#call-args').fill(JSON.stringify([rows, '317012'])); await page.locator('#invoke').click();
   await expect(page.locator('#run-status')).toHaveText('CALL ERROR');

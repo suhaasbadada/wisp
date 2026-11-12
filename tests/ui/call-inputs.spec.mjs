@@ -325,6 +325,6 @@ test('200-record invoice batch loads as data, validates without execution, then 
   await expect(page.locator('#call-args')).toHaveValue(args); await ready(page);
   const result = inspect(await download(page), 'reconcile'); expect(result.validate.exit).toBe(0); expect(result.call.exit).toBe(0);
   expect(result.call.report.result.type).toBe('Reconciliation');
-  expect(result.call.report.result.value).toEqual({ line_count: '200', computed_cents: '100000', declared_cents: '99990', mismatched_lines: '1', invalid_lines: '0', payment_cents: '100000', payment_difference_cents: '0', balanced: false });
+  expect(result.call.report.result.value).toEqual({ line_count: '200', computed_cents: '100000', declared_cents: '99990', mismatched_lines: '1', first_mismatched_index: '199', invalid_lines: '0', first_invalid_index: '-1', payment_cents: '100000', payment_difference_cents: '0', balanced: false });
   expect(result.files['args.json']).toBe(args); await expect(page.locator('#call-result')).toHaveText('No invocation yet.');
 });
