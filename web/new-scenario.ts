@@ -1,16 +1,27 @@
 // UI transport only. Rust describes declarations; owners supply every value.
 import type { ReviewWorkspace } from './review';
 import { validWorkspace } from './workspace';
+import { jsonInputLocation } from './json-input-location';
 
 type Type = { kind: 'Int' | 'Bool' | 'String' } | { kind: 'Record'; name: string } | { kind: 'List'; element: Type };
 type Member = { name: string; type: Type };
 type FunctionShape = { name: string; parameters: Member[]; return_type: Type };
-type Value = string | boolean | { [key: string]: Value };
+type Value = string | boolean | Value[] | { [key: string]: Value };
 const object = (x: unknown): x is Record<string, unknown> => x !== null && typeof x === 'object' && !Array.isArray(x);
 const keys = (x: unknown, names: string[]): x is Record<string, unknown> => object(x) && Object.keys(x).length === names.length && names.every(n => Object.hasOwn(x, n));
 const scalar = (x: unknown): x is string => typeof x === 'string' && !x.includes('\r') && new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(new TextEncoder().encode(x)) === x;
 const caseId = (x: unknown): x is string => typeof x === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(x);
 function fail(message: string): never { throw new Error(message); }
+const typeName = (type: Type): string => type.kind === 'List' ? `[${typeName(type.element)}]` : type.kind === 'Record' ? type.name : type.kind;
+
+// Presentation admission only: Rust remains authoritative for types and Int text.
+function supportedValue(x: unknown, budget: { count: number }, depth = 0): x is Value {
+  if (++budget.count > 2048) return false;
+  if (scalar(x) || typeof x === 'boolean') return true;
+  if (depth >= 16) return false;
+  if (Array.isArray(x)) return x.length <= 1024 && x.every(item => supportedValue(item, budget, depth + 1));
+  return object(x) && Object.getPrototypeOf(x) === Object.prototype && Object.keys(x).length <= 32 && Object.entries(x).every(([key, item]) => scalar(key) && supportedValue(item, budget, depth + 1));
+}
 
 export function newScenarioMarkup() {
   return `<details id="new-scenario"><summary>Create a scenario from function inputs</summary>
@@ -20,6 +31,7 @@ export function newScenarioMarkup() {
     <label>Candidate function <select id="scenario-function" disabled><option value="">Read shapes first</option></select></label>
     <div id="scenario-new-fields" class="scenario-fields"></div>
     <label><input id="scenario-replace" type="checkbox"> Replace existing scenarios</label>
+    <p>List JSON is manual form text, not an exact raw-file loader: Add serializes accepted whitespace. Supply every input and requirement; nothing is extracted or inferred. Use arrays with Ints as strings, for example ["1", "-2"]. No numbers or null are admitted here; use the raw scenario editor for unsupported or intentionally invalid numeric cases. List/record containers: 16 levels, 1024 list items, 32 record fields, 2048 values per payload, 64 KiB UTF-8, unique keys and Unicode/LF text. These UI bounds are not universal language limits.</p>
     <p>Unchecked: append only to an exact pretty-printed, supported version 1 suite for the same function (maximum 16 cases). Otherwise explicitly choose replacement. Add keeps both policies unchanged and keeps the previous complete inputs in this tab for Restore previous inputs. It clears review evidence; no cases run.</p>
     <button id="scenario-add" disabled>Add scenario</button>
   </details>`;
@@ -59,16 +71,12 @@ function metadata(raw: unknown) {
 function appendable(raw: string, target: string) {
   const data: unknown = JSON.parse(raw);
   if (JSON.stringify(data, null, 2) !== raw || !keys(data, ['version', 'target', 'cases']) || data.version !== 1 || data.target !== target || !Array.isArray(data.cases) || data.cases.length < 1 || data.cases.length >= 16) fail('Cannot append: use a canonical supported suite for this function with fewer than 16 cases, or explicitly Replace existing scenarios.');
-  let count = 1;
-  function value(x: unknown, depth = 0): boolean {
-    if (++count > 2048) return false;
-    return scalar(x) || typeof x === 'boolean' || object(x) && depth < 16 && Object.keys(x).length <= 32 && Object.entries(x).every(([key, item]) => scalar(key) && value(item, depth + 1));
-  }
+  const budget = { count: 1 };
   const suite = data as { version: 1; target: string; cases: { id: string; args: Value[]; expect: { result: { type: string; value: Value }; output: string } }[] };
   if (!suite.cases.every(row => {
-    count += 3;
-    return keys(row, ['id', 'args', 'expect']) && scalar(row.id) && Array.isArray(row.args) && row.args.every(arg => value(arg)) && keys(row.expect, ['result', 'output']) && scalar(row.expect.output) && keys(row.expect.result, ['type', 'value']) && scalar(row.expect.result.type) && value(row.expect.result.value);
-  }) || count > 2048) fail('Cannot append unsupported existing values. Explicit replacement is required.');
+    budget.count += 3;
+    return keys(row, ['id', 'args', 'expect']) && scalar(row.id) && Array.isArray(row.args) && row.args.every(arg => supportedValue(arg, budget)) && keys(row.expect, ['result', 'output']) && scalar(row.expect.output) && keys(row.expect.result, ['type', 'value']) && scalar(row.expect.result.type) && supportedValue(row.expect.result.value, budget);
+  }) || budget.count > 2048) fail('Cannot append unsupported existing values. Explicit replacement is required.');
   if (!suite.cases.every(row => caseId(row.id)) || new Set(suite.cases.map(row => row.id)).size !== suite.cases.length) fail('Cannot append: existing scenario IDs must be unique, 1–64 ASCII letters, digits, underscores or hyphens. Explicit replacement is required.');
   return suite;
 }
@@ -94,28 +102,38 @@ export function setupNewScenario(workspace: ReviewWorkspace, source: HTMLTextAre
   stop.onclick = () => invalidate('Reading stopped; worker terminated. This builder requested no case execution.');
   read.onclick = () => {
     invalidate('Reading candidate shapes in Rust; no cases execute.');
-    const snapshot = { source: source.value, suite: suite.value, generation: workspace.generation(), serial };
+    const snapshot = { source: source.value, suite: suite.value, generation: workspace.generation(), serial, deadline: performance.now() + 5000 };
     if (!validWorkspace({ baseline: '', candidate: snapshot.source, suite_json: snapshot.suite })) { status.textContent = 'Host input limit: sources and suite must be valid Unicode, LF-only, at most 64 KiB. No shapes read.'; return; }
     const id = serial;
     try {
       const current = makeWorker(); worker = current; read.disabled = true; stop.disabled = false;
       deadline = setTimeout(() => { if (worker === current) invalidate('Host deadline (5 seconds): reading stopped. No shapes accepted; this builder requested no case execution.'); }, 5000);
       current.onerror = () => { if (worker === current) invalidate('Error — shape worker failed. No shapes accepted.'); };
+      let receiving = false;
+      const timely = () => {
+        if (worker !== current) return false;
+        if (!fresh(snapshot)) { invalidate(); return false; }
+        if (performance.now() >= snapshot.deadline) { invalidate('Host deadline (5 seconds): reading stopped. No shapes accepted; this builder requested no case execution.'); return false; }
+        return true;
+      };
       current.onmessage = async event => {
-        if (worker !== current || event.data.id !== id) return;
-        finish();
+        if (worker !== current || event.data.id !== id || receiving) return;
+        receiving = true;
         if (!fresh(snapshot)) { invalidate(); return; }
         try {
           const api = metadata(event.data.report);
+          if (!timely()) return;
           const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(snapshot.source));
-          if (!fresh(snapshot)) return;
+          if (!timely()) return;
           const revision = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
           if (api.revision !== revision) fail('Native source revision mismatch.');
           ready = { api, ...snapshot }; select.replaceChildren(new Option('Choose a function', ''));
           api.functions.forEach((f, index) => select.append(new Option(f.name, String(index)))); select.disabled = false;
+          if (!timely()) return;
+          finish();
           status.textContent = 'Metadata Ready — native checked shapes only; new_execution: false. Choose a function and supply inputs and requirements. This builder requested no case execution; not Pass or approval.';
         } catch (error) {
-          if (!fresh(snapshot)) return;
+          if (worker !== current || !fresh(snapshot)) return;
           const outcome = ['Error', 'Unknown'].includes(event.data.report?.status) ? `Native ${event.data.report.status} — ` : '';
           invalidate(`${outcome}No usable shapes: ${error instanceof Error ? error.message : 'invalid report'} Native diagnostics: ${JSON.stringify(event.data.report?.diagnostics ?? event.data.error ?? [])}`);
         }
@@ -131,6 +149,20 @@ export function setupNewScenario(workspace: ReviewWorkspace, source: HTMLTextAre
     if (!fn) return;
     try {
       let count = 0; let labelBytes = 0;
+      const heights = new Map<string, number>();
+      const visiting = new Set<string>();
+      function height(type: Type): number {
+        if (type.kind === 'List') { const h = 1 + height(type.element); if (h > 16) fail('Unsupported List/record layout (16 levels maximum).'); return h; }
+        if (type.kind !== 'Record') return 0;
+        const cached = heights.get(type.name); if (cached !== undefined) return cached;
+        const members = binding!.api.records.get(type.name);
+        if (!members || visiting.has(type.name) || visiting.size >= 16 || members.length > 32) fail('Unsupported record layout (unknown, cyclic, or beyond 16 levels / 32 fields).');
+        visiting.add(type.name);
+        const h = 1 + Math.max(0, ...members.map(member => height(member.type)));
+        visiting.delete(type.name);
+        if (h > 16) fail('Unsupported List/record layout (16 levels maximum).');
+        heights.set(type.name, h); return h;
+      }
       const labelText = (text: string) => {
         labelBytes += new TextEncoder().encode(text).length;
         if (labelBytes > 262144) fail('UI label budget (256 KiB) exceeded; not a policy validity judgment.');
@@ -144,7 +176,17 @@ export function setupNewScenario(workspace: ReviewWorkspace, source: HTMLTextAre
       }
       function field(parent: HTMLElement, name: string, type: Type, depth = 0): () => Value {
         if (++count > 2048) fail('UI field limit (2048) exceeded.');
-        if (type.kind === 'List') fail('List-shaped forms are not available in this builder. Use the raw scenario JSON editor or the typed Invoke JSON input; Rust validates list values.');
+        if (height(type) + depth > 16) fail('Unsupported List/record layout (16 levels maximum).');
+        if (type.kind === 'List') {
+          const label = document.createElement('label'); label.append(document.createTextNode(labelText(`${name} (List JSON ${typeName(type)})`)));
+          const input = document.createElement('textarea'); input.placeholder = 'Manual JSON array, e.g. ["1", "-2"] (Ints are strings)'; label.append(input); parent.append(label);
+          return () => {
+            if (!jsonInputLocation(input.value, '/args')) fail(`Use complete unique-key Unicode/LF array JSON (64 KiB / 17 JSON levels) for ${name}.`);
+            const value: unknown = JSON.parse(input.value);
+            if (!Array.isArray(value) || !supportedValue(value, { count: 0 }, depth)) fail(`Unsupported List JSON for ${name}: strings/booleans/records/lists only; no numbers or null; 16 container levels, 32 record fields, 1024 list items, 2048 values maximum.`);
+            return value;
+          };
+        }
         if (type.kind === 'Record') {
           const fields = binding!.api.records.get(type.name);
           if (!fields || depth >= 16 || fields.length > 32) fail('Unsupported record layout (16 levels / 32 fields maximum).');
@@ -163,7 +205,7 @@ export function setupNewScenario(workspace: ReviewWorkspace, source: HTMLTextAre
       let index = 1; try { const ids = JSON.parse(suite.value).cases.map((row: { id: string }) => row.id); while (ids.includes(`case-${index}`)) index++; } catch { /* scaffold only */ }
       id.input.value = `case-${index}`;
       const args = fn.parameters.map(member => field(host, `Input ${member.name}`, member.type));
-      const resultType = fn.return_type.kind === 'Record' ? fn.return_type.name : fn.return_type.kind;
+      const resultType = typeName(fn.return_type);
       const typeLabel = document.createElement('label'); typeLabel.textContent = 'Required result type (from Rust)'; const typeInput = document.createElement('input'); typeInput.readOnly = true; typeInput.value = resultType; typeLabel.append(typeInput); host.append(typeLabel);
       const result = field(host, 'Required result', fn.return_type);
       const output = control('Required output — empty means explicitly require no output', 'String'); host.append(output.label);

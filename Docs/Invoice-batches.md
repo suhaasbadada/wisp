@@ -92,8 +92,10 @@ The source uses `[InvoiceLine]`, an explicit typed literal `[InvoiceLine; ...]`,
 loops, imports or host permissions are involved. Empty source lists are explicit,
 for example `[Int;]`. Negative/out-of-range indexing is a native Runtime Error.
 
-Typed Invoke and raw scenario/review JSON support lists. The scenario form
-builder deliberately refuses list-shaped forms with a raw-JSON alternative.
+Typed Invoke and raw scenario/review JSON support lists. The new-scenario builder
+also offers [manual List JSON fields](List-scenario-builder.md), including record
+members and required results. Owners type all values; Add does not execute or
+infer expectations. The raw editor remains available for unsupported form data.
 Field-difference views show bounded positional list differences, not row identity
 or moves; full native JSON remains available when the view is limited or
 unsupported. See [List value differences](List-value-differences.md). These are UI limits,

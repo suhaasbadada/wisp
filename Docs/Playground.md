@@ -70,12 +70,13 @@ payment and matching computed total. The default three rows yield computed 1500,
 declared 1490, payment 1500, one mismatch and `balanced: false`. See
 [Invoice batches](Invoice-batches.md) for the walkthrough, not a general budget proof.
 
-Checked interface v2 describes List shapes. Scenario-builder forms do not yet
-support them: selecting a List-shaped function fails closed with guidance to raw
-scenario JSON or Invoke JSON. Scalar/record-only functions in the same file still
-work. Saved-scenario forms may likewise require the always-available raw editor.
-Value-changes comparison rejects arrays with an unavailable notice and retains
-full native JSON. This is a UI projection limit, not a core Error or “no change”.
+Checked interface v2 describes List shapes. The new-scenario builder offers
+manual List JSON fields for arguments, record members and required results;
+owners supply every value, with Ints as JSON strings. Add stages only; Review
+runs separately. See [List scenario builder](List-scenario-builder.md) for bounded
+admission and raw-editor fallback. Saved-scenario forms may still need the raw
+editor. Value changes show bounded positional List differences, retaining full
+native JSON when unavailable; this is not a complete generic List UI.
 
 Probe badges match declaration occurrences, not just predicate hashes (duplicate predicates can have distinct budget prefixes). Agent View reconciles removed/changed focus functions by requesting the newly selected function from Rust; the selector never labels another function's view.
 
