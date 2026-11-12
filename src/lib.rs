@@ -92,7 +92,7 @@ struct Artifact {
 pub const TRANSPORT_BYTES: usize = 1_048_576;
 pub const SOURCE_BYTES: usize = 65_536;
 pub use interface::INTERFACE_CONTRACT_VERSION;
-pub use invocation::ARGUMENT_BYTES;
+pub use invocation::{ARGUMENT_BYTES, INPUT_VALIDATION_CONTRACT_VERSION};
 pub use review::{REVIEW_BYTES, REVIEW_CONTRACT_VERSION};
 
 fn artifact_error(code: DiagnosticCode, message: &str, source: &str, limits: &Limits) -> Json {
@@ -164,6 +164,18 @@ fn validate_artifact(a: &Artifact) -> std::result::Result<Json, Json> {
 }
 
 fn execute_request(r: Request) -> Json {
+    let validation_target =
+        (r.op == "validate-call").then(|| r.function.clone().unwrap_or_default());
+    let mut report = execute_request_inner(r);
+    if let Some(target) = validation_target {
+        if report.get("input_validation").is_none() {
+            report["input_validation"] = invocation::validation_preflight(&target);
+        }
+    }
+    report
+}
+
+fn execute_request_inner(r: Request) -> Json {
     let limits: Limits = match r
         .limits
         .as_ref()
@@ -208,7 +220,7 @@ fn execute_request(r: Request) -> Json {
             &limits,
         );
     }
-    if r.op == "call" {
+    if r.op == "call" || r.op == "validate-call" {
         return invocation::execute(r, limits);
     }
     if r.function.is_some() || r.args.is_some() {

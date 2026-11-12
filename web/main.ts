@@ -4,6 +4,7 @@ import './invocation.css';
 import './context.css';
 import './editing.css';
 import { reviewMarkup, setupReview } from './review';
+import { callInputsMarkup, setupCallInputs } from './call-inputs';
 import { workbenchMarkup, setupWorkbench } from './workbench';
 import snacks from '../examples/snacks.wisp?raw';
 import repaired from '../examples/snacks-repaired.wisp?raw';
@@ -567,6 +568,8 @@ function setupPlayground() {
   source.onkeydown = event => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !busy) { event.preventDefault(); execute(); } };
   focus.onchange = analyze; budget.oninput = analyze;
   el<HTMLSelectElement>('example').onchange = event => { const key = (event.target as HTMLSelectElement).value; source.value = ({ snacks, repaired, inventory, invoice, loan, 'invoice-batch': invoiceBatch } as Record<string, string>)[key]; args.value = key === 'invoice-batch' ? invoiceBatchArgs.trim() : key === 'loan' ? '[{"principal":"30000000","annual_bps":"600","payment":"179865","extra":"0","months":"360"}]' : key === 'invoice' ? '[{"quantity":"9","unit_price":"100"}]' : key === 'inventory' ? '["20", "5"]' : '["9"]'; source.dispatchEvent(new Event('input')); text('filename', `${key === 'repaired' ? 'snacks-repaired' : key}.wisp · editable`); };
+  document.querySelector('.call-panel')!.insertAdjacentHTML('beforeend', callInputsMarkup());
+  setupCallInputs(source, args, target, makeWorker);
   setupReview(source, makeWorker);
   analyze();
 }

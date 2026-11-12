@@ -6,6 +6,11 @@ use serde_json::value::RawValue;
 use std::fmt;
 
 pub const ARGUMENT_BYTES: usize = 65_536;
+pub const INPUT_VALIDATION_CONTRACT_VERSION: u32 = 1;
+
+pub(super) fn validation_preflight(target: &str) -> Json {
+    json!({"contract_version":INPUT_VALIDATION_CONTRACT_VERSION,"phase":"preflight","new_execution":false,"target":target})
+}
 
 fn input(code: DiagnosticCode, message: impl Into<String>, path: &str) -> Diagnostic {
     let mut d = err(code, message, Span::default());
@@ -309,9 +314,14 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
     limits.clamp();
     let revision = hash(&r.source);
     let target = r.function.as_deref().unwrap_or("");
+    let validate_only = r.op == "validate-call";
     let fail = |d| {
         let mut report = diagnostic_report(d, &revision, &limits);
-        report["invocation"] = json!({"target":target,"new_execution":false});
+        if validate_only {
+            report["input_validation"] = validation_preflight(target);
+        } else {
+            report["invocation"] = json!({"target":target,"new_execution":false});
+        }
         report
     };
     if r.source.len() > limits.source_bytes {
@@ -331,6 +341,10 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
     };
     let meta = metadata(&p, &facts, &r.source, &limits);
     let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":limits,"syntax_limits":syntax_limits(),"status":"Ready","output":"","diagnostics":[],"probes":[],"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref().or(Some(target)),r.budget.unwrap_or(4096).min(65536) as usize),"invocation":{"target":target,"new_execution":false}});
+    if validate_only {
+        report.as_object_mut().unwrap().remove("invocation");
+        report["input_validation"] = validation_preflight(target);
+    }
     let prepared: Result<(&Function, Vec<Expr>, &str)> = (|| {
         let f = p
             .functions
@@ -359,6 +373,12 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
             return report;
         }
     };
+    // Host shape validation ends before execution identity or Machine creation.
+    // Hash the retained RawValue bytes, never a normalized JSON value.
+    if validate_only {
+        report["input_validation"] = json!({"contract_version":INPUT_VALIDATION_CONTRACT_VERSION,"phase":"validated","new_execution":false,"target":target,"argument_count":args.len(),"argument_hash":hash(raw)});
+        return report;
+    }
     let key =
         hash(&json!([COMPILER, "call", limits, target, raw, meta.hashes[target]]).to_string());
     report["invocation"] = json!({"target":target,"new_execution":true,"execution_key":key});

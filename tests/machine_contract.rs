@@ -88,8 +88,8 @@ fn capabilities_are_bounded_source_independent_nonexecuting_and_runnable() {
     assert_eq!(c["diagnostics"]["version"], 1);
     assert_eq!(c["context_contract_version"], 1);
     assert_eq!(c["interface_contract_version"], 2);
-    assert_eq!(c["operations"].as_array().unwrap().len(), 12);
-    assert_eq!(c["examples"].as_array().unwrap().len(), 8);
+    assert_eq!(c["operations"].as_array().unwrap().len(), 13);
+    assert_eq!(c["examples"].as_array().unwrap().len(), 9);
     assert_eq!(c["review_contract_version"], 1);
     assert_eq!(c["edit_contract_version"], 1);
     let context = c["operations"]
@@ -136,6 +136,7 @@ fn capabilities_are_bounded_source_independent_nonexecuting_and_runnable() {
             "capabilities",
             "run",
             "call",
+            "validate-call",
             "edit",
             "review",
             "analyze",
