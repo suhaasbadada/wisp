@@ -126,6 +126,29 @@ for exact schema, ranges and query/predicate/run key distinctions.
 
 ## Typed calls
 
+### Check inputs without execution
+
+`wisp validate FILE FUNCTION [--args-file INPUT]` performs whole-program checking
+and the same strict raw typed argument validation as `call`, but executes no
+function, top-level statement or probe. Missing args is `[]`; `-` reads stdin
+for either source or args, never both. Bounded UTF-8/raw input handling is the
+same as typed calls below; duplicates and numeric spelling are not normalized.
+
+Ready exits 0 and returns `input_validation` contract v1, phase `validated`,
+`new_execution:false`, target/count and retained-argument hash. Error exits 1,
+Unknown 3, host/usage failure 2. There is no result, invocation or runtime usage.
+Ready means shape only, not success/approval; a later call can still fault or
+exhaust its budgets. `--json` retains its legacy transport exit policy.
+
+```sh
+wisp validate examples/invoice-batch.wisp reconcile --args-file examples/invoice-batch-args.json
+```
+
+See [Protocol](Protocol.md) for exact hash scope and [Function inputs](Function-inputs.md)
+for a browser-to-terminal package containing exact program/data, not an execution.
+
+### Execute one typed call
+
 `wisp call FILE FUNCTION [--args-file INPUT]` checks the entire source, then
 executes only the selected global function: no top-level statements or probes.
 Function-internal print remains captured and bounded. No arguments file means

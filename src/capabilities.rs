@@ -33,6 +33,11 @@ pub(super) fn document() -> Json {
             "whole-program checking then one named function; no top-level/probe execution",
         ),
         (
+            "validate-call",
+            vec!["function", "args", "focus", "budget", "limits"],
+            "whole-program checking then typed input-shape validation only; no execution, authorization, proof or function-success claim",
+        ),
+        (
             "edit",
             vec!["focus", "change", "limits"],
             "checked-baseline function-body preparation only; no execution or automatic application",
@@ -62,7 +67,7 @@ pub(super) fn document() -> Json {
     .into_iter()
     .map(|(op, fields, scope)| {
         let required = match op {
-            "call" => vec!["op", "source", "function"],
+            "call" | "validate-call" => vec!["op", "source", "function"],
             "edit" => vec!["op", "source", "focus", "change"],
             "review" => vec!["op", "source", "candidate", "suite"],
             "replay" => vec!["op", "source", "ghost"],
@@ -108,6 +113,7 @@ pub(super) fn document() -> Json {
         {"request":{"op":"analyze","source":"fn twice(n: Int) -> Int { n * 2 }"},"expected_status":"Ready"},
         {"request":{"op":"run","source":"probe n in 1..=3 { n + 1 > n }"},"expected_status":"Complete"},
         {"request":{"op":"call","source":"fn twice(n: Int) -> Int { n * 2 }","function":"twice","args":["21"]},"expected_status":"Complete","expected_result":{"type":"Int","value":"42"}},
+        {"request":{"op":"validate-call","source":"fn twice(n: Int) -> Int { n * 2 }","function":"twice","args":["21"]},"expected_status":"Ready"},
         {"request":{"op":"context","source":"probe n in 1..=3 { n + 1 > n }","focus":"probe:0","budget":4096},"expected_status":"Ready"},
         {"request":{"op":"edit","source":"fn twice(n: Int) -> Int { n * 2 }","focus":"twice","change":{"expected_revision":"f59809bffc2adfed70f4dbc000d5bb7223b50359189a05c1fa312a0f017f86c7","expected_body_hash":"64cd3cbb8f071e01a74d17007ab3df19b7d47332bf133633a0f8171e92b50928","replacement":"{ n + n }"}},"expected_status":"Ready"},
         {"request":{"op":"review","source":"fn twice(n: Int) -> Int { n * 2 }","candidate":"fn twice(n: Int) -> Int { n + n }","suite":{"version":1,"target":"twice","cases":[{"id":"positive","args":["2"],"expect":{"result":{"type":"Int","value":"4"},"output":""}}]}},"expected_status":"Pass"},
@@ -122,12 +128,13 @@ pub(super) fn document() -> Json {
             "edit_contract_version":EDIT_CONTRACT_VERSION,
             "review_contract_version":REVIEW_CONTRACT_VERSION,
             "interface_contract_version":INTERFACE_CONTRACT_VERSION,
+            "input_validation_contract_version":INPUT_VALIDATION_CONTRACT_VERSION,
             "operations":operations,
             "request":{
                 "required_fields":["op","source"],
                 "operation_fields":"Per-operation required_fields describe prerequisites for success; omission may decode and then produce an Input/Request diagnostic rather than a schema error.",
                 "optional_fields":["focus","budget","ghost","artifact","function","args","limits","change","candidate","suite"],
-                "policy":"Unknown/duplicate envelope fields rejected; source is always a string. Candidate/suite presence (even null) requires review; change presence requires edit. These policies precede early call/discovery dispatch, after limits decoding. Function/args are call-only; review rejects args/change presence and non-null legacy function/focus/budget/ghost/artifact. Edit requires explicit focus and strict lowercase source/body hashes. Missing call args means []; null call args is invalid. Review preflights both sources, compatible target boundaries and every typed case before any execution.",
+                "policy":"Unknown/duplicate envelope fields rejected; source is always a string. Candidate/suite presence (even null) requires review; change presence requires edit. These policies precede early call/validate-call/discovery dispatch, after limits decoding. Function/args require call or validate-call; review rejects args/change presence and non-null legacy function/focus/budget/ghost/artifact. Edit requires explicit focus and strict lowercase source/body hashes. Missing call/validate-call args means []; explicit null args is invalid. Review preflights both sources, compatible target boundaries and every typed case before any execution.",
                 "function_null":"Explicit function:null is an envelope error on every operation; it is not legacy null-as-absent.",
                 "capabilities":"Source is required but never checked, executed, hashed or reflected. Allowed known unused fields do not alter discovery; edit/review-only presence is rejected."
             },

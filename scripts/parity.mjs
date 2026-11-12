@@ -378,3 +378,45 @@ for(const field of ['focus','budget','ghost','artifact','function','args','candi
 for(const bytes of [65536,65537])compareInterface({op:'describe',source:' '.repeat(bytes)});
 compareInterface('{"op":"describe","source":"","limits":{"fuel":1,"fue\\u006c":2}}');
 console.log(`Checked interfaces: ${interfaceComparisons} exact non-executing native/WASM comparisons with independent revisions and structured-type/signature reconciliation (${sources.length * 4 + 4 + artifactComparisons + invocationComparisons + contextComparisons + editComparisons + reviewComparisons + interfaceComparisons} total).`);
+
+let validationComparisons = 0;
+function compareValidation(request, expected, rawArgs) {
+  const raw = typeof request === 'string' ? request : JSON.stringify(request);
+  const q = JSON.parse(raw);
+  const native = spawnSync('./target/debug/wisp', ['--json'], { input: raw, encoding: 'utf8', timeout: 30000 });
+  assert.ifError(native.error); assert.equal(native.status, 0, native.stderr);
+  const wasm = dispatch(raw); assert.equal(wasm, native.stdout.trimEnd()); validationComparisons++;
+  const r = JSON.parse(wasm);
+  assert.equal(r.status, expected); assert.equal(r.output, ''); assert.deepEqual(r.probes, []);
+  for (const key of ['result', 'usage', 'invocation', 'execution_key', '__encoded_call_value']) assert.equal(r[key], undefined);
+  assert.equal(r.input_validation.new_execution, false); assert.equal(r.input_validation.contract_version, 1);
+  if (expected === 'Ready') {
+    assert.equal(r.revision, sha(Buffer.from(q.source)));
+    assert.deepEqual(r.input_validation, { contract_version: 1, phase: 'validated', new_execution: false,
+      target: q.function, argument_count: (q.args ?? []).length,
+      argument_hash: sha(Buffer.from(rawArgs ?? JSON.stringify(q.args ?? []))) });
+  } else {
+    assert.equal(r.input_validation.phase, 'preflight');
+    assert.equal(r.input_validation.argument_hash, undefined); assert.equal(r.input_validation.argument_count, undefined);
+  }
+  return r;
+}
+const validationSource = 'fn f(xs:[Int])->Int {print(9); f(xs)} print(1/0); probe n in 0..=0 {1/0==0}';
+compareValidation({ op: 'validate-call', source: validationSource, function: 'f', args: [['2']],
+  limits: { fuel: 0, allocation_bytes: 0, output_bytes: 0, call_depth: 0, evaluation_depth: 0, cases: 0 } }, 'Ready');
+for (const fragment of ['[["1"]]', '[ [ "1" ] ]']) {
+  compareValidation(`{"op":"validate-call","source":${JSON.stringify(validationSource)},"function":"f","args": \n ${fragment} \t}`, 'Ready', fragment);
+}
+for (const [args, status] of [[[[]], 'Ready'], [[Array(1024).fill('1')], 'Ready'], [[Array(1025).fill('1')], 'Unknown'], [[['1', false]], 'Error'], [null, 'Error'], [[], 'Error']])
+  compareValidation({ op: 'validate-call', source: validationSource, function: 'f', args }, status);
+compareValidation('{"op":"validate-call","source":"fn f()->Int{1/0}","function":"f"}', 'Ready');
+for (const args of ['[{"x":"1","\\u0078":"2"}]', '[{"x":1e400}]'])
+  compareValidation(`{"op":"validate-call","source":"record R{x:Int} fn f(r:R)->Int {r.x}","function":"f","args":${args}}`, 'Error');
+compareValidation({ op: 'validate-call', source: validationSource, function: 'missing', args: [] }, 'Error');
+compareValidation({ op: 'validate-call', source: 'fn f()->Int{true}', function: 'f' }, 'Error');
+compareValidation({ op: 'validate-call', source: validationSource, function: 'f', args: [[]], limits: { source_bytes: 0 } }, 'Unknown');
+compareValidation({ op: 'validate-call', source: validationSource, function: 'f', args: [[]], candidate: null }, 'Error');
+const inputDiscovery = JSON.parse(dispatch(JSON.stringify({ op: 'capabilities', source: '' })));
+assert.equal(inputDiscovery.capabilities.input_validation_contract_version, 1);
+assert.ok(inputDiscovery.capabilities.operations.some(operation => operation.op === 'validate-call'));
+console.log(`Input validation: ${validationComparisons} exact native/WASM nonexecuting comparisons; independent raw hashes and discovery coverage.`);

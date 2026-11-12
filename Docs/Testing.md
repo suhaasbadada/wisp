@@ -12,7 +12,33 @@ primary check into independent review or erase an earlier failure. Current run
 state must be checked at its exact revision; an old green release is not evidence
 for a new head.
 
-## Bounded immutable lists (semantics-7, under integration verification)
+## Nonexecuting input checks and reproduction (under verification)
+
+The additive `validate-call` operation and native `wisp validate` share whole-
+program checking and the existing raw typed decoder, then return before Machine
+creation. Eleven public native tests cover zero execution budgets, faulting and
+infinite function bodies that must not execute, raw hashes, duplicate keys,
+last-element errors, bounds, mixed fields and CLI stdin/exit handling. Additive
+native/WASM comparisons independently reconcile retained raw argument hashes and
+nonexecution metadata; historical call fixtures are not repinned.
+
+Browser tests exercise explicit raw file loading, encoding/size admission,
+edit-and-revert invalidation, cancellation, worker/digest races, strict Ready
+identity, fixed plaintext USTAR and fresh native reproduction including 200 rows.
+The shared serializer retains the existing review package format. Joffrey's
+independent review found an elapsed-deadline race: timer delivery alone could
+permit a late commit after a browser stall. Monotonic acceptance checks and a
+delayed-timer regression were added; the subsequent review found it resolved.
+Full exact-commit checks, remote CI and public acceptance remain separate gates.
+
+Local integration passed 224 Rust tests, fmt/strict Clippy, npm ci, WASM,
+TypeScript/build, evaluation/maintenance/host workflows, 367 exact native/WASM
+comparisons and all 198 Chromium tests (including the delayed-timer regression).
+The first parity run caught a duplicate test-harness variable declaration; it
+was renamed and the entire parity script passed. Paused unrelated work remains
+excluded from the release commit; exact exported-tree checks follow independently.
+
+## Bounded immutable lists (semantics-7, historical integration checkpoint)
 
 Owner-approved ADR 0035 adds typed immutable lists and an invoice-batch program,
 not host-side calculation or a new UI evaluator. Bob implemented Rust parsing,

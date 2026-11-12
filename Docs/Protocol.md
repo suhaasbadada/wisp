@@ -17,7 +17,7 @@ means host IO/usage failure; semantic status is in JSON (CLI exit 0).
  "limits":{"fuel":100000,"cases":1000}}
 ```
 
-`op` is `capabilities`, `run`, `call`, `edit`, `analyze`, `context`, `replay`, `archive`, `inspect-artifact`, or
+`op` includes `capabilities`, `run`, `call`, `validate-call`, `describe`, `review`, `edit`, `analyze`, `context`, `replay`, `archive`, `inspect-artifact`, and
 `replay-artifact`; `source` is required (use `""` for inspection). Optional `focus`
 selects Agent View (default first function), except `context` selects a probe as below; `budget` caps only the selected view's text
 UTF-8 bytes, default 4096, ceiling 65536. Optional `limits` fields: `source_bytes`,
@@ -188,7 +188,7 @@ Predicate/run keys are neither included-TEXT hashes nor cache authorization.
 `source` remains required and must be a string for **all** operations, including
 discovery. Missing/null/duplicate/unknown envelope fields keep existing strict
 decoding behavior. Known unused fields are decoded normally and ignored;
-`function` or `args` on non-call operations still cause Request/Error, and
+`function` or `args` outside `call`/`validate-call` still cause Request/Error, and
 `limits` are always decoded first. Discovery does not parse, check, execute,
 hash or reflect submitted source or unused request data. It ignores source
 budgets (the whole raw request cap still applies) and has no runtime usage.
@@ -445,6 +445,42 @@ dispatch's request cap additionally applies to the full JSON envelope.
 Deferred: version negotiation, persistent IDs, general structured semantic edits, remote
 storage, cache reuse, proof/solver results, property-specific slices, modules,
 source-map line/column conveniences and independently signed execution receipts.
+
+## Input shape validation (input-validation contract v1)
+
+```json
+{"op":"validate-call","source":"fn f(xs:[Int])->Int {1/0}","function":"f","args":[["2"]]}
+```
+
+Uses the same whole-program source checks, target lookup and strict typed raw
+decoder as `call`, but returns **before Machine creation or execution-key
+generation**. Top-level statements, probes and the function body never execute.
+Valid input yields root `Ready`, empty `output`, `probes` and `diagnostics`, plus:
+
+```json
+{"input_validation":{"contract_version":1,"phase":"validated","new_execution":false,"target":"f","argument_count":1,"argument_hash":"<SHA-256 of retained raw args>"}}
+```
+
+There is no `result`, `usage`, `invocation` or execution key. `revision` hashes
+exact source bytes; compiler identity remains semantics-7 and interface remains
+v2. Discovery advertises `input_validation_contract_version:1`. Ready is types
+only, never function success, proof, runtime fit or authorization. Even all-zero
+execution budgets can yield Ready. Source/request/input bytes, source checks,
+list sizes and container depths still apply.
+
+Failure yields normal Error/Unknown diagnostics and a `preflight` marker with
+`new_execution:false` and `target` (empty when absent); count/hash are absent
+until **all** arguments validate. Envelope decoding failures may lack a marker.
+Input errors carry JSON Pointer paths. Missing args means `[]`; explicit null
+is invalid. Mixed operation-field restrictions and duplicate preservation match
+`call`; optional focus/budget affect metadata only.
+
+`argument_hash` is SHA-256 of retained `RawValue.get()` bytes: internal whitespace
+and spelling remain, surrounding ASCII JSON separator whitespace is excluded.
+It is not a digest of a whole args file. No arguments are reflected as a result;
+ordinary graph/Agent View source metadata can still appear. Existing call reports
+and identities are unchanged. Native command and browser reproduction are in
+[CLI](CLI.md) and [Function inputs](Function-inputs.md).
 
 ## Guarded function-body preparation (edit contract v1)
 

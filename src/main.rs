@@ -8,6 +8,7 @@ const HELP: &str = "usage: wisp FILE | wisp --json < request.json
        wisp capabilities
        wisp run FILE
        wisp call FILE FUNCTION [--args-file INPUT]
+       wisp validate FILE FUNCTION [--args-file INPUT]
        wisp review BEFORE AFTER --suite CASES
         wisp verify SOURCE --suite CASES
         wisp project verify MANIFEST
@@ -152,7 +153,13 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
             ));
         }
         ["run", path] => dispatch(json!({"op":"run","source":source(path)?})),
-        ["call", path, function] | ["call", path, function, "--args-file", _] => {
+        [command @ ("call" | "validate"), path, function]
+        | [command @ ("call" | "validate"), path, function, "--args-file", _] => {
+            let op = if *command == "validate" {
+                "validate-call"
+            } else {
+                "call"
+            };
             let input = if a.len() == 5 { Some(a[4]) } else { None };
             if *path == "-" && input == Some("-") {
                 return Err("source and args cannot both read stdin".into());
@@ -168,15 +175,15 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
             let response = if serde_json::from_str::<Box<serde_json::value::RawValue>>(&raw).is_ok()
             {
                 let request = format!(
-                    "{{\"op\":\"call\",\"source\":{},\"function\":{},\"args\":{raw}}}",
+                    "{{\"op\":{},\"source\":{},\"function\":{},\"args\":{raw}}}",
+                    json!(op),
                     json!(source),
                     json!(function)
                 );
                 wisp::dispatch(&request)
             } else {
                 wisp::dispatch(
-                    &json!({"op":"call","source":source,"function":function,"args":null})
-                        .to_string(),
+                    &json!({"op":op,"source":source,"function":function,"args":null}).to_string(),
                 )
             };
             return Ok((
@@ -325,8 +332,8 @@ fn execute(args: &[String]) -> Result<(Value, bool, Option<String>), String> {
         [path]
             if !path.starts_with('-')
                 && ![
-                    "run", "call", "edit", "check", "focus", "context", "archive", "inspect",
-                    "replay", "review", "verify", "project", "describe",
+                    "run", "call", "validate", "edit", "check", "focus", "context", "archive",
+                    "inspect", "replay", "review", "verify", "project", "describe",
                 ]
                 .contains(path) =>
         {

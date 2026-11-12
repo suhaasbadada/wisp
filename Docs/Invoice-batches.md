@@ -34,6 +34,8 @@ strings, never floating-point JSON numbers. Change the second line's declared
 amount to `"300"`, then select **Invoke**: the result has zero mismatches and
 `balanced: true`. Invoke skips the sample's top-level print; Run executes it.
 An empty batch with zero payment uses `[[],"0"]`.
+To load a dataset file, check types without execution and download exact inputs
+for a fresh native attempt, see [Function inputs](Function-inputs.md).
 
 Explicit example selection replaces source/resets arguments. Save current inputs
 before switching. Manual source edits and metadata refresh do not reset arguments.
