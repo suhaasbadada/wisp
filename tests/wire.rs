@@ -20,7 +20,7 @@ fn positional_request_limits_ghost_and_artifact_are_never_objects() {
         "E_REQUEST_INVALID",
     );
     let artifact: Value =
-        serde_json::from_str(include_str!("fixtures/semantics6-ghost.json")).unwrap();
+        serde_json::from_str(include_str!("fixtures/semantics7-ghost.json")).unwrap();
     let ghost = &artifact["ghost"];
     let positional = json!([
         ghost["revision"],

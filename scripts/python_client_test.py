@@ -80,6 +80,23 @@ class PythonClient(unittest.TestCase):
         for timeout in [True, 0, 301, 1.5]:
             with self.assertRaises(CLIENT.ClientError): self.client(timeout=timeout)
 
+    def test_native_list_interface_and_nested_list_result_boundary(self):
+        (self.path / "rows.wisp").write_text(
+            'record Row { values:[Int], text:String } fn echo(rows:[[Row]])->[[Row]] {rows}')
+        (self.path / "cases.json").write_text('{}')
+        manifest = self.path / "project.json"
+        manifest.write_text(json.dumps({"version": 1, "policies": [
+            {"id": "rows", "source": "rows.wisp", "suite": "cases.json"}]}))
+        client = CLIENT.ProjectClient(manifest, binary=BINARY)
+        value = [[{"values": ["1", "9223372036854775807"], "text": "界\0"}], []]
+        response = client.call("rows", "echo", [value], "list-roundtrip")
+        self.assertEqual(response["status"], "Complete")
+        self.assertEqual(response["report"]["result"], {"type": "[[Row]]", "value": value})
+        bad = client.call("rows", "echo", [[[dict(values=[True], text="x")]]], "bad-element")
+        self.assertEqual(bad["status"], "Error")
+        self.assertFalse(bad["report"]["invocation"]["new_execution"])
+        self.assertEqual(bad["report"]["diagnostics"][0]["path"], "/args/0/0/0/values/0")
+
     def test_readiness_drift_prevents_any_request_write(self):
         ready = copy.deepcopy(self.ready); ready["adapter"]["manifest_hash"] = "0" * 64
         marker = self.path / "received"

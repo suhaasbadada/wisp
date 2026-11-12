@@ -18,7 +18,7 @@ expected = {"name": "decide", "parameters": [
     {"name": "order", "type": {"kind": "Record", "name": "Order"}},
     {"name": "depot", "type": {"kind": "Record", "name": "Depot"}},
 ], "return_type": {"kind": "Record", "name": "Decision"}}
-if interface["contract_version"] != 1 or expected not in interface["functions"]:
+if interface["contract_version"] != 2 or expected not in interface["functions"]:
     raise RuntimeError("Unsupported callable interface")
 expected_records = {
     "Order": [("quantity", "Int"), ("pack_size", "Int"), ("expires_at", "Int")],

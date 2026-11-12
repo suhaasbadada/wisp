@@ -97,9 +97,10 @@ pub(super) fn document() -> Json {
         ("tokens", 8192, "tokens", "language lexer tokens, excluding end sentinel"),
         ("syntax_depth", 64, "nodes", "syntax/AST, operator and projection chains"),
         ("record_fields", 32, "fields", "per declaration or constructor"),
-        ("record_type_depth", 16, "record nodes", "primitive depth zero"),
-        ("record_value_depth", 16, "record nodes", "runtime construction, copying and encoding"),
-        ("input_depth", 17, "JSON containers", "root argument array plus at most 16 record objects"),
+        ("list_elements", 1024, "elements", "per list literal or typed JSON list"),
+        ("record_type_depth", 16, "combined record/list nodes", "primitive depth zero; empty container depth one"),
+        ("record_value_depth", 16, "combined record/list nodes", "runtime construction, copying and encoding; empty container depth one"),
+        ("input_depth", 17, "JSON containers", "root argument array plus at most 16 record/list containers; review expected values at most 16"),
         ("capabilities_bytes", CAPABILITIES_BYTES, "UTF-8 bytes", "entire serialized discovery response"),
     ].into_iter().map(|(name, ceiling, unit, scope)|json!({"name":name,"ceiling":ceiling,"unit":unit,"scope":scope})).collect::<Vec<_>>();
     let examples = json!([
@@ -109,7 +110,8 @@ pub(super) fn document() -> Json {
         {"request":{"op":"call","source":"fn twice(n: Int) -> Int { n * 2 }","function":"twice","args":["21"]},"expected_status":"Complete","expected_result":{"type":"Int","value":"42"}},
         {"request":{"op":"context","source":"probe n in 1..=3 { n + 1 > n }","focus":"probe:0","budget":4096},"expected_status":"Ready"},
         {"request":{"op":"edit","source":"fn twice(n: Int) -> Int { n * 2 }","focus":"twice","change":{"expected_revision":"f59809bffc2adfed70f4dbc000d5bb7223b50359189a05c1fa312a0f017f86c7","expected_body_hash":"64cd3cbb8f071e01a74d17007ab3df19b7d47332bf133633a0f8171e92b50928","replacement":"{ n + n }"}},"expected_status":"Ready"},
-        {"request":{"op":"review","source":"fn twice(n: Int) -> Int { n * 2 }","candidate":"fn twice(n: Int) -> Int { n + n }","suite":{"version":1,"target":"twice","cases":[{"id":"positive","args":["2"],"expect":{"result":{"type":"Int","value":"4"},"output":""}}]}},"expected_status":"Pass"}
+        {"request":{"op":"review","source":"fn twice(n: Int) -> Int { n * 2 }","candidate":"fn twice(n: Int) -> Int { n + n }","suite":{"version":1,"target":"twice","cases":[{"id":"positive","args":["2"],"expect":{"result":{"type":"Int","value":"4"},"output":""}}]}},"expected_status":"Pass"},
+        {"request":{"op":"call","source":"fn first(xs:[Int])->Int {xs[0]}","function":"first","args":[["42"]]},"expected_status":"Complete","expected_result":{"type":"Int","value":"42"}}
     ]);
     json!({
         "status":"Ready", "compiler":COMPILER,
@@ -129,7 +131,7 @@ pub(super) fn document() -> Json {
                 "function_null":"Explicit function:null is an envelope error on every operation; it is not legacy null-as-absent.",
                 "capabilities":"Source is required but never checked, executed, hashed or reflected. Allowed known unused fields do not alter discovery; edit/review-only presence is rejected."
             },
-            "features":["checked signed i64 arithmetic","Bool and UTF-8 String","immutable lexical bindings","typed global functions and recursion","immutable nominal nonrecursive records","field projection and structural equality","if expressions and blocks","captured print","finite ascending inclusive pure probes","typed JSON function invocation","conservative syntactic dependency graph and bounded Agent View","single-input historical replay","portable reproduced ghost artifacts","revision-guarded checked-baseline function-body preparation; no execution or automatic application","explicit typed policy cases with baseline/candidate review; finite expectations, not approval"],
+            "features":["checked signed i64 arithmetic","Bool and UTF-8 String","immutable lexical bindings","typed global functions and recursion","immutable nominal nonrecursive records","bounded immutable typed lists, checked indexing and length","field projection and structural equality","if expressions and blocks","captured print","finite ascending inclusive pure probes","typed JSON function invocation","conservative syntactic dependency graph and bounded Agent View","single-input historical replay","portable reproduced ghost artifacts","revision-guarded checked-baseline function-body preparation; no execution or automatic application","explicit typed policy cases with baseline/candidate review; finite expectations, not approval"],
             "permissions":{"language_core":{"filesystem":false,"network":false,"process":false,"arbitrary_host_code":false},"native_cli":"Explicit bounded local file/stdin IO is host transport only, not a language permission."},
             "limits":{
                 "configurable":configurable,"policy":"Omitted configurable fields default; unsigned u64 values above ceilings clamp. Requests may lower, never raise ceilings.",

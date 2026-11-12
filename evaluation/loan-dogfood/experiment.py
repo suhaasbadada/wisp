@@ -103,7 +103,7 @@ assert long_report["status"] in ("Complete", "Unknown"), long_report
 python_long = simulate(long_data)
 if long_report["status"] == "Complete":
     assert long_report["result"]["value"] == wire(python_long)
-if focus["compiler"] == "wisp-0.1.0-semantics-6":
+if focus["compiler"] in ("wisp-0.1.0-semantics-6", "wisp-0.1.0-semantics-7"):
     assert code == 0 and long_report["status"] == "Complete", long_report
 
 # Try a genuinely shallower Wisp algorithm before attributing linear-stack failure

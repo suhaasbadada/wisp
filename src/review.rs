@@ -42,6 +42,9 @@ fn data(mut d: Diagnostic, path: &str) -> Diagnostic {
     d
 }
 fn boundary(a: &Program, b: &Program, ty: &Ty, seen: &mut BTreeSet<String>) -> bool {
+    if let Ty::List(element) = ty {
+        return boundary(a, b, element, seen);
+    }
     let Ty::Named(name) = ty else { return true };
     if !seen.insert(name.clone()) {
         return true;

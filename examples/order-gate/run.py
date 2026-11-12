@@ -161,7 +161,7 @@ def discover(client):
             {"name": field, "type": {"kind": "Record", "name": record}}
             for field, record in PARAMETERS[name]],
             "return_type": {"kind": "Record", "name": RETURNS[name]}}
-        if interface["contract_version"] != 1 or expected not in interface["functions"]:
+        if interface["contract_version"] != 2 or expected not in interface["functions"]:
             raise HostError("Unsupported callable boundary")
         records = {r["name"]: r["fields"] for r in interface["records"]}
         for record, fields in RECORDS[name].items():

@@ -1,7 +1,7 @@
 //! Checked, structured function/record boundaries. Never executes a Machine.
 use super::*;
 
-pub const INTERFACE_CONTRACT_VERSION: u32 = 1;
+pub const INTERFACE_CONTRACT_VERSION: u32 = 2;
 
 fn ty(t: &Ty) -> Json {
     match t {
@@ -10,6 +10,7 @@ fn ty(t: &Ty) -> Json {
         Ty::String => json!({"kind":"String"}),
         Ty::Unit => json!({"kind":"Unit"}),
         Ty::Named(name) => json!({"kind":"Record","name":name}),
+        Ty::List(element) => json!({"kind":"List","element":ty(element)}),
     }
 }
 
@@ -54,6 +55,6 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
     json!({"compiler":COMPILER,"revision":revision,"limits":limits,"status":"Ready","output":"","probes":[],"diagnostics":[],
         "interface":{"contract_version":INTERFACE_CONTRACT_VERSION,"phase":"described","new_execution":false,
             "functions":functions,"records":records,
-            "encodings":{"Int":"canonical_signed_i64_string","Bool":"JSON_boolean","String":"JSON_string","Unit":"JSON_null","Record":"exact_field_object"},
+            "encodings":{"Int":"canonical_signed_i64_string","Bool":"JSON_boolean","String":"JSON_string","Unit":"JSON_null","Record":"exact_field_object","List":"JSON_array"},
             "scope":"all checked global functions and nominal records; not an authorization allowlist, suite verification or property-specific relevance claim"}})
 }

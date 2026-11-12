@@ -2,8 +2,8 @@
 
 Wisp is experimental. The Rust lexer/parser/checker/interpreter is the only
 implementation; no host process, filesystem, network, JavaScript evaluation,
-mutation, imports, collections, loops or implicit conversions exist. Immutable
-nominal records are supported; classes, methods and object identity are not.
+mutation, imports, loops or implicit conversions exist. Immutable nominal records
+and bounded immutable lists are supported; classes, methods and object identity are not.
 
 ```wisp
 fn bill(snacks: Int) -> Int {
@@ -27,7 +27,7 @@ record = "record", identifier, "{", [ field, { ",", field } ], "}" ;
 field = identifier, ":", type ;
 function = "fn", identifier, "(", [ parameter, { ",", parameter } ], ")", "->", type, block ;
 parameter = identifier, ":", type ;
-type = "Int" | "Bool" | "String" | identifier ;
+type = "Int" | "Bool" | "String" | identifier | "[", type, "]" ;
 probe = "probe", identifier, "in", signed_integer, "..=", signed_integer, block ;
 statement = "let", identifier, "=", expression, ";"
           | "print", "(", expression, ")", ";" | expression, ";" ;
@@ -36,7 +36,9 @@ expression = literal | identifier | identifier, "(", [ expression, { ",", expres
            | "(", expression, ")" | block | "if", expression, block, "else", block
            | unary_op, expression | expression, binary_op, expression
            | "new", identifier, "{", [ initializer, { ",", initializer } ], "}"
-           | expression, ".", identifier ;
+           | expression, ".", identifier
+           | "[", type, ";", [ expression, { ",", expression } ], "]"
+           | expression, "[", expression, "]" ;
 initializer = identifier, ":", expression ;
 literal = signed_integer | string | "true" | "false" ;
 unary_op = "!" | "-" ;
@@ -55,7 +57,7 @@ and escapes are specified below. Trailing parameter/argument commas are not supp
   whitespace and `//` comments. Non-ASCII identifiers are deferred.
 - Top level: `fn name(param: Int, ...) -> Int { ... }`, statements, and
   `probe variable in signed_literal..=signed_literal { Bool_expression }`.
-  Types in signatures are `Int`, `Bool`, `String` or a declared record name;
+  Types in signatures are `Int`, `Bool`, `String`, a declared record name or `[T]`;
   there is no `return` keyword.
 - Statements: `let name = expression;`, `print(expression);`, `expression;`.
   Print is captured output, not a callable function. It adds one newline. Strings
@@ -69,7 +71,7 @@ and escapes are specified below. Trailing parameter/argument commas are not supp
 - `if condition { ... } else { ... }` is an expression; both branches must have
   the same type. Else is mandatory. Parenthesized expressions are supported.
 - Precedence, low to high: `||`, `&&`, `== !=`, `< <= > >=`, `+ -`, `* / %`,
-  unary `! -`, postfix field projection. Binary operators associate left.
+  unary `! -`, postfix field projection/indexing. Binary operators associate left.
   Booleans short-circuit at runtime.
   Arithmetic and ordering require Int, logical operators Bool, equality equal
   types. String concatenation is deferred. Division truncates toward zero;
@@ -84,7 +86,8 @@ and escapes are specified below. Trailing parameter/argument commas are not supp
 A function call in the return position of a function reuses its active call
 frame. Return position propagates through a block's final expression and the
 selected branch of an `if`; it does not include conditions, arguments,
-initializers, statement expressions, binary/unary operands or record fields.
+  initializers, statement expressions, binary/unary operands, record fields,
+  list elements or index receivers/indices.
 Direct and mutual tail calls use a trampoline, not a growing Rust/WASM stack.
 Arguments still evaluate left-to-right before switching to a fresh parameter
 environment. Other calls retain the existing call/evaluation-depth bounds.
@@ -106,7 +109,7 @@ print(total(new Item { quantity: 9, unit_price: 100 }));
 
 Record declarations are global and may refer forward to other record types.
 Every declaration/signature is checked, including unused ones. Duplicate record
-or field names, unknown types and direct/indirect recursive records are errors.
+ or field names, unknown types and direct/indirect recursive records are errors.
 Record types are nominal: two differently named records are incompatible even
 with identical fields. Empty records (`record Empty {}` / `new Empty {}`) work.
 
@@ -130,6 +133,27 @@ Display is `Item { quantity: 9, unit_price: 100 }`; empty records display
 return and tab (other control characters use `\uXXXX`); standalone strings
 continue to print raw. Each print ends in one newline.
 
+## Bounded immutable lists (semantics-7)
+
+`[T]` is a homogeneous list type; `T` may be primitive, a nominal record or
+another list. Literals require an explicit element type: `[Int; 1, 2]`, empty
+`[Int;]`, nested `[[Int]; [Int; 1], [Int; 2]]`. No trailing comma or Unit
+annotation is allowed. Annotations are checked even on empty/unreachable literals.
+Elements evaluate once left-to-right. `items[index]` evaluates its receiver first,
+then its Int index, once each. Negative/out-of-range indices are Runtime/Error
+`E_INDEX_BOUNDS`; no default, wrapping conversion or partial result is accepted.
+`items.length` returns Int; other list fields are type errors. A nominal record's
+ordinary field named `length` is unchanged.
+
+Equality requires the same element type and compares ordered contents, stopping
+at the first mismatch; different lengths differ. Display is `[1, 2]` or `[]`,
+without a type annotation, with nested strings escaped as in records. Lists have
+no mutation, update, append, slicing or identity; existing tail recursion can
+traverse them. No loops, closures, implicit conversions or host IO are added.
+All elements, receivers and indices participate in checking, purity and dependency
+analysis, including unreachable expressions. Recursive nominal cycles through
+lists are rejected.
+
 ## Probes and interruption
 
 Probes have independent local Int inputs, an ascending inclusive domain and a
@@ -149,15 +173,17 @@ probes can still execute after a probe fault, subject to the remaining budget.
 An interrupted top-level execution prevents every probe from executing.
 
 Default/hard ceilings: source 65,536 UTF-8 bytes, 8,192 tokens, syntax/AST depth
-64, record fields 32, record type depth 16, runtime record value depth 16,
+64, record fields 32, list elements 1,024 per list, combined Record/List type
+depth 16 and runtime container value depth 16,
 call depth 32, combined evaluation stack depth 128, fuel 100,000 units,
 output 8,192 UTF-8 bytes,
 logical allocation 1,048,576 units, attempted cases 1,000. Requests may reduce
 the configurable limits but cannot raise ceilings. Syntax limits are fixed.
-Type depth counts record nodes, so an empty record has depth 1; primitives have
+Type depth counts Record/List nodes, so an empty container has depth 1; primitives have
 depth 0. A memoized, depth-bounded DAG walk checks types without expanding shared
 definitions as trees. Runtime value depth is checked separately before building
-an enclosing record or recursively copying one. Projection chains also obey
+an enclosing container or copying one. Recursive type parsing is bounded before
+semantic traversal. Projection/index chains also obey
 the 64 syntax/AST limit.
 
 Logical allocation is cumulative accounting, not live retained size:
@@ -173,7 +199,8 @@ Logical allocation is cumulative accounting, not live retained size:
   values move into parameter bindings, not an additional aggregate copy.
 - Blocks do not allocate copies of inherited bindings. Their expression and
   newly introduced binding costs still apply. A variable lookup copies its
-  value and charges its full payload. A variable-rooted projection chain borrows
+   value and charges its copy cost (shared list references have the cost below).
+   A variable-rooted projection chain borrows
   ancestors and copies only the selected value, charging each traversed expression
   and preflighting the selected payload's depth, fuel and allocation. Projection
   from a computed, owned receiver moves the selected field without a second copy;
@@ -182,13 +209,24 @@ Logical allocation is cumulative accounting, not live retained size:
   bindings normally, while replacing rather than accumulating caller frames.
 - Copy preflight iteratively checks depth, charges fuel and reserves the complete
   payload before recursively allocating it. Runtime values deliberately have no
-  derived `Clone` or `PartialEq` that could bypass accounting.
+   derived `Clone` or `PartialEq` that could bypass accounting.
+- List construction reserves `32 + 16 * element_count` logical units before
+  evaluating elements/building storage; element expression/construction costs
+  still apply. Oversize source/typed JSON lists yield Limit/Unknown
+  `E_LIMIT_LIST_ELEMENTS`. Storage is immutable `Arc`-shared, with a privately
+  cached aggregate height. Copying a list reference costs 16 allocation units
+  and one fuel unit, independent of backing contents, in addition to expression
+  and binding costs. Selected lists share storage; selected records/strings
+  retain their actual copy costs. Cached height permits constant-cost shared-list
+  depth preflight, not unmetered expansion.
 
 Fuel charges one per expression, one per value node visited by a copy/equality
 or display, one per child value node examined by constructor depth validation,
 and one per UTF-8 byte copied from string literals/copies. String equality
 charges both byte lengths before comparing; record equality may short-circuit
-on the first unequal field (traversal uses a bounded explicit stack). Display
+on the first unequal field; lists compare ordered elements. Equality, display
+and JSON encoding meter actual contents even for equal shared handles: no identity
+shortcut bypasses traversal. Display
 also charges each emitted UTF-8 byte, including escapes, names and newline.
 Formatting appends bounded fragments directly into the capped output buffer,
 never constructs a whole aggregate string first. An interrupted print rolls
@@ -197,7 +235,7 @@ may include the attempted charge that exceeded a limit.
 
 These units are **not actual allocator usage or a process/browser memory bound**.
 These accounting/termination changes require compiler identity
-`wisp-0.1.0-semantics-6`. Semantics-5 historical artifacts are not migrated or
+`wisp-0.1.0-semantics-7`. Semantics-5/6 historical artifacts are not migrated or
 reinterpreted under the new accounting; exact-compiler checks reject them.
 Compilation and
 report construction are source/token bounded, not charged execution fuel.

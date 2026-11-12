@@ -49,10 +49,10 @@ pub(super) fn literal(
     path: &str,
     depth: usize,
 ) -> Result<Expr> {
-    if depth > 16 {
+    if depth + usize::from(matches!(ty, Ty::Named(_) | Ty::List(_))) > 16 {
         let mut d = err(
             DiagnosticCode::LimitInputDepth,
-            "input record depth exceeds 16",
+            "input container depth exceeds 16",
             Span::default(),
         );
         d.path = Some(path.into());
@@ -80,6 +80,27 @@ pub(super) fn literal(
         }
         Ty::Bool => ExprKind::Bool(serde_json::from_str(raw.get()).map_err(|_| bad())?),
         Ty::String => ExprKind::String(serde_json::from_str(raw.get()).map_err(|_| bad())?),
+        Ty::List(element) => {
+            let elements: Vec<Box<RawValue>> =
+                serde_json::from_str(raw.get()).map_err(|_| bad())?;
+            if elements.len() > 1024 {
+                return Err(input(
+                    DiagnosticCode::LimitListElements,
+                    "list exceeds 1024 elements",
+                    path,
+                ));
+            }
+            ExprKind::List(
+                (**element).clone(),
+                elements
+                    .iter()
+                    .enumerate()
+                    .map(|(i, raw)| {
+                        literal(raw, element, p, &pointer(path, &i.to_string()), depth + 1)
+                    })
+                    .collect::<Result<Vec<_>>>()?,
+            )
+        }
         Ty::Named(name) => {
             let Fields(fields) = serde_json::from_str(raw.get()).map_err(|_| bad())?;
             let record = p.records.iter().find(|r| r.name == *name).unwrap();
@@ -241,6 +262,23 @@ fn encode(machine: &mut Machine<'_>, value: &Value) -> Result<String> {
             Value::Bool(b) => emit(m, out, if *b { "true" } else { "false" }),
             Value::String(s) => string(m, out, s),
             Value::Unit => emit(m, out, "null"),
+            Value::List(list) => {
+                if depth >= 16 {
+                    return Err(err(
+                        DiagnosticCode::LimitValueDepth,
+                        "container value depth exceeds 16",
+                        Span::default(),
+                    ));
+                }
+                emit(m, out, "[")?;
+                for (i, value) in list.elements().iter().enumerate() {
+                    if i != 0 {
+                        emit(m, out, ",")?;
+                    }
+                    walk(m, out, value, depth + 1)?;
+                }
+                emit(m, out, "]")
+            }
             Value::Record(_, fields) => {
                 if depth >= 16 {
                     return Err(err(
@@ -292,7 +330,7 @@ pub(super) fn execute(r: Request, mut limits: Limits) -> Json {
         Err(d) => return fail(d),
     };
     let meta = metadata(&p, &facts, &r.source, &limits);
-    let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":limits,"syntax_limits":{"depth":64,"tokens":8192,"record_type_depth":16,"record_value_depth":16,"record_fields":32},"status":"Ready","output":"","diagnostics":[],"probes":[],"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref().or(Some(target)),r.budget.unwrap_or(4096).min(65536) as usize),"invocation":{"target":target,"new_execution":false}});
+    let mut report = json!({"compiler":COMPILER,"revision":revision,"limits":limits,"syntax_limits":syntax_limits(),"status":"Ready","output":"","diagnostics":[],"probes":[],"graph":meta.graph,"agent_view":agent_view(&p,&facts,&r.source,r.focus.as_deref().or(Some(target)),r.budget.unwrap_or(4096).min(65536) as usize),"invocation":{"target":target,"new_execution":false}});
     let prepared: Result<(&Function, Vec<Expr>, &str)> = (|| {
         let f = p
             .functions

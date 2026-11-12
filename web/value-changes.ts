@@ -39,7 +39,8 @@ export function transportDifferences(before: unknown, proposed: unknown): ValueD
       if (path.length > 8192) fail('UI limit: field path exceeds 8192 UTF-16 units.');
       if (typeof value === 'string' && !scalarText(value)) fail('Unsupported non-scalar Unicode transport string.');
       if (typeof value === 'string' || typeof value === 'boolean' || value === null) { leaves.set(path, value); return; }
-      if (!record(value)) fail('Unsupported transport value (numbers, arrays and non-JSON shapes are not compared).');
+      if (Array.isArray(value)) fail('List-valued differences are not expanded by this view; full native JSON retained.');
+      if (!record(value)) fail('Unsupported transport value (numbers and non-JSON shapes are not compared).');
       if (depth > 16) fail('UI limit: 16 record levels.');
       const keys = Object.keys(value as RecordValue);
       if (keys.length > 32) fail('UI limit: 32 fields per record.');

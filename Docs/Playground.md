@@ -51,7 +51,31 @@ Only the selected function executes; top-level statements/probes are checked but
 
 Displayed invocation diagnostics retain their source/argument/target provenance. Editing arguments or target after a response clears input-dependent messages and explicitly says the current input is unchecked; applicable Syntax/Type/Purity source diagnostics remain. Reverting to the exact prior input/target may show that prior diagnostic again, not a new execution. This post-response edit case is separate from discarding a late reply for already changed input.
 
-The examples dropdown includes “Typed invoice records” after the original snack and inventory examples. It runs `examples/invoice.wisp` through the same worker/core as the native CLI: nested record output, primitive projection total, 21 declared finite comparisons. Agent View includes compiler-derived record declarations and raw graph metadata. Limits/labels use metered fuel units, not expression counts: aggregate traversal and string/output bytes consume fuel. The import warning explicitly identifies semantics-6 and rejects older-compiler artifacts without migration. Changing the selected example updates the displayed filename; manual edits are labeled scratch.
+The examples dropdown includes “Typed invoice records” and a sixth entry,
+“Invoice batch reconciliation” (`examples/invoice-batch.wisp`). Selection loads
+and checks only; **Run** remains explicit. The batch entry resets the target and
+known sample JSON arguments from its companion example file, like the existing
+examples. Invoke calls only the selected typed function, skipping the default
+top-level print. Lists are typed JSON arrays with canonical Int strings, not
+generated source. Agent View retains compiler-derived record/graph metadata.
+Limits use metered fuel, including aggregate traversal and string/output bytes.
+The import warning identifies semantics-7 and rejects older-compiler artifacts
+without migration. Changing examples updates the filename; manual edits are scratch.
+
+The batch function `reconcile(lines: [InvoiceLine], payment_cents: Int)` returns
+`Reconciliation`. Lines have `quantity`, `unit_cents`, `declared_cents`. Negative lines
+are counted and excluded from totals; valid computed/declared mismatches are
+counted separately. Balanced requires no invalid/mismatched lines, a nonnegative
+payment and matching computed total. The default three rows yield computed 1500,
+declared 1490, payment 1500, one mismatch and `balanced: false`. See
+[Invoice batches](Invoice-batches.md) for the walkthrough, not a general budget proof.
+
+Checked interface v2 describes List shapes. Scenario-builder forms do not yet
+support them: selecting a List-shaped function fails closed with guidance to raw
+scenario JSON or Invoke JSON. Scalar/record-only functions in the same file still
+work. Saved-scenario forms may likewise require the always-available raw editor.
+Value-changes comparison rejects arrays with an unavailable notice and retains
+full native JSON. This is a UI projection limit, not a core Error or “no change”.
 
 Probe badges match declaration occurrences, not just predicate hashes (duplicate predicates can have distinct budget prefixes). Agent View reconciles removed/changed focus functions by requesting the newly selected function from Rust; the selector never labels another function's view.
 
