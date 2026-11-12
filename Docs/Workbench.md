@@ -561,3 +561,29 @@ Both the focused workbench and full playground use immediate page scrolling.
 Controls must not continue moving across click coordinates after an editor gains
 focus or a navigation action scrolls the page. Color transitions remain optional
 under the existing reduced-motion preference; page scrolling is not animated.
+
+### Go from a decision to its saved scenario
+
+In the focused workbench, a current executed review can offer **Edit saved
+scenario <id>** in the decision table and case detail. This opens the matching
+saved-scenario card and focuses its first editable owner-required result value
+(the Scenario ID field for an empty result record). It never changes a value,
+copies an observation into a requirement, dispatches input events or runs a
+review. Editing is a separate owner action that makes old results historical;
+select **Review cases** for fresh evidence. Changing a requirement is not a
+policy repair or approval.
+
+Navigation requires the exact accepted three-input snapshot, accepted object and
+workspace generation, executed-phase evidence, and the original case index and
+ID. The form adapter also binds its own render generation and connected field
+references, checks exact suite text and unique IDs, and rechecks on click. A
+filtered result keeps its original case index. Source/suite edits (even reverted),
+suite change/refresh, recapture, replacement, Restore, imported history, a new
+review or a stopped attempt cannot authorize an old callback against new forms.
+
+Compact, unsupported or unrenderable suites stay raw and have no action; navigation
+does not format or rebuild them. If applicable, explicitly format native-validated
+JSON, then review again. Preflight errors use their separate source diagnostics,
+not scenario actions. The full language playground has no generic saved-scenario
+form adapter and does not offer these controls. Native reports and exported
+evidence remain unchanged by selection.
