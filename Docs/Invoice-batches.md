@@ -37,6 +37,8 @@ amount to `"300"`, then select **Invoke**: the result has zero mismatches and
 An empty batch with zero payment uses `[[],"0"]`.
 To load a dataset file, check types without execution and download exact inputs
 for a fresh native attempt, see [Function inputs](Function-inputs.md).
+To change an explicitly authored pricing rule and review its consequences against
+both new and retained requirements, see [Invoice rule review](Invoice-rule-review.md).
 
 Explicit example selection replaces source/resets arguments. Save current inputs
 before switching. Manual source edits and metadata refresh do not reset arguments.
